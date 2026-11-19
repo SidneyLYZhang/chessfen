@@ -34,3 +34,7 @@ ChessFEN incorporates or depends on the following components:
   Babel, uvicorn, itsdangerous, python-multipart, numpy, Pillow, onnxruntime)
   are distributed under their respective MIT, BSD, or Apache-2.0 licenses;
   see the installed package metadata for details.
+
+* Test fixture: images/input-example.png from the 2d-chess-ocr repository
+  (MIT), stored at tests/fixtures/input-example.png and used by the container
+  smoke test.

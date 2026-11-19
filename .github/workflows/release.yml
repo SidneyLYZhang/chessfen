@@ -1,0 +1,119 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Full test suite and Docker smoke
+    uses: ./.github/workflows/ci.yml
+
+  publish:
+    name: Publish Docker images
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare image names
+        id: names
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          : "${DOCKERHUB_USERNAME:?DOCKERHUB_USERNAME secret is not set}"
+          : "${DOCKERHUB_TOKEN:?DOCKERHUB_TOKEN secret is not set}"
+          if ! [[ "$DOCKERHUB_USERNAME" =~ ^[a-z0-9_-]+$ ]]; then
+            echo "DOCKERHUB_USERNAME must be lowercase"
+            exit 1
+          fi
+          if ! [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]; then
+            echo "Unsupported release tag: $TAG"
+            exit 1
+          fi
+
+          ghcr="ghcr.io/$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')"
+          dockerhub="${DOCKERHUB_USERNAME}/chessfen"
+          echo "ghcr=$ghcr" >> "$GITHUB_OUTPUT"
+          echo "dockerhub=$dockerhub" >> "$GITHUB_OUTPUT"
+
+          {
+            echo "tags<<EOF"
+            echo "${ghcr}:${TAG}"
+            echo "${dockerhub}:${TAG}"
+            if [[ "$TAG" != *-* ]]; then
+              echo "${ghcr}:latest"
+              echo "${dockerhub}:latest"
+            fi
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+      - uses: docker/setup-buildx-action@v3
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.names.outputs.tags }}
+          labels: |
+            org.opencontainers.image.version=${{ github.ref_name }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  github-release:
+    name: Create GitHub release
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Create release from tag message
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          notes=""
+          if [ "$(git cat-file -t "$TAG" 2>/dev/null || true)" = "tag" ]; then
+            notes="$(git tag -l --format='%(contents)' "$TAG")"
+          fi
+          if [ -z "$notes" ]; then
+            notes="Release $TAG"
+          fi
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG already exists"
+            exit 0
+          fi
+          extra=()
+          if [[ "$TAG" == *-* ]]; then
+            extra+=(--prerelease)
+          fi
+          gh release create "$TAG" --title "$TAG" --notes "$notes" "${extra[@]}"

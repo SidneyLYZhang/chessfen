@@ -56,6 +56,25 @@ The container serves plain HTTP on port 8000; `docker-compose.yml` binds the pub
 
 The API is gated by an API key sent as `X-API-Key: cf_...`; keys are issued from the admin page. Endpoints: `POST /api/v1/render`, `POST /api/v1/pgn`, `POST /api/v1/recognize`.
 
+## Releases
+
+Push an annotated version tag to publish a release:
+
+```bash
+git tag -a v0.2.0 -m "ChessFEN 0.2.0"
+git push origin v0.2.0
+```
+
+The `Release` workflow gates on the shared `Test` workflow (which also runs on pushes to `main` and pull requests) and then runs two independent jobs:
+
+1. **Test**: unit tests, mypy, and a Docker image smoke test that boots the container, issues an API key, and performs a real recognition through the baked model. CI downloads the pinned model weights so the real-model tests run instead of being skipped.
+2. **Publish**: builds and pushes the image to GHCR (`ghcr.io/sidnelyzhang/chessfen`) and Docker Hub (`<DOCKERHUB_USERNAME>/chessfen`), tagged with the release tag, plus `latest` for stable tags.
+3. **GitHub release**: creates a release whose notes are the annotated tag message; lightweight tags fall back to `Release <tag>`. Tags containing a hyphen are marked as prereleases and do not move `latest`.
+
+The GitHub release is independent of image publication, so a Docker Hub problem never blocks it.
+
+Required repository secrets for Docker Hub: `DOCKERHUB_USERNAME` (lowercase) and `DOCKERHUB_TOKEN`; the publish job fails with a clear message when they are missing. GHCR uses the built-in `GITHUB_TOKEN`; make the GHCR package public if anonymous pulls are desired.
+
 ## License
 
 ChessFEN is licensed under GPL-3.0-or-later; see [LICENSE](LICENSE) for the full text and [NOTICE](NOTICE) for third-party components (python-chess GPL-3.0+, 2d-chess-ocr weights MIT, CBurnett pieces CC BY-SA 3.0, resvg_py/resvg MIT/MPL-2.0).

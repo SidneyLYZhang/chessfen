@@ -1,0 +1,107 @@
+name: Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_call:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  unit:
+    name: Unit tests and typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - name: Cache recognition model
+        uses: actions/cache@v4
+        with:
+          path: models
+          key: yolo26m-a8e78afa8e00cd7ee39a941f888327bd85a12c3cf5c2140a4fa882ea3f7abff7
+      - name: Ensure recognition model
+        run: |
+          set -euo pipefail
+          mkdir -p models
+          if [ ! -s models/yolo26m-finetuned.onnx ]; then
+            curl -fL -o models/yolo26m-finetuned.onnx \
+              https://huggingface.co/AndrewSpano/2d-chess-ocr/resolve/03d9df9fc14fade1a3579683fd0de215b3864ee1/yolo26m-finetuned.onnx
+          fi
+          echo "a8e78afa8e00cd7ee39a941f888327bd85a12c3cf5c2140a4fa882ea3f7abff7  models/yolo26m-finetuned.onnx" | sha256sum -c -
+      - name: Install dependencies
+        run: uv sync --locked
+      - name: Run tests
+        run: uv run pytest -q
+      - name: Typecheck
+        run: uv run mypy
+
+  docker:
+    name: Docker image smoke test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: chessfen:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Start container
+        run: |
+          set -euo pipefail
+          docker run -d --name chessfen-ci -p 127.0.0.1:8000:8000 \
+            -e ADMIN_PASSWORD=ci-admin-password \
+            -e SECRET_KEY=ci-secret-key-for-tests \
+            chessfen:ci
+      - name: Wait for health
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:8000/health >/dev/null 2>&1; then
+              exit 0
+            fi
+            sleep 2
+          done
+          exit 1
+      - name: Smoke checks
+        run: |
+          set -euo pipefail
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8000/)" = "200"
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8000/admin/login)" = "200"
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8000/api/v1/me)" = "401"
+          docker exec chessfen-ci test -s /app/models/yolo26m-finetuned.onnx
+
+          cookie_jar="$(mktemp)"
+          login_code="$(curl -s -o /dev/null -w '%{http_code}' -c "$cookie_jar" \
+            -X POST -d 'password=ci-admin-password' \
+            http://127.0.0.1:8000/admin/login)"
+          test "$login_code" = "303"
+
+          key="$(curl -s -b "$cookie_jar" -X POST -d 'name=ci' \
+            http://127.0.0.1:8000/admin/keys \
+            | grep -oE 'cf_[0-9a-f]{8}_[0-9a-f]{32}' | head -1)"
+          test -n "$key"
+          test "$(curl -s -o /dev/null -w '%{http_code}' \
+            -H "X-API-Key: $key" http://127.0.0.1:8000/api/v1/me)" = "200"
+
+          recognition="$(curl -s -H "X-API-Key: $key" \
+            -F "image=@tests/fixtures/input-example.png" \
+            http://127.0.0.1:8000/api/v1/recognize)"
+          echo "$recognition" | grep -q 'r1bqk1nr/pppp1ppp/2n5/2b1p3/4P3/2N2N2/PPPP1PPP/R1BQKB1R'
+      - name: Container logs
+        if: failure()
+        run: docker logs chessfen-ci || true
+      - name: Stop container
+        if: always()
+        run: docker rm -f chessfen-ci || true
