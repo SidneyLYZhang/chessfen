@@ -288,3 +288,126 @@ msgstr "已复制"
 
 msgid "Uploaded board"
 msgstr "上传的图片"
+
+msgid "Main navigation"
+msgstr "主导航"
+
+msgid "About"
+msgstr "关于"
+
+msgid "Understanding FEN"
+msgstr "理解 FEN"
+
+msgid "FEN (Forsyth–Edwards Notation) is the standard text format for a chess position. ChessFEN uses it to pass positions between board images, PGN games, and rendered boards."
+msgstr "FEN（Forsyth–Edwards 记谱法）是国际象棋局面的标准文本格式。ChessFEN 用它在上传棋盘图、PGN 对局与渲染图片之间传递局面。"
+
+msgid "Piece placement"
+msgstr "棋子摆放段"
+
+msgid "A FEN string starts with the piece placement: eight ranks from rank 8 down to rank 1, separated by /."
+msgstr "FEN 字符串以棋子摆放段开头：从第 8 横排到第 1 横排共 8 段，用 / 分隔。"
+
+msgid "Uppercase letters stand for White pieces (K, Q, R, B, N, P) and lowercase letters for Black pieces. Digits encode runs of empty squares."
+msgstr "大写字母表示白方棋子（K、Q、R、B、N、P），小写字母表示黑方棋子；数字表示连续空格的个数。"
+
+msgid "That is the starting position."
+msgstr "这就是初始局面。"
+
+msgid "The other five fields"
+msgstr "其余五个字段"
+
+msgid "A complete FEN adds five space-separated fields: the side to move (w or b), castling rights (KQkq, or - for none), an en passant target square (or -), the halfmove clock, and the fullmove number."
+msgstr "完整 FEN 还会追加五个以空格分隔的字段：走子方（w 或 b）、易位权（KQkq，无则 -）、吃过路兵目标格（无则 -）、半回合计数与回合数。"
+
+msgid "ChessFEN distinguishes the first field as a Placement from the six-field Full FEN. A picture can only reveal where the pieces stand, so recognition returns a Placement; the side to move is chosen by the caller and the remaining fields default to - - 0 1."
+msgstr "ChessFEN 把第一个字段称为棋子摆放段（Placement），把六字段的完整串称为完整 FEN。图片只能反映棋子位置，因此识别返回棋子摆放段；走子方由调用方选择，其余字段固定为 - - 0 1。"
+
+msgid "Where ChessFEN uses FEN"
+msgstr "ChessFEN 中的 FEN"
+
+msgid "Recognition reads a board image and returns its Placement, with a per-square breakdown."
+msgstr "识别读取棋盘图片并返回棋子摆放段，附逐格明细。"
+
+msgid "PGN navigation exports the Full FEN after any half-move."
+msgstr "PGN 导航可导出任意半步之后的完整 FEN。"
+
+msgid "Rendering turns any syntactically valid FEN into a board image."
+msgstr "渲染把任意语法合法的 FEN 变成棋盘图片。"
+
+msgid "Try the renderer"
+msgstr "试用渲染工具"
+
+msgid "Understanding PGN"
+msgstr "理解 PGN"
+
+msgid "PGN (Portable Game Notation) records chess games as text: tag pairs describe the game, and the moves are written in Standard Algebraic Notation."
+msgstr "PGN（Portable Game Notation）以文本记录国际象棋对局：标签对描述对局信息，着法使用标准代数记谱。"
+
+msgid "Tags and moves"
+msgstr "标签与着法"
+
+msgid "A game begins with tag pairs in square brackets, followed by the moves in numbered pairs — White's move, then Black's."
+msgstr "一局棋以方括号中的标签对开头，随后是按回合编号的着法——白方先走，黑方随后。"
+
+msgid "Moves, half-moves and plies"
+msgstr "回合、半步与 ply"
+
+msgid "Each numbered move contains up to two half-moves, or plies. White's Nth move ends at ply 2N-1 and Black's Nth move at ply 2N; ply 0 is the initial position."
+msgstr "每个回合最多包含两个半步（ply）。白方第 N 步结束于 ply 2N-1，黑方第 N 步结束于 ply 2N；ply 0 是初始局面。"
+
+msgid "ChessFEN lets you pick exactly that half-move and exports the resulting Full FEN."
+msgstr "ChessFEN 允许精确选择该半步，并导出对应的完整 FEN。"
+
+msgid "Mainline and variations"
+msgstr "主线与变例"
+
+msgid "Parentheses contain variations — alternative lines that were considered but not played. ChessFEN follows only the mainline and ignores variations; a PGN document with unparseable games is rejected so that no wrong position is served."
+msgstr "括号中是变例——考虑过但未实际走的替代线路。ChessFEN 只沿主线、忽略变例；只要文档中存在无法解析的对局，整份 PGN 都会被拒绝，以免返回错误局面。"
+
+msgid "Several games in one file"
+msgstr "一个文件中的多局"
+
+msgid "A PGN document may contain many games. ChessFEN lists them all so you can choose one, then jump to any half-move."
+msgstr "一个 PGN 文档可包含多局。ChessFEN 会全部列出供你选择，然后跳转到任意半步。"
+
+msgid "Try PGN navigation"
+msgstr "试用 PGN 导航"
+
+msgid "About ChessFEN"
+msgstr "关于 ChessFEN"
+
+msgid "ChessFEN is a small, self-hostable tool for chess encodings: recognize a position from a board image, browse PGN games and export Full FENs, and render any Placement or Full FEN as a board image. It runs on CPU, ships as one Docker image, and offers the same features through a web interface and an API."
+msgstr "ChessFEN 是一个可自托管的轻量工具：从棋盘图片识别局面、浏览 PGN 对局并导出完整 FEN、把任意棋子摆放段或完整 FEN 渲染成棋盘图片。它只依赖 CPU，以单个 Docker 镜像发布，并通过网页界面与 API 提供同样能力。"
+
+msgid "Star the project"
+msgstr "给项目点星"
+
+msgid "If ChessFEN is useful to you, a star on GitHub helps others find it."
+msgstr "如果 ChessFEN 对你有用，GitHub 上的一个 star 能帮助更多人发现它。"
+
+msgid "Star on GitHub"
+msgstr "在 GitHub 上加星"
+
+msgid "Self-deploy"
+msgstr "自部署"
+
+msgid "Run your own instance with Docker Compose. The image bakes in the pinned recognition model at build time."
+msgstr "用 Docker Compose 运行你自己的实例。镜像在构建时内置固定版本的识别模型。"
+
+msgid "Then open http://localhost:8000 and create API keys on the admin page. The container serves plain HTTP; put it behind your own reverse proxy for TLS. Set DATABASE_URL to use PostgreSQL instead of the SQLite volume."
+msgstr "然后打开 http://localhost:8000，在管理页创建 API 密钥。容器只提供 HTTP，请放在你自己的反向代理之后以启用 TLS；把 DATABASE_URL 指向 PostgreSQL 即可替代 SQLite 卷。"
+
+msgid "Credits"
+msgstr "致谢"
+
+msgid "Board recognition:"
+msgstr "棋盘识别："
+
+msgid "by Andrew Spano (YOLO26m fine-tuned detector)."
+msgstr "由 Andrew Spano 开发（YOLO26m 微调检测器）。"
+
+msgid "Piece images: the CBurnett chess set, rendered with python-chess (CC-BY-SA 3.0)."
+msgstr "棋子图片：CBurnett 棋子集，由 python-chess 渲染（CC-BY-SA 3.0）。"
+
+msgid "Licensing: ChessFEN is released under the MIT license."
+msgstr "许可：ChessFEN 以 MIT 许可证发布。"

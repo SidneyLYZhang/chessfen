@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+
+{% block title %}ChessFEN · {% trans %}About ChessFEN{% endtrans %}{% endblock %}
+
+{% block content %}
+<section class="panel prose">
+  <h1>{% trans %}About ChessFEN{% endtrans %}</h1>
+  <p>{% trans %}ChessFEN is a small, self-hostable tool for chess encodings: recognize a position from a board image, browse PGN games and export Full FENs, and render any Placement or Full FEN as a board image. It runs on CPU, ships as one Docker image, and offers the same features through a web interface and an API.{% endtrans %}</p>
+
+  <h2>{% trans %}Star the project{% endtrans %}</h2>
+  <p>{% trans %}If ChessFEN is useful to you, a star on GitHub helps others find it.{% endtrans %}</p>
+  <p><a class="badge" href="https://github.com/SidneyLYZhang/chessfen">★ <span>{% trans %}Star on GitHub{% endtrans %}</span></a></p>
+
+  <h2>{% trans %}Self-deploy{% endtrans %}</h2>
+  <p>{% trans %}Run your own instance with Docker Compose. The image bakes in the pinned recognition model at build time.{% endtrans %}</p>
+  <pre><code>git clone https://github.com/SidneyLYZhang/chessfen.git
+cd chessfen
+ADMIN_PASSWORD='replace-with-a-strong-password' SECRET_KEY='replace-with-a-long-random-secret' docker compose up --build</code></pre>
+  <p>{% trans %}Then open http://localhost:8000 and create API keys on the admin page. The container serves plain HTTP; put it behind your own reverse proxy for TLS. Set DATABASE_URL to use PostgreSQL instead of the SQLite volume.{% endtrans %}</p>
+
+  <h2>{% trans %}Credits{% endtrans %}</h2>
+  <ul>
+    <li>{% trans %}Board recognition:{% endtrans %} <a href="https://github.com/AndrewSpano/2d-chess-ocr">2d-chess-ocr</a> {% trans %}by Andrew Spano (YOLO26m fine-tuned detector).{% endtrans %}</li>
+    <li>{% trans %}Piece images: the CBurnett chess set, rendered with python-chess (CC-BY-SA 3.0).{% endtrans %}</li>
+    <li>{% trans %}Licensing: ChessFEN is released under the MIT license.{% endtrans %}</li>
+  </ul>
+</section>
+{% endblock %}

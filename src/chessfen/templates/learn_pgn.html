@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+
+{% block title %}ChessFEN · {% trans %}Understanding PGN{% endtrans %}{% endblock %}
+
+{% block content %}
+<section class="panel prose">
+  <h1>{% trans %}Understanding PGN{% endtrans %}</h1>
+  <p>{% trans %}PGN (Portable Game Notation) records chess games as text: tag pairs describe the game, and the moves are written in Standard Algebraic Notation.{% endtrans %}</p>
+
+  <h2>{% trans %}Tags and moves{% endtrans %}</h2>
+  <p>{% trans %}A game begins with tag pairs in square brackets, followed by the moves in numbered pairs — White's move, then Black's.{% endtrans %}</p>
+  <pre><code>[White "Alice"]
+[Black "Bob"]
+[Result "1-0"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bb5 a6 1-0</code></pre>
+
+  <h2>{% trans %}Moves, half-moves and plies{% endtrans %}</h2>
+  <p>{% trans %}Each numbered move contains up to two half-moves, or plies. White's Nth move ends at ply 2N-1 and Black's Nth move at ply 2N; ply 0 is the initial position.{% endtrans %}</p>
+  <p>{% trans %}ChessFEN lets you pick exactly that half-move and exports the resulting Full FEN.{% endtrans %}</p>
+
+  <h2>{% trans %}Mainline and variations{% endtrans %}</h2>
+  <p>{% trans %}Parentheses contain variations — alternative lines that were considered but not played. ChessFEN follows only the mainline and ignores variations; a PGN document with unparseable games is rejected so that no wrong position is served.{% endtrans %}</p>
+
+  <h2>{% trans %}Several games in one file{% endtrans %}</h2>
+  <p>{% trans %}A PGN document may contain many games. ChessFEN lists them all so you can choose one, then jump to any half-move.{% endtrans %}</p>
+  <p><a href="/tools/pgn">{% trans %}Try PGN navigation{% endtrans %}</a></p>
+</section>
+{% endblock %}

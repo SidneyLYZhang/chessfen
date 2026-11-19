@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+
+{% block title %}ChessFEN · {% trans %}Understanding FEN{% endtrans %}{% endblock %}
+
+{% block content %}
+<section class="panel prose">
+  <h1>{% trans %}Understanding FEN{% endtrans %}</h1>
+  <p>{% trans %}FEN (Forsyth–Edwards Notation) is the standard text format for a chess position. ChessFEN uses it to pass positions between board images, PGN games, and rendered boards.{% endtrans %}</p>
+
+  <h2>{% trans %}Piece placement{% endtrans %}</h2>
+  <p>{% trans %}A FEN string starts with the piece placement: eight ranks from rank 8 down to rank 1, separated by /.{% endtrans %}</p>
+  <p>{% trans %}Uppercase letters stand for White pieces (K, Q, R, B, N, P) and lowercase letters for Black pieces. Digits encode runs of empty squares.{% endtrans %}</p>
+  <pre><code>rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR</code></pre>
+  <p>{% trans %}That is the starting position.{% endtrans %}</p>
+
+  <h2>{% trans %}The other five fields{% endtrans %}</h2>
+  <p>{% trans %}A complete FEN adds five space-separated fields: the side to move (w or b), castling rights (KQkq, or - for none), an en passant target square (or -), the halfmove clock, and the fullmove number.{% endtrans %}</p>
+  <pre><code>rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1</code></pre>
+  <p>{% trans %}ChessFEN distinguishes the first field as a Placement from the six-field Full FEN. A picture can only reveal where the pieces stand, so recognition returns a Placement; the side to move is chosen by the caller and the remaining fields default to - - 0 1.{% endtrans %}</p>
+
+  <h2>{% trans %}Where ChessFEN uses FEN{% endtrans %}</h2>
+  <ul>
+    <li>{% trans %}Recognition reads a board image and returns its Placement, with a per-square breakdown.{% endtrans %}</li>
+    <li>{% trans %}PGN navigation exports the Full FEN after any half-move.{% endtrans %}</li>
+    <li>{% trans %}Rendering turns any syntactically valid FEN into a board image.{% endtrans %}</li>
+  </ul>
+  <p><a href="/tools/render">{% trans %}Try the renderer{% endtrans %}</a></p>
+</section>
+{% endblock %}

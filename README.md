@@ -16,7 +16,7 @@ uv run pytest                # run the test suite
 Deploy with Docker:
 
 ```bash
-docker compose up --build
+ADMIN_PASSWORD='replace-with-a-strong-password' SECRET_KEY='replace-with-a-long-random-secret' docker compose up --build
 ```
 
 Configuration (environment):

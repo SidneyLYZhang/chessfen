@@ -69,13 +69,15 @@ body {
   letter-spacing: 0.02em;
 }
 
-.lang-switch {
+.lang-switch,
+.site-nav {
   display: flex;
   gap: 0.25rem;
   flex-wrap: wrap;
 }
 
-.lang-switch a {
+.lang-switch a,
+.site-nav a {
   color: var(--muted);
   text-decoration: none;
   font-size: 0.9rem;
@@ -83,7 +85,8 @@ body {
   border-radius: 8px;
 }
 
-.lang-switch a:hover {
+.lang-switch a:hover,
+.site-nav a:hover {
   color: var(--fg);
   background: color-mix(in srgb, var(--fg) 6%, transparent);
 }
@@ -270,6 +273,70 @@ th {
 
 .muted {
   color: var(--muted);
+}
+
+.prose h1 {
+  margin-top: 0;
+}
+
+.prose h2 {
+  font-size: 1.15rem;
+  margin: 1.8rem 0 0.6rem;
+}
+
+.prose p {
+  margin: 0 0 0.9rem;
+}
+
+.prose ul {
+  margin: 0 0 0.9rem;
+  padding-left: 1.3rem;
+}
+
+.prose li {
+  margin-bottom: 0.35rem;
+}
+
+.prose pre {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.9rem 1rem;
+  overflow-x: auto;
+}
+
+.prose pre code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.85rem;
+}
+
+.prose a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.prose a:hover {
+  text-decoration: underline;
+}
+
+.prose .badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--fg);
+  padding: 0.4rem 0.8rem;
+  border-radius: 999px;
+  text-decoration: none;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.prose .badge:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  text-decoration: none;
 }
 
 .inline-form {

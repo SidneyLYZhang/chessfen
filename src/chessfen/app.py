@@ -16,6 +16,7 @@ from chessfen.api import router as api_router
 from chessfen.db import build_engine
 from chessfen.detector import OnnxDetector
 from chessfen.i18n import LOCALE_COOKIE, SUPPORTED_LOCALES
+from chessfen.pages import router as pages_router
 from chessfen.ratelimit import LoginRateLimiter
 from chessfen.recognition import Recognizer
 from chessfen.settings import DEFAULT_SECRET_KEY, Settings, get_settings
@@ -54,6 +55,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(admin_router)
     app.include_router(api_router)
     app.include_router(tools_router)
+    app.include_router(pages_router)
     app.middleware("http")(build_api_key_middleware(app.state.session_factory))
 
     @app.exception_handler(AdminRequired)

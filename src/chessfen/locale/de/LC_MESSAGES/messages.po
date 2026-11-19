@@ -288,3 +288,126 @@ msgstr "Kopiert"
 
 msgid "Uploaded board"
 msgstr "Hochgeladenes Bild"
+
+msgid "Main navigation"
+msgstr "Hauptnavigation"
+
+msgid "About"
+msgstr "Über"
+
+msgid "Understanding FEN"
+msgstr "FEN verstehen"
+
+msgid "FEN (Forsyth–Edwards Notation) is the standard text format for a chess position. ChessFEN uses it to pass positions between board images, PGN games, and rendered boards."
+msgstr "FEN (Forsyth–Edwards Notation) ist das Standard-Textformat für eine Schachstellung. ChessFEN nutzt es, um Stellungen zwischen Brettbildern, PGN-Partien und gerenderten Brettern auszutauschen."
+
+msgid "Piece placement"
+msgstr "Figurenstellung"
+
+msgid "A FEN string starts with the piece placement: eight ranks from rank 8 down to rank 1, separated by /."
+msgstr "Ein FEN-String beginnt mit der Figurenstellung: acht Reihen von Reihe 8 bis Reihe 1, getrennt durch /."
+
+msgid "Uppercase letters stand for White pieces (K, Q, R, B, N, P) and lowercase letters for Black pieces. Digits encode runs of empty squares."
+msgstr "Großbuchstaben stehen für weiße Figuren (K, Q, R, B, N, P), Kleinbuchstaben für schwarze. Ziffern fassen aufeinanderfolgende leere Felder zusammen."
+
+msgid "That is the starting position."
+msgstr "Das ist die Grundstellung."
+
+msgid "The other five fields"
+msgstr "Die übrigen fünf Felder"
+
+msgid "A complete FEN adds five space-separated fields: the side to move (w or b), castling rights (KQkq, or - for none), an en passant target square (or -), the halfmove clock, and the fullmove number."
+msgstr "Ein vollständiges FEN ergänzt fünf durch Leerzeichen getrennte Felder: die Seite am Zug (w oder b), Rochaderechte (KQkq oder - für keine), ein En-passant-Zielfeld (oder -), die Halbzugzählung und die Zugnummer."
+
+msgid "ChessFEN distinguishes the first field as a Placement from the six-field Full FEN. A picture can only reveal where the pieces stand, so recognition returns a Placement; the side to move is chosen by the caller and the remaining fields default to - - 0 1."
+msgstr "ChessFEN unterscheidet das erste Feld als Figurenstellung von der sechsfeldrigen vollständigen FEN. Ein Bild zeigt nur, wo die Figuren stehen; die Erkennung liefert daher die Figurenstellung, die Seite am Zug wählt der Aufrufer, und die übrigen Felder bleiben bei - - 0 1."
+
+msgid "Where ChessFEN uses FEN"
+msgstr "Wo ChessFEN FEN verwendet"
+
+msgid "Recognition reads a board image and returns its Placement, with a per-square breakdown."
+msgstr "Die Erkennung liest ein Brettbild und liefert die Figurenstellung samt Aufschlüsselung pro Feld."
+
+msgid "PGN navigation exports the Full FEN after any half-move."
+msgstr "Die PGN-Navigation exportiert die vollständige FEN nach jedem Halbzug."
+
+msgid "Rendering turns any syntactically valid FEN into a board image."
+msgstr "Das Rendern macht aus jeder syntaktisch gültigen FEN ein Brettbild."
+
+msgid "Try the renderer"
+msgstr "Renderer ausprobieren"
+
+msgid "Understanding PGN"
+msgstr "PGN verstehen"
+
+msgid "PGN (Portable Game Notation) records chess games as text: tag pairs describe the game, and the moves are written in Standard Algebraic Notation."
+msgstr "PGN (Portable Game Notation) zeichnet Schachpartien als Text auf: Tag-Paare beschreiben die Partie, die Züge stehen in der Standard-Algebraic-Notation."
+
+msgid "Tags and moves"
+msgstr "Tags und Züge"
+
+msgid "A game begins with tag pairs in square brackets, followed by the moves in numbered pairs — White's move, then Black's."
+msgstr "Eine Partie beginnt mit Tag-Paaren in eckigen Klammern, gefolgt von den Zügen in nummerierten Paaren — erst Weiß, dann Schwarz."
+
+msgid "Moves, half-moves and plies"
+msgstr "Züge, Halbzüge und Plies"
+
+msgid "Each numbered move contains up to two half-moves, or plies. White's Nth move ends at ply 2N-1 and Black's Nth move at ply 2N; ply 0 is the initial position."
+msgstr "Jeder nummerierte Zug enthält bis zu zwei Halbzüge (Plies). Der N-te Zug von Weiß endet bei Ply 2N-1, der N-te Zug von Schwarz bei Ply 2N; Ply 0 ist die Grundstellung."
+
+msgid "ChessFEN lets you pick exactly that half-move and exports the resulting Full FEN."
+msgstr "ChessFEN lässt dich genau diesen Halbzug wählen und exportiert die zugehörige vollständige FEN."
+
+msgid "Mainline and variations"
+msgstr "Hauptvariante und Varianten"
+
+msgid "Parentheses contain variations — alternative lines that were considered but not played. ChessFEN follows only the mainline and ignores variations; a PGN document with unparseable games is rejected so that no wrong position is served."
+msgstr "Klammern enthalten Varianten — erwogene, aber nicht gespielte Alternativlinien. ChessFEN folgt nur der Hauptvariante und ignoriert Varianten; ein PGN-Dokument mit nicht lesbaren Partien wird abgelehnt, damit keine falsche Stellung ausgeliefert wird."
+
+msgid "Several games in one file"
+msgstr "Mehrere Partien in einer Datei"
+
+msgid "A PGN document may contain many games. ChessFEN lists them all so you can choose one, then jump to any half-move."
+msgstr "Ein PGN-Dokument kann viele Partien enthalten. ChessFEN listet sie alle auf; du wählst eine aus und springst zu jedem Halbzug."
+
+msgid "Try PGN navigation"
+msgstr "PGN-Navigation ausprobieren"
+
+msgid "About ChessFEN"
+msgstr "Über ChessFEN"
+
+msgid "ChessFEN is a small, self-hostable tool for chess encodings: recognize a position from a board image, browse PGN games and export Full FENs, and render any Placement or Full FEN as a board image. It runs on CPU, ships as one Docker image, and offers the same features through a web interface and an API."
+msgstr "ChessFEN ist ein kleines, selbst hostbares Werkzeug für Schachnotationen: Stellungen aus Brettbildern erkennen, PGN-Partien durchsuchen und vollständige FENs exportieren sowie jede Figurenstellung oder vollständige FEN als Brettbild rendern. Es läuft auf der CPU, wird als einzelnes Docker-Image ausgeliefert und bietet dieselben Funktionen als Web-Oberfläche und API."
+
+msgid "Star the project"
+msgstr "Projekt mit Stern markieren"
+
+msgid "If ChessFEN is useful to you, a star on GitHub helps others find it."
+msgstr "Wenn ChessFEN nützlich ist, hilft ein Stern auf GitHub anderen, es zu finden."
+
+msgid "Star on GitHub"
+msgstr "Auf GitHub mit Stern markieren"
+
+msgid "Self-deploy"
+msgstr "Selbst betreiben"
+
+msgid "Run your own instance with Docker Compose. The image bakes in the pinned recognition model at build time."
+msgstr "Betreibe deine eigene Instanz mit Docker Compose. Das Image enthält das festgelegte Erkennungsmodell bereits aus dem Build."
+
+msgid "Then open http://localhost:8000 and create API keys on the admin page. The container serves plain HTTP; put it behind your own reverse proxy for TLS. Set DATABASE_URL to use PostgreSQL instead of the SQLite volume."
+msgstr "Öffne dann http://localhost:8000 und erstelle API-Schlüssel auf der Verwaltungsseite. Der Container spricht nur HTTP; setze ihn für TLS hinter deinen eigenen Reverse-Proxy. Mit DATABASE_URL wechselst du vom SQLite-Volume zu PostgreSQL."
+
+msgid "Credits"
+msgstr "Danksagung"
+
+msgid "Board recognition:"
+msgstr "Brett-Erkennung:"
+
+msgid "by Andrew Spano (YOLO26m fine-tuned detector)."
+msgstr "von Andrew Spano (feinabgestimmter YOLO26m-Detektor)."
+
+msgid "Piece images: the CBurnett chess set, rendered with python-chess (CC-BY-SA 3.0)."
+msgstr "Figurenbilder: das CBurnett-Schachfigurenset, gerendert mit python-chess (CC-BY-SA 3.0)."
+
+msgid "Licensing: ChessFEN is released under the MIT license."
+msgstr "Lizenz: ChessFEN steht unter der MIT-Lizenz."
