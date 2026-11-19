@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import re
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from pathlib import Path
+from typing import Any
 
 import pytest
 from alembic import command
@@ -16,18 +17,34 @@ _KEY_RE = re.compile(r"cf_[0-9a-f]{8}_[0-9a-f]{32}")
 
 
 @pytest.fixture
-def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[TestClient]:
-    database_url = f"sqlite:///{(tmp_path / 'test.db').as_posix()}"
-    monkeypatch.setenv("DATABASE_URL", database_url)
-    command.upgrade(Config("alembic.ini"), "head")
-    app = create_app(
-        Settings(
-            database_url=database_url,
-            secret_key="test-secret",
-            admin_password="test-admin",
+def client_factory(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> Callable[..., TestClient]:
+    created = 0
+
+    def make(recognizer: Any | None = None) -> TestClient:
+        nonlocal created
+        created += 1
+        database_url = f"sqlite:///{(tmp_path / f'test-{created}.db').as_posix()}"
+        monkeypatch.setenv("DATABASE_URL", database_url)
+        command.upgrade(Config("alembic.ini"), "head")
+        app = create_app(
+            Settings(
+                database_url=database_url,
+                secret_key="test-secret",
+                admin_password="test-admin",
+            )
         )
-    )
-    with TestClient(app) as test_client:
+        if recognizer is not None:
+            app.state.recognizer = recognizer
+        return TestClient(app)
+
+    return make
+
+
+@pytest.fixture
+def client(client_factory: Callable[..., TestClient]) -> Iterator[TestClient]:
+    with client_factory() as test_client:
         yield test_client
 
 

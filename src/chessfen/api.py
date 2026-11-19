@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any, cast
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, File, Form, Request, UploadFile
 from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel
 from sqlalchemy import select, update
@@ -13,6 +13,7 @@ from starlette.concurrency import run_in_threadpool
 from chessfen.errors import CodedError
 from chessfen.models import ApiKey
 from chessfen.pgn import PgnError, count_plies, load_games, position_at, select_game
+from chessfen.recognition import RecognitionError
 from chessfen.render import (
     DEFAULT_SIZE,
     FenSyntaxError,
@@ -38,6 +39,10 @@ API_ERRORS: dict[str, tuple[int, str]] = {
     "invalid_pgn": (400, "The PGN could not be parsed."),
     "invalid_game": (400, "The game index is out of range."),
     "ply_out_of_range": (400, "The selected ply does not exist in this game."),
+    "invalid_side": (400, "The side must be w or b."),
+    "invalid_image": (400, "The image could not be decoded."),
+    "no_board_detected": (400, "No chessboard was detected in the image."),
+    "recognition_unavailable": (503, "Recognition is not available on this server."),
 }
 
 
@@ -161,5 +166,37 @@ def pgn_navigation(payload: PgnPayload) -> JSONResponse:
             "game_index": payload.game_index,
             "ply": payload.ply,
             "available_plies": count_plies(game),
+        }
+    )
+
+
+@router.post("/recognize")
+def recognize_image(
+    request: Request,
+    image: UploadFile = File(...),
+    side: str = Form("w"),
+) -> JSONResponse:
+    try:
+        result = request.app.state.recognizer.recognize(
+            image.file.read(), side_to_move=side
+        )
+    except RecognitionError as exc:
+        return api_error(exc.code)
+    return JSONResponse(
+        {
+            "placement": result.placement,
+            "fen": result.fen,
+            "side_to_move": result.side_to_move,
+            "placement_derived": True,
+            "orientation": result.orientation,
+            "unmatched": result.unmatched,
+            "squares": [
+                {
+                    "square": square.square,
+                    "piece": square.piece,
+                    "confidence": square.confidence,
+                }
+                for square in result.squares
+            ],
         }
     )

@@ -14,8 +14,10 @@ from chessfen.admin import router as admin_router
 from chessfen.api import API_NAMESPACE, api_error, build_api_key_middleware
 from chessfen.api import router as api_router
 from chessfen.db import build_engine
+from chessfen.detector import OnnxDetector
 from chessfen.i18n import LOCALE_COOKIE, SUPPORTED_LOCALES
 from chessfen.ratelimit import LoginRateLimiter
+from chessfen.recognition import Recognizer
 from chessfen.settings import DEFAULT_SECRET_KEY, Settings, get_settings
 from chessfen.templating import render_response
 from chessfen.web import router as tools_router
@@ -48,6 +50,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         resolved.secret_key, salt="chessfen-admin"
     )
     app.state.login_limiter = LoginRateLimiter(limit=5, window_seconds=60.0)
+    app.state.recognizer = Recognizer(
+        OnnxDetector(resolved.recognition_model_path)
+    )
     app.mount("/static", StaticFiles(directory=_STATIC_DIR), name="static")
     app.include_router(admin_router)
     app.include_router(api_router)

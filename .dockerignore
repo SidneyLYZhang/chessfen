@@ -10,3 +10,4 @@ tests
 data
 *.db
 docs
+models

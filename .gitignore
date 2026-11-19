@@ -12,6 +12,9 @@ build/
 data/
 *.db
 
+# Model weights (baked into the Docker image; see ADR-0001)
+models/
+
 # Tooling caches
 .pytest_cache/
 .ruff_cache/

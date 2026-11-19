@@ -24,8 +24,15 @@ Configuration (environment):
 - `DATABASE_URL` — defaults to `sqlite:///./data/chessfen.db`; point it at PostgreSQL to switch.
 - `ADMIN_PASSWORD` — enables the admin page at `/admin`; when unset, admin login is disabled.
 - `SECRET_KEY` — signs the admin session cookie; set a long random value in production.
+- `RECOGNITION_MODEL_PATH` — path to the YOLO26 ONNX weights (default `models/yolo26m-finetuned.onnx`). For local development download them once:
 
-The API is gated by an API key sent as `X-API-Key: cf_...`; keys are issued from the admin page.
+```bash
+mkdir -p models
+curl -fL -o models/yolo26m-finetuned.onnx \
+  https://huggingface.co/AndrewSpano/2d-chess-ocr/resolve/03d9df9fc14fade1a3579683fd0de215b3864ee1/yolo26m-finetuned.onnx
+```
+
+The API is gated by an API key sent as `X-API-Key: cf_...`; keys are issued from the admin page. Endpoints: `POST /api/v1/render`, `POST /api/v1/pgn`, `POST /api/v1/recognize`.
 
 ## Agent configuration
 
