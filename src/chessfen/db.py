@@ -1,16 +1,15 @@
 from __future__ import annotations
 
-from sqlalchemy import create_engine
-from sqlalchemy.orm import DeclarativeBase, sessionmaker
+from sqlalchemy import Engine, create_engine
+from sqlalchemy.orm import DeclarativeBase
 
-from chessfen.settings import ensure_sqlite_directory, get_settings
-
-_settings = get_settings()
-ensure_sqlite_directory(_settings.database_url)
-
-engine = create_engine(_settings.database_url)
-SessionLocal = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)
+from chessfen.settings import ensure_sqlite_directory
 
 
 class Base(DeclarativeBase):
     pass
+
+
+def build_engine(database_url: str) -> Engine:
+    ensure_sqlite_directory(database_url)
+    return create_engine(database_url)

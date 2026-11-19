@@ -4,7 +4,7 @@ from logging.config import fileConfig
 
 from alembic import context
 
-from chessfen.db import Base, engine
+from chessfen.db import Base, build_engine
 from chessfen.settings import get_settings
 
 config = context.config
@@ -32,7 +32,8 @@ def run_migrations_offline() -> None:
 
 
 def run_migrations_online() -> None:
-    with engine.connect() as connection:
+    connectable = build_engine(database_url)
+    with connectable.connect() as connection:
         context.configure(connection=connection, target_metadata=target_metadata)
         with context.begin_transaction():
             context.run_migrations()

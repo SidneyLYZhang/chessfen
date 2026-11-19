@@ -7,16 +7,21 @@ from pathlib import Path
 from sqlalchemy.engine import make_url
 
 DEFAULT_DATABASE_URL = "sqlite:///./data/chessfen.db"
+DEFAULT_SECRET_KEY = "dev-secret-change-me"
 
 
 @dataclass(frozen=True)
 class Settings:
     database_url: str
+    secret_key: str
+    admin_password: str | None
 
 
 def get_settings() -> Settings:
     return Settings(
-        database_url=os.environ.get("DATABASE_URL", DEFAULT_DATABASE_URL)
+        database_url=os.environ.get("DATABASE_URL", DEFAULT_DATABASE_URL),
+        secret_key=os.environ.get("SECRET_KEY", DEFAULT_SECRET_KEY),
+        admin_password=os.environ.get("ADMIN_PASSWORD") or None,
     )
 
 

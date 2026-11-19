@@ -15,3 +15,69 @@ msgstr "Sprache"
 
 msgid "Open source under MIT"
 msgstr "Open Source unter MIT"
+
+msgid "Admin"
+msgstr "Verwaltung"
+
+msgid "Sign in"
+msgstr "Anmelden"
+
+msgid "Sign out"
+msgstr "Abmelden"
+
+msgid "Password"
+msgstr "Passwort"
+
+msgid "Invalid password"
+msgstr "Ungültiges Passwort"
+
+msgid "Too many attempts. Try again later."
+msgstr "Zu viele Versuche. Bitte später erneut versuchen."
+
+msgid "Admin is not configured."
+msgstr "Admin ist nicht konfiguriert."
+
+msgid "API keys"
+msgstr "API-Schlüssel"
+
+msgid "No API keys yet."
+msgstr "Noch keine API-Schlüssel."
+
+msgid "Name"
+msgstr "Name"
+
+msgid "Name is required."
+msgstr "Name ist erforderlich."
+
+msgid "Create key"
+msgstr "Schlüssel erstellen"
+
+msgid "Your new API key (shown once)"
+msgstr "Ihr neuer API-Schlüssel (nur einmal sichtbar)"
+
+msgid "Prefix"
+msgstr "Präfix"
+
+msgid "Created"
+msgstr "Erstellt"
+
+msgid "Last used"
+msgstr "Zuletzt verwendet"
+
+msgid "Never"
+msgstr "Nie"
+
+msgid "Calls"
+msgstr "Aufrufe"
+
+msgid "Status"
+msgstr "Status"
+
+msgid "Active"
+msgstr "Aktiv"
+
+msgid "Revoked"
+msgstr "Widerrufen"
+
+msgid "Revoke"
+msgstr "Widerrufen"

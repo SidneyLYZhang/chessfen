@@ -19,7 +19,13 @@ Deploy with Docker:
 docker compose up --build
 ```
 
-Set `DATABASE_URL` to point at PostgreSQL instead of the default SQLite file.
+Configuration (environment):
+
+- `DATABASE_URL` — defaults to `sqlite:///./data/chessfen.db`; point it at PostgreSQL to switch.
+- `ADMIN_PASSWORD` — enables the admin page at `/admin`; when unset, admin login is disabled.
+- `SECRET_KEY` — signs the admin session cookie; set a long random value in production.
+
+The API is gated by an API key sent as `X-API-Key: cf_...`; keys are issued from the admin page.
 
 ## Agent configuration
 

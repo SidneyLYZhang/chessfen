@@ -10,6 +10,7 @@ from babel.support import Translations
 
 SUPPORTED_LOCALES: tuple[str, ...] = ("zh", "en", "de")
 DEFAULT_LOCALE = "zh"
+LOCALE_COOKIE = "lang"
 LOCALE_LABELS: dict[str, str] = {"zh": "中文", "en": "English", "de": "Deutsch"}
 
 _LOCALE_DIR = Path(__file__).parent / "locale"

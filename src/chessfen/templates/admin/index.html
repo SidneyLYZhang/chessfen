@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block title %}ChessFEN · {% trans %}Admin{% endtrans %}{% endblock %}
+
+{% block content %}
+<section class="panel">
+  <div class="panel-head">
+    <h1>{% trans %}API keys{% endtrans %}</h1>
+    <form method="post" action="/admin/logout"><button type="submit" class="ghost">{% trans %}Sign out{% endtrans %}</button></form>
+  </div>
+
+  {% if new_key %}
+  <p class="notice">{% trans %}Your new API key (shown once){% endtrans %}</p>
+  <p class="secret">{{ new_key }}</p>
+  {% endif %}
+  {% if error == "name_required" %}<p class="notice error">{% trans %}Name is required.{% endtrans %}</p>{% endif %}
+
+  <form method="post" action="/admin/keys" class="inline-form">
+    <label>{% trans %}Name{% endtrans %}
+      <input type="text" name="name" required maxlength="120">
+    </label>
+    <button type="submit">{% trans %}Create key{% endtrans %}</button>
+  </form>
+
+  {% if keys %}
+  <table>
+    <thead>
+      <tr>
+        <th>{% trans %}Name{% endtrans %}</th>
+        <th>{% trans %}Prefix{% endtrans %}</th>
+        <th>{% trans %}Created{% endtrans %}</th>
+        <th>{% trans %}Last used{% endtrans %}</th>
+        <th>{% trans %}Calls{% endtrans %}</th>
+        <th>{% trans %}Status{% endtrans %}</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for key in keys %}
+      <tr>
+        <td>{{ key.name }}</td>
+        <td><code>{{ key.prefix }}</code></td>
+        <td>{{ key.created_at.strftime("%Y-%m-%d %H:%M") }}</td>
+        <td>{% if key.last_used_at %}{{ key.last_used_at.strftime("%Y-%m-%d %H:%M") }}{% else %}{% trans %}Never{% endtrans %}{% endif %}</td>
+        <td>{{ key.call_count }}</td>
+        <td>{% if key.revoked_at %}{% trans %}Revoked{% endtrans %} {{ key.revoked_at.strftime("%Y-%m-%d %H:%M") }}{% else %}{% trans %}Active{% endtrans %}{% endif %}</td>
+        <td>
+          {% if not key.revoked_at %}
+          <form method="post" action="/admin/keys/{{ key.id }}/revoke"><button type="submit" class="danger">{% trans %}Revoke{% endtrans %}</button></form>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="muted">{% trans %}No API keys yet.{% endtrans %}</p>
+  {% endif %}
+</section>
+{% endblock %}

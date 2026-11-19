@@ -3,14 +3,22 @@ from __future__ import annotations
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
+from itsdangerous import URLSafeTimedSerializer
+from sqlalchemy.orm import sessionmaker
 
-from chessfen.i18n import SUPPORTED_LOCALES, negotiate_locale
-from chessfen.templating import render_page
+from chessfen.admin import AdminRequired
+from chessfen.admin import router as admin_router
+from chessfen.api import build_api_key_middleware
+from chessfen.api import router as api_router
+from chessfen.db import build_engine
+from chessfen.i18n import LOCALE_COOKIE, SUPPORTED_LOCALES
+from chessfen.ratelimit import LoginRateLimiter
+from chessfen.settings import DEFAULT_SECRET_KEY, Settings, get_settings
+from chessfen.templating import render_response
 
 _ONE_YEAR_SECONDS = 60 * 60 * 24 * 365
-_LOCALE_COOKIE = "lang"
 _STATIC_DIR = Path(__file__).parent / "static"
 
 
@@ -18,35 +26,44 @@ def _is_same_origin_path(target: str) -> bool:
     return target.startswith("/") and not target.startswith(("//", "/\\"))
 
 
-def _next_path(request: Request) -> str:
-    query = request.url.query
-    return f"{request.url.path}?{query}" if query else request.url.path
+def create_app(settings: Settings | None = None) -> FastAPI:
+    resolved = settings or get_settings()
+    if (
+        resolved.admin_password is not None
+        and resolved.secret_key == DEFAULT_SECRET_KEY
+    ):
+        raise RuntimeError(
+            "SECRET_KEY must be set when ADMIN_PASSWORD is configured"
+        )
+    engine = build_engine(resolved.database_url)
 
-
-def create_app() -> FastAPI:
     app = FastAPI(title="ChessFEN")
+    app.state.settings = resolved
+    app.state.session_factory = sessionmaker(
+        bind=engine, autoflush=False, expire_on_commit=False
+    )
+    app.state.admin_session_serializer = URLSafeTimedSerializer(
+        resolved.secret_key, salt="chessfen-admin"
+    )
+    app.state.login_limiter = LoginRateLimiter(limit=5, window_seconds=60.0)
     app.mount("/static", StaticFiles(directory=_STATIC_DIR), name="static")
+    app.include_router(admin_router)
+    app.include_router(api_router)
+    app.middleware("http")(build_api_key_middleware(app.state.session_factory))
+
+    @app.exception_handler(AdminRequired)
+    async def _admin_required(
+        _request: Request, _exc: AdminRequired
+    ) -> RedirectResponse:
+        return RedirectResponse("/admin/login", status_code=303)
 
     @app.get("/health")
     def health() -> dict[str, str]:
         return {"status": "ok"}
 
-    @app.get("/", response_class=HTMLResponse)
-    def home(request: Request) -> HTMLResponse:
-        locale = negotiate_locale(
-            request.cookies.get(_LOCALE_COOKIE), request.headers.get("accept-language")
-        )
-        return HTMLResponse(
-            render_page(
-                locale,
-                "index.html",
-                {
-                    "request": request,
-                    "locale": locale,
-                    "next_path": _next_path(request),
-                },
-            )
-        )
+    @app.get("/")
+    def home(request: Request):
+        return render_response(request, "index.html")
 
     @app.get("/lang/{code}")
     def set_language(code: str, request: Request) -> RedirectResponse:
@@ -57,7 +74,7 @@ def create_app() -> FastAPI:
             target = "/"
         response = RedirectResponse(target, status_code=303)
         response.set_cookie(
-            _LOCALE_COOKIE, code, max_age=_ONE_YEAR_SECONDS, samesite="lax"
+            LOCALE_COOKIE, code, max_age=_ONE_YEAR_SECONDS, samesite="lax"
         )
         return response
 
