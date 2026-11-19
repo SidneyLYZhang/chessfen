@@ -400,8 +400,11 @@ msgstr "Auf GitHub mit Stern markieren"
 msgid "Self-deploy"
 msgstr "Selbst betreiben"
 
-msgid "Run your own instance with Docker Compose. The image bakes in the pinned recognition model at build time."
-msgstr "Betreibe deine eigene Instanz mit Docker Compose. Das Image enthält das festgelegte Erkennungsmodell bereits aus dem Build."
+msgid "Release images are published to GHCR (ghcr.io/sidnelyzhang/chessfen) and Docker Hub (&lt;DOCKERHUB_USERNAME&gt;/chessfen), with the recognition model baked in. If the GHCR package is private, run docker login ghcr.io first. Run one with Docker:"
+msgstr "Veröffentlichte Release-Images stehen auf GHCR (ghcr.io/sidnelyzhang/chessfen) und Docker Hub (&lt;DOCKERHUB_USERNAME&gt;/chessfen) bereit; das Erkennungsmodell ist eingebettet. Ist das GHCR-Paket privat, zuerst docker login ghcr.io ausführen. Starte eines mit Docker:"
+
+msgid "The repository also ships a docker-compose.yml for the published image: copy .env.example to .env, set ADMIN_PASSWORD and SECRET_KEY, then run docker compose up -d. Add docker-compose.build.yml to build from source instead."
+msgstr "Das Repository enthält außerdem eine docker-compose.yml für das veröffentlichte Image: .env.example nach .env kopieren, ADMIN_PASSWORD und SECRET_KEY setzen und dann docker compose up -d ausführen; mit docker-compose.build.yml wird aus dem Quellcode gebaut."
 
 msgid "Then open http://localhost:8000 and create API keys on the admin page. The container serves plain HTTP: publish its port only to your reverse proxy, and set FORWARDED_ALLOW_IPS to the proxy address so rate limiting sees real client IPs. Set DATABASE_URL to use PostgreSQL instead of the SQLite volume."
 msgstr "Öffne dann http://localhost:8000 und erstelle API-Schlüssel auf der Verwaltungsseite. Der Container spricht nur HTTP: Veröffentliche den Port nur für deinen Reverse-Proxy und setze FORWARDED_ALLOW_IPS auf dessen Adresse, damit die Ratenbegrenzung echte Client-IPs sieht; mit DATABASE_URL wechselst du vom SQLite-Volume zu PostgreSQL."

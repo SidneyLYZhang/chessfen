@@ -1,6 +1,6 @@
 services:
-  app:
-    build: .
+  chessfen:
+    image: ${CHESSFEN_IMAGE:-ghcr.io/sidnelyzhang/chessfen:latest}
     ports:
       - "127.0.0.1:8000:8000"
     environment:
@@ -14,3 +14,4 @@ services:
 
 volumes:
   chessfen-data:
+    name: chessfen-data

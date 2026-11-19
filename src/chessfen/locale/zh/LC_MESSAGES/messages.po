@@ -400,8 +400,11 @@ msgstr "在 GitHub 上加星"
 msgid "Self-deploy"
 msgstr "自部署"
 
-msgid "Run your own instance with Docker Compose. The image bakes in the pinned recognition model at build time."
-msgstr "用 Docker Compose 运行你自己的实例。镜像在构建时内置固定版本的识别模型。"
+msgid "Release images are published to GHCR (ghcr.io/sidnelyzhang/chessfen) and Docker Hub (&lt;DOCKERHUB_USERNAME&gt;/chessfen), with the recognition model baked in. If the GHCR package is private, run docker login ghcr.io first. Run one with Docker:"
+msgstr "发布镜像已发布到 GHCR（ghcr.io/sidnelyzhang/chessfen）与 Docker Hub（&lt;DOCKERHUB_USERNAME&gt;/chessfen），识别模型已内置。若 GHCR 包仍为私有，请先执行 docker login ghcr.io。用 Docker 运行："
+
+msgid "The repository also ships a docker-compose.yml for the published image: copy .env.example to .env, set ADMIN_PASSWORD and SECRET_KEY, then run docker compose up -d. Add docker-compose.build.yml to build from source instead."
+msgstr "仓库还提供面向已发布镜像的 docker-compose.yml：把 .env.example 复制为 .env 并设置 ADMIN_PASSWORD 与 SECRET_KEY，然后运行 docker compose up -d；使用 docker-compose.build.yml 可改为源码构建。"
 
 msgid "Then open http://localhost:8000 and create API keys on the admin page. The container serves plain HTTP: publish its port only to your reverse proxy, and set FORWARDED_ALLOW_IPS to the proxy address so rate limiting sees real client IPs. Set DATABASE_URL to use PostgreSQL instead of the SQLite volume."
 msgstr "然后打开 http://localhost:8000，在管理页创建 API 密钥。容器只提供 HTTP：请把端口只暴露给你的反向代理，并把 FORWARDED_ALLOW_IPS 设为代理地址，以便限流识别真实客户端 IP；把 DATABASE_URL 指向 PostgreSQL 即可替代 SQLite 卷。"

@@ -1,6 +1,45 @@
 # chessfen
 
+English | [中文](README.zh-CN.md)
+
 Python tool (API + web app) for working with chess encodings — PGN, FEN — and board position images.
+
+## Features
+
+- **Board recognition**: upload a 2D board image and get its Placement, with per-square confidences.
+- **PGN navigation**: choose a game from a multi-game PGN and export the Full FEN after any half-move.
+- **FEN rendering**: turn any FEN into a PNG or SVG board image.
+- **Web UI and API**: API keys are issued from an admin page; the interface is available in Chinese, English, and German.
+
+## Quick start (Docker)
+
+Each release publishes prebuilt images to `ghcr.io/sidnelyzhang/chessfen` and to Docker Hub as `<DOCKERHUB_USERNAME>/chessfen`, with the pinned recognition model baked in. Tags include `latest` and version tags such as `v1.0.0`.
+
+```bash
+docker run -d --name chessfen \
+  -p 127.0.0.1:8000:8000 \
+  -e ADMIN_PASSWORD='replace-with-a-strong-password' \
+  -e SECRET_KEY='replace-with-a-long-random-secret' \
+  -v chessfen-data:/data \
+  ghcr.io/sidnelyzhang/chessfen:latest
+```
+
+Open <http://localhost:8000> and create API keys on the `/admin` page.
+
+Or run it with the compose file:
+
+```bash
+cp .env.example .env   # edit the passwords
+docker compose up -d
+```
+
+`docker-compose.yml` targets the published image and binds the published port to `127.0.0.1`. To build from source instead:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
+```
+
+While the repository and its GHCR package are private, authenticate before pulling: `echo "$GITHUB_TOKEN" | docker login ghcr.io -u <github-user> --password-stdin`.
 
 ## Development
 
@@ -13,26 +52,15 @@ uv run chessfen              # serve on http://127.0.0.1:8000
 uv run pytest                # run the test suite
 ```
 
-## Deployment (Docker)
+## Configuration
 
-Build and run with Docker Compose. The image bakes in the pinned recognition model at build time (about 82 MB download):
-
-```bash
-ADMIN_PASSWORD='replace-with-a-strong-password' \
-SECRET_KEY='replace-with-a-long-random-secret' \
-docker compose up --build
-```
-
-Then open <http://localhost:8000> and create API keys on the `/admin` page.
-
-### Configuration
-
+- `CHESSFEN_IMAGE` — image used by `docker-compose.yml` (default `ghcr.io/sidnelyzhang/chessfen:latest`).
 - `DATABASE_URL` — defaults to `sqlite:////data/chessfen.db` inside the container; set a PostgreSQL URL (for example `postgresql+psycopg://user:pass@host/db`) to switch.
 - `ADMIN_PASSWORD` — enables the admin page; when unset, admin login is disabled.
 - `SECRET_KEY` — signs the admin session cookie; required when `ADMIN_PASSWORD` is set.
 - `FORWARDED_ALLOW_IPS` — which peers may set `X-Forwarded-*` headers (default `127.0.0.1`). Set it to your reverse proxy's address or network so rate limiting sees real client IPs.
 
-### Recognition weights
+### Recognition weights (local development)
 
 The Docker image bakes in the pinned model. For local development, download it once:
 
@@ -50,7 +78,7 @@ SQLite data lives in the `chessfen-data` volume mounted at `/data`. When using P
 
 ### TLS and reverse proxy
 
-The container serves plain HTTP on port 8000; `docker-compose.yml` binds the published port to `127.0.0.1` by default. Terminate TLS at your own reverse proxy, forward `Host`, `X-Forwarded-For`, and `X-Forwarded-Proto`, and set `FORWARDED_ALLOW_IPS` to the proxy address so the app trusts those headers only from it.
+The container serves plain HTTP on port 8000, and `docker-compose.yml` binds the published port to `127.0.0.1` by default. Terminate TLS at your own reverse proxy, forward `Host`, `X-Forwarded-For`, and `X-Forwarded-Proto`, and set `FORWARDED_ALLOW_IPS` to the proxy address so the app trusts those headers only from it.
 
 ## API
 
@@ -61,15 +89,16 @@ The API is gated by an API key sent as `X-API-Key: cf_...`; keys are issued from
 Push an annotated version tag to publish a release:
 
 ```bash
-git tag -a v0.2.0 -m "ChessFEN 0.2.0"
-git push origin v0.2.0
+git tag -a v1.0.0 -m "ChessFEN 1.0.0"
+git push origin v1.0.0
 ```
 
-The `Release` workflow gates on the shared `Test` workflow (which also runs on pushes to `main` and pull requests) and then runs two independent jobs:
+The `Release` workflow gates on the shared `Test` workflow (which also runs on pushes to `main` and pull requests): unit tests, mypy, and a Docker image smoke test that boots the container, issues an API key, and performs a real recognition through the baked model. CI downloads the pinned model weights so the real-model tests run instead of being skipped.
 
-1. **Test**: unit tests, mypy, and a Docker image smoke test that boots the container, issues an API key, and performs a real recognition through the baked model. CI downloads the pinned model weights so the real-model tests run instead of being skipped.
-2. **Publish**: builds and pushes the image to GHCR (`ghcr.io/sidnelyzhang/chessfen`) and Docker Hub (`<DOCKERHUB_USERNAME>/chessfen`), tagged with the release tag, plus `latest` for stable tags.
-3. **GitHub release**: creates a release whose notes are the annotated tag message; lightweight tags fall back to `Release <tag>`. Tags containing a hyphen are marked as prereleases and do not move `latest`.
+After the tests pass, two independent jobs run:
+
+1. **Publish**: builds and pushes the image to GHCR (`ghcr.io/sidnelyzhang/chessfen`) and Docker Hub (`<DOCKERHUB_USERNAME>/chessfen`), tagged with the release tag, plus `latest` for stable tags.
+2. **GitHub release**: creates a release whose notes are the annotated tag message; lightweight tags fall back to `Release <tag>`. Tags containing a hyphen are marked as prereleases and do not move `latest`.
 
 The GitHub release is independent of image publication, so a Docker Hub problem never blocks it.
 

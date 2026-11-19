@@ -48,12 +48,12 @@ def test_about_page_renders_in_three_languages(client: TestClient) -> None:
     de = client.get("/about", headers=_DE)
 
     assert "关于 ChessFEN" in zh.text
+    assert "发布镜像已发布到 GHCR" in zh.text
     assert "任意棋子摆放段或完整 FEN" in zh.text
-    assert "镜像在构建时内置" in zh.text
     assert "About ChessFEN" in en.text
-    assert "The image bakes in" in en.text
+    assert "Release images are published to GHCR" in en.text
     assert "Über ChessFEN" in de.text
-    assert "Das Image enthält" in de.text
+    assert "Veröffentlichte Release-Images stehen auf GHCR" in de.text
 
 
 def test_about_lists_star_badge_and_self_deploy(client: TestClient) -> None:
@@ -62,7 +62,9 @@ def test_about_lists_star_badge_and_self_deploy(client: TestClient) -> None:
     assert 'class="badge"' in page.text
     assert "Star on GitHub" in page.text
     assert "https://github.com/SidneyLYZhang/chessfen" in page.text
-    assert "docker compose up --build" in page.text
+    assert "ghcr.io/sidnelyzhang/chessfen" in page.text
+    assert "docker run" in page.text
+    assert "docker compose up -d" in page.text
     assert "ADMIN_PASSWORD=" in page.text
     assert "2d-chess-ocr" in page.text
     assert "CBurnett" in page.text

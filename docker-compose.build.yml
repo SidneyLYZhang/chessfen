@@ -1,0 +1,4 @@
+services:
+  chessfen:
+    image: chessfen:local
+    build: .

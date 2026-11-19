@@ -12,10 +12,13 @@
   <p><a class="badge" href="https://github.com/SidneyLYZhang/chessfen">★ <span>{% trans %}Star on GitHub{% endtrans %}</span></a></p>
 
   <h2>{% trans %}Self-deploy{% endtrans %}</h2>
-  <p>{% trans %}Run your own instance with Docker Compose. The image bakes in the pinned recognition model at build time.{% endtrans %}</p>
-  <pre><code>git clone https://github.com/SidneyLYZhang/chessfen.git
-cd chessfen
-ADMIN_PASSWORD='replace-with-a-strong-password' SECRET_KEY='replace-with-a-long-random-secret' docker compose up --build</code></pre>
+  <p>{% trans %}Release images are published to GHCR (ghcr.io/sidnelyzhang/chessfen) and Docker Hub (&lt;DOCKERHUB_USERNAME&gt;/chessfen), with the recognition model baked in. If the GHCR package is private, run docker login ghcr.io first. Run one with Docker:{% endtrans %}</p>
+  <pre><code>docker run -d --name chessfen -p 127.0.0.1:8000:8000 \
+  -e ADMIN_PASSWORD='replace-with-a-strong-password' \
+  -e SECRET_KEY='replace-with-a-long-random-secret' \
+  -v chessfen-data:/data \
+  ghcr.io/sidnelyzhang/chessfen:latest</code></pre>
+  <p>{% trans %}The repository also ships a docker-compose.yml for the published image: copy .env.example to .env, set ADMIN_PASSWORD and SECRET_KEY, then run docker compose up -d. Add docker-compose.build.yml to build from source instead.{% endtrans %}</p>
   <p>{% trans %}Then open http://localhost:8000 and create API keys on the admin page. The container serves plain HTTP: publish its port only to your reverse proxy, and set FORWARDED_ALLOW_IPS to the proxy address so rate limiting sees real client IPs. Set DATABASE_URL to use PostgreSQL instead of the SQLite volume.{% endtrans %}</p>
 
   <h2>{% trans %}Credits{% endtrans %}</h2>
