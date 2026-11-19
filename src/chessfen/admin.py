@@ -72,7 +72,7 @@ def login(request: Request, password: str = Form(...)):
     limiter = request.app.state.login_limiter
     client_ip = request.client.host if request.client else "unknown"
     if limiter.is_limited(client_ip):
-        return render_response(
+        limited = render_response(
             request,
             "admin/login.html",
             {
@@ -81,6 +81,8 @@ def login(request: Request, password: str = Form(...)):
             },
             status_code=429,
         )
+        limited.headers["Retry-After"] = "60"
+        return limited
     if settings.admin_password is None:
         return render_response(
             request, "admin/login.html", {"error": None, "configured": False}

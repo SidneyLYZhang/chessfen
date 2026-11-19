@@ -17,3 +17,4 @@ The brief asked to split the board into 64 squares and classify each, but 2d-che
 - We own the pre/postprocessing (resize/normalize, grid split, center assignment, orientation marker) and must pin and track upstream weight versions ourselves.
 - Per-square results are exposed in the API and UI to preserve the brief's per-square intent.
 - License note: the upstream repository and HuggingFace model card declare MIT, while the exported ONNX file embeds an exporter-default `license` metadata string claiming AGPL-3.0. We treat the author's repository/model-card MIT grant as the license of record (and use no ultralytics code), but the discrepancy is recorded here rather than silently ignored.
+- Relicensing note: the project moved to GPL-3.0-or-later in ADR-0003; the rejection of ultralytics/AGPL still holds because AGPL imposes stronger copyleft obligations than GPL.

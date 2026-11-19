@@ -8,3 +8,4 @@ The MVP spec proposed converting python-chess SVG output to PNG with cairosvg. c
 
 - No system libraries are needed in development or in the Docker image, and the PNG path is testable on any platform.
 - The rasterizer handles the SVG elements python-chess emits (paths and rects); coordinate labels are path glyphs, so no fonts are required and richer SVG features are out of scope.
+- Relicensing note: the project moved to GPL-3.0-or-later in ADR-0003; resvg_py (MIT) and resvg (MPL-2.0) remain compatible.

@@ -2,11 +2,12 @@ services:
   app:
     build: .
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     environment:
       DATABASE_URL: ${DATABASE_URL:-sqlite:////data/chessfen.db}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
       SECRET_KEY: ${SECRET_KEY:-}
+      FORWARDED_ALLOW_IPS: ${FORWARDED_ALLOW_IPS:-127.0.0.1}
     volumes:
       - chessfen-data:/data
     restart: unless-stopped

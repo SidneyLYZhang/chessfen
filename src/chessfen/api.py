@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from starlette.concurrency import run_in_threadpool
 
 from chessfen.errors import CodedError
+from chessfen.limits import IMAGE_MAX_BYTES, PGN_MAX_BYTES
 from chessfen.models import ApiKey
 from chessfen.pgn import PgnError, count_plies, load_games, position_at, select_game
 from chessfen.recognition import RecognitionError
@@ -42,6 +43,8 @@ API_ERRORS: dict[str, tuple[int, str]] = {
     "invalid_side": (400, "The side must be w or b."),
     "no_image": (400, "An image file is required."),
     "invalid_image": (400, "The image could not be decoded."),
+    "image_too_large": (413, "The image must be 10 MB or smaller."),
+    "pgn_too_large": (413, "The PGN must be 1 MB or smaller."),
     "no_board_detected": (400, "No chessboard was detected in the image."),
     "recognition_unavailable": (503, "Recognition is not available on this server."),
 }
@@ -155,6 +158,8 @@ class PgnPayload(BaseModel):
 
 @router.post("/pgn")
 def pgn_navigation(payload: PgnPayload) -> JSONResponse:
+    if len(payload.pgn.encode("utf-8")) > PGN_MAX_BYTES:
+        return api_error("pgn_too_large")
     try:
         games = load_games(payload.pgn)
         game = select_game(games, payload.game_index)
@@ -178,8 +183,11 @@ def recognize_image(
     side: str = Form("w"),
 ) -> JSONResponse:
     try:
+        image_bytes = image.file.read()
+        if len(image_bytes) > IMAGE_MAX_BYTES:
+            return api_error("image_too_large")
         result = request.app.state.recognizer.recognize(
-            image.file.read(), side_to_move=side
+            image_bytes, side_to_move=side
         )
     except RecognitionError as exc:
         return api_error(exc.code)

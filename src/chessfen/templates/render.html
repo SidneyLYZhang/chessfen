@@ -9,6 +9,7 @@
   {% if error == "invalid_fen" %}<p class="notice error">{% trans %}Invalid FEN{% endtrans %}</p>{% endif %}
   {% if error == "invalid_size" %}<p class="notice error">{% trans %}Size must be between 64 and 2048.{% endtrans %}</p>{% endif %}
   {% if error == "invalid_format" %}<p class="notice error">{% trans %}Invalid format.{% endtrans %}</p>{% endif %}
+  {% if error == "rate_limited" %}<p class="notice error">{% trans %}Too many requests. Try again later.{% endtrans %}</p>{% endif %}
 
   <form method="post" action="/tools/render" class="stack">
     <label>FEN

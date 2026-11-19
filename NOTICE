@@ -1,0 +1,36 @@
+ChessFEN
+Copyright (C) 2026 Sidney Zhang
+
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation, either version 3 of the License, or (at your option) any later
+version. See LICENSE for the full text.
+
+Third-party notices
+-------------------
+
+ChessFEN incorporates or depends on the following components:
+
+* python-chess (distribution name: chess), Copyright (C) Niklas Fiekas,
+  licensed under GPL-3.0-or-later.
+  https://github.com/niklasf/python-chess
+
+* 2d-chess-ocr recognition model (YOLO26m detector), by Andrew Spano,
+  published under the MIT license.
+  https://github.com/AndrewSpano/2d-chess-ocr
+  Note: the exported ONNX file embeds an exporter-default AGPL-3.0 metadata
+  string; the author's repository and model card declare MIT, which is treated
+  as the license of record (see docs/adr/0001-onnx-detector-recognition.md).
+
+* Chess piece images: the CBurnett chess set by Colin M.L. Burnett,
+  licensed under CC BY-SA 3.0, as distributed with python-chess.
+  https://creativecommons.org/licenses/by-sa/3.0/
+
+* SVG rasterization uses resvg_py (MIT) and resvg (MPL-2.0).
+  https://github.com/baseplate-admin/resvg-py
+  https://github.com/linebender/resvg
+
+* Other runtime dependencies (FastAPI, Starlette, SQLAlchemy, Alembic, Jinja2,
+  Babel, uvicorn, itsdangerous, python-multipart, numpy, Pillow, onnxruntime)
+  are distributed under their respective MIT, BSD, or Apache-2.0 licenses;
+  see the installed package metadata for details.

@@ -11,6 +11,7 @@
   {% if error == "invalid_game" %}<p class="notice error">{% trans %}Game not found{% endtrans %}</p>{% endif %}
   {% if error == "invalid_move" %}<p class="notice error">{% trans %}The move number is invalid.{% endtrans %}</p>{% endif %}
   {% if error == "ply_out_of_range" %}<p class="notice error">{% trans %}That move does not exist in this game.{% endtrans %}</p>{% endif %}
+  {% if error == "pgn_too_large" %}<p class="notice error">{% trans %}The PGN must be 1 MB or smaller.{% endtrans %}</p>{% endif %}
 
   <form method="post" action="/tools/pgn" enctype="multipart/form-data" class="stack">
     <label>PGN

@@ -7,6 +7,7 @@ from fastapi.responses import HTMLResponse
 
 from chessfen.api import API_ERRORS
 from chessfen.i18n import LOCALE_COOKIE, load_translations, negotiate_locale
+from chessfen.limits import IMAGE_MAX_BYTES, PGN_MAX_BYTES
 from chessfen.pgn import (
     GameSummary,
     PgnError,
@@ -55,6 +56,17 @@ def _warning_labels(request: Request, codes: tuple[str, ...]) -> list[str]:
     )
     translate = load_translations(locale).gettext
     return [translate(WARNING_LABELS.get(code, code)) for code in codes]
+
+
+def _consume_request_quota(request: Request) -> bool:
+    limiter = request.app.state.request_limiter
+    client_ip = request.client.host if request.client else "unknown"
+    return not limiter.allow(client_ip)
+
+
+def _rate_limited_response(response: HTMLResponse) -> HTMLResponse:
+    response.headers["Retry-After"] = "60"
+    return response
 
 
 def _page(
@@ -109,6 +121,10 @@ def render_submit(
         "coordinates": coordinates,
         "format": format,
     }
+    if _consume_request_quota(request):
+        return _rate_limited_response(
+            _page(request, form=form, error="rate_limited", status_code=429)
+        )
     try:
         size_value = int(size)
     except ValueError:
@@ -172,8 +188,7 @@ def _pgn_error(
     )
 
 
-def _decode_pgn_upload(upload: UploadFile) -> str:
-    raw = upload.file.read()
+def _decode_pgn_bytes(raw: bytes) -> str:
     try:
         return raw.decode("utf-8-sig")
     except UnicodeDecodeError:
@@ -198,7 +213,34 @@ def pgn_submit(
     side: str = Form("white"),
 ) -> HTMLResponse:
     if pgn_file is not None and pgn_file.filename:
-        pgn = _decode_pgn_upload(pgn_file)
+        raw = pgn_file.file.read()
+        if len(raw) > PGN_MAX_BYTES:
+            return _pgn_page(
+                request,
+                form={
+                    "pgn": "",
+                    "game_index": "",
+                    "move_number": move_number,
+                    "side": side,
+                },
+                error="pgn_too_large",
+                status_code=API_ERRORS["pgn_too_large"][0],
+            )
+        pgn = _decode_pgn_bytes(raw)
+    elif len(pgn.encode("utf-8")) > PGN_MAX_BYTES:
+        # Defence in depth: Starlette usually rejects a >1 MB form field first
+        # and the HTTP-exception handler translates that to this same page.
+        return _pgn_page(
+            request,
+            form={
+                "pgn": "",
+                "game_index": "",
+                "move_number": move_number,
+                "side": side,
+            },
+            error="pgn_too_large",
+            status_code=API_ERRORS["pgn_too_large"][0],
+        )
     form: dict[str, object] = {
         "pgn": pgn,
         "game_index": game_index,
@@ -258,6 +300,29 @@ def recognize_page(request: Request) -> HTMLResponse:
     return _recognize_page(request, form={"side": "w"})
 
 
+def oversized_upload_page(
+    request: Request, code: str
+) -> HTMLResponse | None:
+    status_code = API_ERRORS[code][0]
+    if request.url.path == "/tools/pgn":
+        return _pgn_page(
+            request,
+            form={
+                "pgn": "",
+                "game_index": "",
+                "move_number": "1",
+                "side": "white",
+            },
+            error=code,
+            status_code=status_code,
+        )
+    if request.url.path == "/tools/recognize":
+        return _recognize_page(
+            request, form={"side": "w"}, error=code, status_code=status_code
+        )
+    return None
+
+
 @router.post("/recognize")
 def recognize_submit(
     request: Request,
@@ -265,11 +330,24 @@ def recognize_submit(
     side: str = Form("w"),
 ) -> HTMLResponse:
     form: dict[str, object] = {"side": side}
+    if _consume_request_quota(request):
+        return _rate_limited_response(
+            _recognize_page(
+                request, form=form, error="rate_limited", status_code=429
+            )
+        )
     if image is None or not image.filename:
         return _recognize_page(
             request, form=form, error="no_image", status_code=400
         )
     raw = image.file.read()
+    if len(raw) > IMAGE_MAX_BYTES:
+        return _recognize_page(
+            request,
+            form=form,
+            error="image_too_large",
+            status_code=API_ERRORS["image_too_large"][0],
+        )
     media_type = (
         image.content_type
         if image.content_type and image.content_type.startswith("image/")

@@ -13,8 +13,8 @@ msgstr "识别、解析并生成国际象棋局面"
 msgid "Language"
 msgstr "语言"
 
-msgid "Open source under MIT"
-msgstr "MIT 开源"
+msgid "Open source under GPL-3.0-or-later"
+msgstr "GPL-3.0-or-later 开源"
 
 msgid "Admin"
 msgstr "管理"
@@ -277,6 +277,15 @@ msgstr "服务器未启用识别。"
 msgid "The side must be w or b."
 msgstr "走子方必须是 w 或 b。"
 
+msgid "Too many requests. Try again later."
+msgstr "请求过多，请稍后再试。"
+
+msgid "The image must be 10 MB or smaller."
+msgstr "图片不能超过 10 MB。"
+
+msgid "The PGN must be 1 MB or smaller."
+msgstr "PGN 不能超过 1 MB。"
+
 msgid "An image file is required."
 msgstr "请选择图片文件。"
 
@@ -394,8 +403,8 @@ msgstr "自部署"
 msgid "Run your own instance with Docker Compose. The image bakes in the pinned recognition model at build time."
 msgstr "用 Docker Compose 运行你自己的实例。镜像在构建时内置固定版本的识别模型。"
 
-msgid "Then open http://localhost:8000 and create API keys on the admin page. The container serves plain HTTP; put it behind your own reverse proxy for TLS. Set DATABASE_URL to use PostgreSQL instead of the SQLite volume."
-msgstr "然后打开 http://localhost:8000，在管理页创建 API 密钥。容器只提供 HTTP，请放在你自己的反向代理之后以启用 TLS；把 DATABASE_URL 指向 PostgreSQL 即可替代 SQLite 卷。"
+msgid "Then open http://localhost:8000 and create API keys on the admin page. The container serves plain HTTP: publish its port only to your reverse proxy, and set FORWARDED_ALLOW_IPS to the proxy address so rate limiting sees real client IPs. Set DATABASE_URL to use PostgreSQL instead of the SQLite volume."
+msgstr "然后打开 http://localhost:8000，在管理页创建 API 密钥。容器只提供 HTTP：请把端口只暴露给你的反向代理，并把 FORWARDED_ALLOW_IPS 设为代理地址，以便限流识别真实客户端 IP；把 DATABASE_URL 指向 PostgreSQL 即可替代 SQLite 卷。"
 
 msgid "Credits"
 msgstr "致谢"
@@ -409,5 +418,5 @@ msgstr "由 Andrew Spano 开发（YOLO26m 微调检测器）。"
 msgid "Piece images: the CBurnett chess set, rendered with python-chess (CC-BY-SA 3.0)."
 msgstr "棋子图片：CBurnett 棋子集，由 python-chess 渲染（CC-BY-SA 3.0）。"
 
-msgid "Licensing: ChessFEN is released under the MIT license."
-msgstr "许可：ChessFEN 以 MIT 许可证发布。"
+msgid "Licensing: ChessFEN is released under the GPL-3.0-or-later license."
+msgstr "许可：ChessFEN 以 GPL-3.0-or-later 许可证发布。"

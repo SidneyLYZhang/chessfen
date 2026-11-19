@@ -66,7 +66,7 @@ def test_about_lists_star_badge_and_self_deploy(client: TestClient) -> None:
     assert "ADMIN_PASSWORD=" in page.text
     assert "2d-chess-ocr" in page.text
     assert "CBurnett" in page.text
-    assert "MIT" in page.text
+    assert "GPL-3.0" in page.text
 
 
 def test_about_explains_tls_and_postgres_options(client: TestClient) -> None:
@@ -74,3 +74,11 @@ def test_about_explains_tls_and_postgres_options(client: TestClient) -> None:
 
     assert "reverse proxy" in page.text
     assert "DATABASE_URL" in page.text
+
+
+def test_footer_states_the_license(client: TestClient) -> None:
+    zh = client.get("/", headers=_ZH)
+    en = client.get("/", headers=_EN)
+
+    assert "GPL-3.0-or-later 开源" in zh.text
+    assert "Open source under GPL-3.0-or-later" in en.text

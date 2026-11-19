@@ -13,8 +13,8 @@ msgstr "Schachstellungen erkennen, parsen und erzeugen"
 msgid "Language"
 msgstr "Sprache"
 
-msgid "Open source under MIT"
-msgstr "Open Source unter MIT"
+msgid "Open source under GPL-3.0-or-later"
+msgstr "Open Source unter GPL-3.0-or-later"
 
 msgid "Admin"
 msgstr "Verwaltung"
@@ -277,6 +277,15 @@ msgstr "Die Erkennung ist auf diesem Server nicht verfügbar."
 msgid "The side must be w or b."
 msgstr "Die Seite muss w oder b sein."
 
+msgid "Too many requests. Try again later."
+msgstr "Zu viele Anfragen. Bitte später erneut versuchen."
+
+msgid "The image must be 10 MB or smaller."
+msgstr "Das Bild darf höchstens 10 MB groß sein."
+
+msgid "The PGN must be 1 MB or smaller."
+msgstr "Die PGN darf höchstens 1 MB groß sein."
+
 msgid "An image file is required."
 msgstr "Bitte eine Bilddatei auswählen."
 
@@ -394,8 +403,8 @@ msgstr "Selbst betreiben"
 msgid "Run your own instance with Docker Compose. The image bakes in the pinned recognition model at build time."
 msgstr "Betreibe deine eigene Instanz mit Docker Compose. Das Image enthält das festgelegte Erkennungsmodell bereits aus dem Build."
 
-msgid "Then open http://localhost:8000 and create API keys on the admin page. The container serves plain HTTP; put it behind your own reverse proxy for TLS. Set DATABASE_URL to use PostgreSQL instead of the SQLite volume."
-msgstr "Öffne dann http://localhost:8000 und erstelle API-Schlüssel auf der Verwaltungsseite. Der Container spricht nur HTTP; setze ihn für TLS hinter deinen eigenen Reverse-Proxy. Mit DATABASE_URL wechselst du vom SQLite-Volume zu PostgreSQL."
+msgid "Then open http://localhost:8000 and create API keys on the admin page. The container serves plain HTTP: publish its port only to your reverse proxy, and set FORWARDED_ALLOW_IPS to the proxy address so rate limiting sees real client IPs. Set DATABASE_URL to use PostgreSQL instead of the SQLite volume."
+msgstr "Öffne dann http://localhost:8000 und erstelle API-Schlüssel auf der Verwaltungsseite. Der Container spricht nur HTTP: Veröffentliche den Port nur für deinen Reverse-Proxy und setze FORWARDED_ALLOW_IPS auf dessen Adresse, damit die Ratenbegrenzung echte Client-IPs sieht; mit DATABASE_URL wechselst du vom SQLite-Volume zu PostgreSQL."
 
 msgid "Credits"
 msgstr "Danksagung"
@@ -409,5 +418,5 @@ msgstr "von Andrew Spano (feinabgestimmter YOLO26m-Detektor)."
 msgid "Piece images: the CBurnett chess set, rendered with python-chess (CC-BY-SA 3.0)."
 msgstr "Figurenbilder: das CBurnett-Schachfigurenset, gerendert mit python-chess (CC-BY-SA 3.0)."
 
-msgid "Licensing: ChessFEN is released under the MIT license."
-msgstr "Lizenz: ChessFEN steht unter der MIT-Lizenz."
+msgid "Licensing: ChessFEN is released under the GPL-3.0-or-later license."
+msgstr "Lizenz: ChessFEN steht unter der GPL-3.0-or-later-Lizenz."

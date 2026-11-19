@@ -9,9 +9,11 @@
 
   {% if error == "no_image" %}<p class="notice error">{% trans %}An image file is required.{% endtrans %}</p>{% endif %}
   {% if error == "invalid_image" %}<p class="notice error">{% trans %}Invalid image{% endtrans %}</p>{% endif %}
+  {% if error == "image_too_large" %}<p class="notice error">{% trans %}The image must be 10 MB or smaller.{% endtrans %}</p>{% endif %}
   {% if error == "no_board_detected" %}<p class="notice error">{% trans %}No chessboard detected{% endtrans %}</p>{% endif %}
   {% if error == "recognition_unavailable" %}<p class="notice error">{% trans %}Recognition is not available on this server.{% endtrans %}</p>{% endif %}
   {% if error == "invalid_side" %}<p class="notice error">{% trans %}The side must be w or b.{% endtrans %}</p>{% endif %}
+  {% if error == "rate_limited" %}<p class="notice error">{% trans %}Too many requests. Try again later.{% endtrans %}</p>{% endif %}
 
   <form method="post" action="/tools/recognize" enctype="multipart/form-data" class="stack">
     <label>{% trans %}Board image{% endtrans %}
