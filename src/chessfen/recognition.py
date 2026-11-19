@@ -60,9 +60,12 @@ class RecognitionResult:
     unmatched: int
     squares: tuple[SquareResult, ...]
 
+    def fen_for(self, side_to_move: str) -> str:
+        return f"{self.placement} {side_to_move} - - 0 1"
+
     @property
     def fen(self) -> str:
-        return f"{self.placement} {self.side_to_move} - - 0 1"
+        return self.fen_for(self.side_to_move)
 
 
 class Recognizer:

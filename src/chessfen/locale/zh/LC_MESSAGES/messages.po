@@ -208,8 +208,8 @@ msgstr "该步在该对局中不存在。"
 msgid "Full FEN"
 msgstr "完整 FEN"
 
-msgid "Browse games and export the FEN at any half-move."
-msgstr "浏览对局并在任意半步导出 FEN。"
+msgid "Browse games and export the Full FEN at any half-move."
+msgstr "浏览对局并在任意半步导出完整 FEN。"
 
 msgid "PGN file"
 msgstr "PGN 文件"
@@ -225,3 +225,57 @@ msgstr "对局 %(index)s"
 
 msgid "vs"
 msgstr "对"
+
+msgid "Recognize board"
+msgstr "识别棋盘"
+
+msgid "Upload a board image to get its Placement."
+msgstr "上传棋盘图片以获取棋子摆放段。"
+
+msgid "Upload a board image and get its Placement."
+msgstr "上传棋盘图片并获取棋子摆放段。"
+
+msgid "Board image"
+msgstr "棋盘图片"
+
+msgid "Recognize"
+msgstr "识别"
+
+msgid "Placement"
+msgstr "棋子摆放段"
+
+msgid "Side to move"
+msgstr "走子方"
+
+msgid "Orientation"
+msgstr "朝向"
+
+msgid "Normal"
+msgstr "正常"
+
+msgid "Flipped"
+msgstr "翻转"
+
+msgid "Unknown"
+msgstr "未知"
+
+msgid "Show confidence"
+msgstr "显示置信度"
+
+msgid "Unmatched pieces: %(count)s"
+msgstr "未匹配棋子：%(count)s"
+
+msgid "Invalid image"
+msgstr "图片无法识别"
+
+msgid "No chessboard detected"
+msgstr "未检测到棋盘"
+
+msgid "Recognition is not available on this server."
+msgstr "服务器未启用识别。"
+
+msgid "The side must be w or b."
+msgstr "走子方必须是 w 或 b。"
+
+msgid "An image file is required."
+msgstr "请选择图片文件。"

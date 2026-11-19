@@ -5,6 +5,7 @@ import base64
 from fastapi import APIRouter, File, Form, Request, UploadFile
 from fastapi.responses import HTMLResponse
 
+from chessfen.api import API_ERRORS
 from chessfen.i18n import LOCALE_COOKIE, load_translations, negotiate_locale
 from chessfen.pgn import (
     GameSummary,
@@ -15,6 +16,7 @@ from chessfen.pgn import (
     select_game,
     summarize,
 )
+from chessfen.recognition import RecognitionError, RecognitionResult
 from chessfen.render import (
     DEFAULT_SIZE,
     FenSyntaxError,
@@ -227,3 +229,50 @@ def pgn_submit(
     return _pgn_page(
         request, form=form, games=summaries, result_fen=board.fen()
     )
+
+
+def _recognize_page(
+    request: Request,
+    *,
+    form: dict[str, object],
+    result: RecognitionResult | None = None,
+    error: str | None = None,
+    status_code: int = 200,
+) -> HTMLResponse:
+    return render_response(
+        request,
+        "recognize.html",
+        {"form": form, "result": result, "error": error},
+        status_code=status_code,
+    )
+
+
+@router.get("/recognize")
+def recognize_page(request: Request) -> HTMLResponse:
+    return _recognize_page(request, form={"side": "w"})
+
+
+@router.post("/recognize")
+def recognize_submit(
+    request: Request,
+    image: UploadFile | None = File(None),
+    side: str = Form("w"),
+) -> HTMLResponse:
+    form: dict[str, object] = {"side": side}
+    if image is None or not image.filename:
+        return _recognize_page(
+            request, form=form, error="no_image", status_code=400
+        )
+    try:
+        result = request.app.state.recognizer.recognize(
+            image.file.read(), side_to_move=side
+        )
+    except RecognitionError as exc:
+        status_code = API_ERRORS.get(exc.code, (400, ""))[0]
+        return _recognize_page(
+            request,
+            form=form,
+            error=exc.code,
+            status_code=status_code,
+        )
+    return _recognize_page(request, form=form, result=result)

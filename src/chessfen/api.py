@@ -40,6 +40,7 @@ API_ERRORS: dict[str, tuple[int, str]] = {
     "invalid_game": (400, "The game index is out of range."),
     "ply_out_of_range": (400, "The selected ply does not exist in this game."),
     "invalid_side": (400, "The side must be w or b."),
+    "no_image": (400, "An image file is required."),
     "invalid_image": (400, "The image could not be decoded."),
     "no_board_detected": (400, "No chessboard was detected in the image."),
     "recognition_unavailable": (503, "Recognition is not available on this server."),

@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+
+{% block title %}ChessFEN · {% trans %}Recognize board{% endtrans %}{% endblock %}
+
+{% block content %}
+<section class="panel">
+  <h1>{% trans %}Recognize board{% endtrans %}</h1>
+  <p class="muted">{% trans %}Upload a board image to get its Placement.{% endtrans %}</p>
+
+  {% if error == "no_image" %}<p class="notice error">{% trans %}An image file is required.{% endtrans %}</p>{% endif %}
+  {% if error == "invalid_image" %}<p class="notice error">{% trans %}Invalid image{% endtrans %}</p>{% endif %}
+  {% if error == "no_board_detected" %}<p class="notice error">{% trans %}No chessboard detected{% endtrans %}</p>{% endif %}
+  {% if error == "recognition_unavailable" %}<p class="notice error">{% trans %}Recognition is not available on this server.{% endtrans %}</p>{% endif %}
+  {% if error == "invalid_side" %}<p class="notice error">{% trans %}The side must be w or b.{% endtrans %}</p>{% endif %}
+
+  <form method="post" action="/tools/recognize" enctype="multipart/form-data" class="stack">
+    <label>{% trans %}Board image{% endtrans %}
+      <input type="file" name="image" accept="image/*" required>
+    </label>
+    <button type="submit">{% trans %}Recognize{% endtrans %}</button>
+  </form>
+
+  {% if result %}
+  <div class="result-columns">
+    <div>
+      <h2>{% trans %}Placement{% endtrans %}</h2>
+      <p class="secret">{{ result.placement }}</p>
+      <h2>{% trans %}Full FEN{% endtrans %}</h2>
+      <p class="secret" id="fen-text" data-fen-w="{{ result.fen_for("w") }}" data-fen-b="{{ result.fen_for("b") }}">{{ result.fen }}</p>
+      <label>{% trans %}Side to move{% endtrans %}
+        <select id="side-select">
+          <option value="w"{% if result.side_to_move == "w" %} selected{% endif %}>{% trans %}White{% endtrans %}</option>
+          <option value="b"{% if result.side_to_move == "b" %} selected{% endif %}>{% trans %}Black{% endtrans %}</option>
+        </select>
+      </label>
+      <p class="muted">{% trans %}Orientation{% endtrans %}:
+        {% if result.orientation == "normal" %}{% trans %}Normal{% endtrans %}
+        {% elif result.orientation == "flipped" %}{% trans %}Flipped{% endtrans %}
+        {% else %}{% trans %}Unknown{% endtrans %}{% endif %}
+      </p>
+      {% if result.unmatched %}
+      <p class="notice">{% trans count=result.unmatched %}Unmatched pieces: {{ count }}{% endtrans %}</p>
+      {% endif %}
+    </div>
+    <div>
+      <input type="checkbox" id="show-confidence">
+      <label for="show-confidence">{% trans %}Show confidence{% endtrans %}</label>
+      <div class="squares">
+        {% for square in result.squares %}
+        <div class="square">
+          <span class="piece">{{ square.piece or "·" }}</span>
+          <span class="square-name">{{ square.square }}</span>
+          <span class="confidence">{% if square.confidence is not none %}{{ "%.2f"|format(square.confidence) }}{% endif %}</span>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+  <script>
+    (function () {
+      var select = document.getElementById("side-select");
+      var fen = document.getElementById("fen-text");
+      if (select && fen) {
+        select.addEventListener("change", function () {
+          fen.textContent = select.value === "b"
+            ? fen.getAttribute("data-fen-b")
+            : fen.getAttribute("data-fen-w");
+        });
+      }
+    })();
+  </script>
+  {% endif %}
+</section>
+{% endblock %}

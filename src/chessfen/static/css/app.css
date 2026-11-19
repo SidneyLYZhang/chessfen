@@ -344,3 +344,73 @@ label.checkbox {
   border-radius: 8px;
   border: 1px solid var(--border);
 }
+
+.result-columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+  gap: 1.5rem;
+  margin-top: 1.5rem;
+}
+
+.squares {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  gap: 2px;
+  max-width: 34rem;
+  margin-top: 0.5rem;
+}
+
+.square {
+  aspect-ratio: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.square .piece {
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.square .square-name {
+  font-size: 0.55rem;
+  color: var(--muted);
+}
+
+.square .confidence {
+  display: none;
+  font-size: 0.55rem;
+  color: var(--muted);
+}
+
+/* The checkbox must stay a sibling of .squares for this toggle to apply. */
+#show-confidence {
+  margin-right: 0.4rem;
+}
+
+#show-confidence:checked ~ .squares .confidence {
+  display: block;
+}
+
+@media (max-width: 640px) {
+  .squares {
+    max-width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .square .piece {
+    font-size: 0.85rem;
+  }
+
+  .square .square-name {
+    font-size: 0.5rem;
+  }
+}

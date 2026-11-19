@@ -208,8 +208,8 @@ msgstr "Dieser Zug existiert in dieser Partie nicht."
 msgid "Full FEN"
 msgstr "Vollständige FEN"
 
-msgid "Browse games and export the FEN at any half-move."
-msgstr "Partien durchsuchen und die FEN an jedem Halbzug exportieren."
+msgid "Browse games and export the Full FEN at any half-move."
+msgstr "Partien durchsuchen und die vollständige FEN an jedem Halbzug exportieren."
 
 msgid "PGN file"
 msgstr "PGN-Datei"
@@ -225,3 +225,57 @@ msgstr "Partie %(index)s"
 
 msgid "vs"
 msgstr "gegen"
+
+msgid "Recognize board"
+msgstr "Brett erkennen"
+
+msgid "Upload a board image to get its Placement."
+msgstr "Brettbild hochladen, um die Figurenstellung zu erhalten."
+
+msgid "Upload a board image and get its Placement."
+msgstr "Brettbild hochladen und die Figurenstellung erhalten."
+
+msgid "Board image"
+msgstr "Brettbild"
+
+msgid "Recognize"
+msgstr "Erkennen"
+
+msgid "Placement"
+msgstr "Figurenstellung"
+
+msgid "Side to move"
+msgstr "Seite am Zug"
+
+msgid "Orientation"
+msgstr "Ausrichtung"
+
+msgid "Normal"
+msgstr "Normal"
+
+msgid "Flipped"
+msgstr "Gedreht"
+
+msgid "Unknown"
+msgstr "Unbekannt"
+
+msgid "Show confidence"
+msgstr "Konfidenz anzeigen"
+
+msgid "Unmatched pieces: %(count)s"
+msgstr "Nicht zugeordnete Figuren: %(count)s"
+
+msgid "Invalid image"
+msgstr "Bild konnte nicht gelesen werden"
+
+msgid "No chessboard detected"
+msgstr "Kein Schachbrett erkannt"
+
+msgid "Recognition is not available on this server."
+msgstr "Die Erkennung ist auf diesem Server nicht verfügbar."
+
+msgid "The side must be w or b."
+msgstr "Die Seite muss w oder b sein."
+
+msgid "An image file is required."
+msgstr "Bitte eine Bilddatei auswählen."
