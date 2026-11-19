@@ -10,7 +10,9 @@ from sqlalchemy import select, update
 from sqlalchemy.orm import Session, sessionmaker
 from starlette.concurrency import run_in_threadpool
 
+from chessfen.errors import CodedError
 from chessfen.models import ApiKey
+from chessfen.pgn import PgnError, count_plies, load_games, position_at, select_game
 from chessfen.render import (
     DEFAULT_SIZE,
     FenSyntaxError,
@@ -33,13 +35,14 @@ API_ERRORS: dict[str, tuple[int, str]] = {
     "invalid_fen": (400, "The FEN is invalid."),
     "invalid_size": (400, "The size must be between 64 and 2048."),
     "invalid_format": (400, "The format must be png or svg."),
+    "invalid_pgn": (400, "The PGN could not be parsed."),
+    "invalid_game": (400, "The game index is out of range."),
+    "ply_out_of_range": (400, "The selected ply does not exist in this game."),
 }
 
 
-class ApiKeyAuthError(Exception):
-    def __init__(self, code: str) -> None:
-        self.code = code
-        super().__init__(code)
+class ApiKeyAuthError(CodedError):
+    pass
 
 
 def api_error(code: str) -> JSONResponse:
@@ -135,4 +138,28 @@ def render(payload: RenderPayload) -> Response:
         content=result.image_bytes,
         media_type=result.media_type,
         headers=headers,
+    )
+
+
+class PgnPayload(BaseModel):
+    pgn: str
+    game_index: int = 0
+    ply: int = 0
+
+
+@router.post("/pgn")
+def pgn_navigation(payload: PgnPayload) -> JSONResponse:
+    try:
+        games = load_games(payload.pgn)
+        game = select_game(games, payload.game_index)
+        board = position_at(game, payload.ply)
+    except PgnError as exc:
+        return api_error(exc.code)
+    return JSONResponse(
+        {
+            "fen": board.fen(),
+            "game_index": payload.game_index,
+            "ply": payload.ply,
+            "available_plies": count_plies(game),
+        }
     )

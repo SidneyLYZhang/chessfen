@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% block title %}ChessFEN · {% trans %}PGN navigation{% endtrans %}{% endblock %}
+
+{% block content %}
+<section class="panel">
+  <h1>{% trans %}PGN navigation{% endtrans %}</h1>
+  <p class="muted">{% trans %}Only the mainline is followed; variations are ignored.{% endtrans %}</p>
+
+  {% if error == "invalid_pgn" %}<p class="notice error">{% trans %}Invalid PGN{% endtrans %}</p>{% endif %}
+  {% if error == "invalid_game" %}<p class="notice error">{% trans %}Game not found{% endtrans %}</p>{% endif %}
+  {% if error == "invalid_move" %}<p class="notice error">{% trans %}The move number is invalid.{% endtrans %}</p>{% endif %}
+  {% if error == "ply_out_of_range" %}<p class="notice error">{% trans %}That move does not exist in this game.{% endtrans %}</p>{% endif %}
+
+  <form method="post" action="/tools/pgn" enctype="multipart/form-data" class="stack">
+    <label>PGN
+      <textarea name="pgn" rows="10" placeholder="{% trans %}Paste one or more games.{% endtrans %}">{{ form.pgn }}</textarea>
+    </label>
+    <label>{% trans %}PGN file{% endtrans %}
+      <input type="file" name="pgn_file" accept=".pgn,text/plain">
+      <small class="muted">{% trans %}A file takes precedence over the pasted text.{% endtrans %}</small>
+    </label>
+    <button type="submit">{% trans %}Parse PGN{% endtrans %}</button>
+  </form>
+
+  {% if games %}
+  <form method="post" action="/tools/pgn" class="stack extract-form">
+    <input type="hidden" name="pgn" value="{{ form.pgn }}">
+    <div class="options-row">
+      <label>{% trans %}Game{% endtrans %}
+        <select name="game_index">
+          {% for game in games %}
+          <option value="{{ game.index }}"{% if form.game_index == game.index|string %} selected{% endif %}>{% trans index=game.index + 1 %}Game {{ index }}{% endtrans %}: {{ game.white_player }} {% trans %}vs{% endtrans %} {{ game.black_player }} ({{ game.result }})</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>{% trans %}Move number{% endtrans %}
+        <input type="number" name="move_number" min="0" value="{{ form.move_number }}">
+      </label>
+      <label>{% trans %}Side{% endtrans %}
+        <select name="side">
+          <option value="white"{% if form.side != "black" %} selected{% endif %}>{% trans %}White{% endtrans %}</option>
+          <option value="black"{% if form.side == "black" %} selected{% endif %}>{% trans %}Black{% endtrans %}</option>
+        </select>
+      </label>
+      <button type="submit">{% trans %}Get FEN{% endtrans %}</button>
+    </div>
+  </form>
+  {% endif %}
+
+  {% if result_fen %}
+  <div class="render-result">
+    <h2>{% trans %}Full FEN{% endtrans %}</h2>
+    <p class="secret">{{ result_fen }}</p>
+  </div>
+  {% endif %}
+</section>
+{% endblock %}

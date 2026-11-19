@@ -7,6 +7,8 @@ import chess
 import chess.svg
 import resvg_py
 
+from chessfen.errors import CodedError
+
 DEFAULT_SIZE = 480
 MIN_SIZE = 64
 MAX_SIZE = 2048
@@ -18,12 +20,8 @@ class FenSyntaxError(ValueError):
     """The FEN string cannot be parsed."""
 
 
-class RenderOptionsError(ValueError):
+class RenderOptionsError(CodedError):
     """A rendering option is out of range or unsupported."""
-
-    def __init__(self, code: str) -> None:
-        self.code = code
-        super().__init__(code)
 
 
 @dataclass(frozen=True)

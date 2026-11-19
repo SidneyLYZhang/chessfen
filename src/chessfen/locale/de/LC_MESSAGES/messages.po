@@ -165,3 +165,63 @@ msgstr "Zu viele angreifende Figuren"
 
 msgid "Impossible check"
 msgstr "Unmögliches Schach"
+
+msgid "PGN navigation"
+msgstr "PGN-Navigation"
+
+msgid "Paste one or more games."
+msgstr "Eine oder mehrere Partien einfügen."
+
+msgid "Parse PGN"
+msgstr "PGN analysieren"
+
+msgid "Game"
+msgstr "Partie"
+
+msgid "Move number"
+msgstr "Zugnummer"
+
+msgid "Side"
+msgstr "Seite"
+
+msgid "White"
+msgstr "Weiß"
+
+msgid "Black"
+msgstr "Schwarz"
+
+msgid "Get FEN"
+msgstr "FEN abrufen"
+
+msgid "Only the mainline is followed; variations are ignored."
+msgstr "Es wird nur die Hauptvariante verfolgt; Varianten werden ignoriert."
+
+msgid "Invalid PGN"
+msgstr "Ungültige PGN"
+
+msgid "Game not found"
+msgstr "Partie nicht gefunden"
+
+msgid "That move does not exist in this game."
+msgstr "Dieser Zug existiert in dieser Partie nicht."
+
+msgid "Full FEN"
+msgstr "Vollständige FEN"
+
+msgid "Browse games and export the FEN at any half-move."
+msgstr "Partien durchsuchen und die FEN an jedem Halbzug exportieren."
+
+msgid "PGN file"
+msgstr "PGN-Datei"
+
+msgid "A file takes precedence over the pasted text."
+msgstr "Eine Datei hat Vorrang vor dem eingefügten Text."
+
+msgid "The move number is invalid."
+msgstr "Ungültige Zugnummer."
+
+msgid "Game %(index)s"
+msgstr "Partie %(index)s"
+
+msgid "vs"
+msgstr "gegen"

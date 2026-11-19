@@ -2,10 +2,19 @@ from __future__ import annotations
 
 import base64
 
-from fastapi import APIRouter, Form, Request
+from fastapi import APIRouter, File, Form, Request, UploadFile
 from fastapi.responses import HTMLResponse
 
 from chessfen.i18n import LOCALE_COOKIE, load_translations, negotiate_locale
+from chessfen.pgn import (
+    GameSummary,
+    PgnError,
+    load_games,
+    ply_for_move,
+    position_at,
+    select_game,
+    summarize,
+)
 from chessfen.render import (
     DEFAULT_SIZE,
     FenSyntaxError,
@@ -125,4 +134,96 @@ def render_submit(
         form=form,
         image_uri=data_uri,
         warnings=_warning_labels(request, result.warnings),
+    )
+
+
+def _pgn_page(
+    request: Request,
+    *,
+    form: dict[str, object],
+    games: list[GameSummary] | None = None,
+    result_fen: str | None = None,
+    error: str | None = None,
+    status_code: int = 200,
+) -> HTMLResponse:
+    return render_response(
+        request,
+        "pgn.html",
+        {
+            "form": form,
+            "games": games or [],
+            "result_fen": result_fen,
+            "error": error,
+        },
+        status_code=status_code,
+    )
+
+
+def _pgn_error(
+    request: Request,
+    form: dict[str, object],
+    summaries: list[GameSummary],
+    code: str,
+) -> HTMLResponse:
+    return _pgn_page(
+        request, form=form, games=summaries, error=code, status_code=400
+    )
+
+
+def _decode_pgn_upload(upload: UploadFile) -> str:
+    raw = upload.file.read()
+    try:
+        return raw.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        return raw.decode("latin-1")
+
+
+@router.get("/pgn")
+def pgn_page(request: Request) -> HTMLResponse:
+    return _pgn_page(
+        request,
+        form={"pgn": "", "game_index": "", "move_number": "1", "side": "white"},
+    )
+
+
+@router.post("/pgn")
+def pgn_submit(
+    request: Request,
+    pgn: str = Form(""),
+    pgn_file: UploadFile | None = File(None),
+    game_index: str = Form(""),
+    move_number: str = Form("1"),
+    side: str = Form("white"),
+) -> HTMLResponse:
+    if pgn_file is not None and pgn_file.filename:
+        pgn = _decode_pgn_upload(pgn_file)
+    form: dict[str, object] = {
+        "pgn": pgn,
+        "game_index": game_index,
+        "move_number": move_number,
+        "side": side,
+    }
+    try:
+        games = load_games(pgn)
+    except PgnError as exc:
+        return _pgn_page(request, form=form, error=exc.code, status_code=400)
+    summaries = [summarize(game, index) for index, game in enumerate(games)]
+    if game_index == "":
+        return _pgn_page(request, form=form, games=summaries)
+    try:
+        index = int(game_index)
+    except ValueError:
+        return _pgn_error(request, form, summaries, "invalid_game")
+    try:
+        move = int(move_number)
+    except ValueError:
+        return _pgn_error(request, form, summaries, "invalid_move")
+    try:
+        ply = ply_for_move(move, black=side == "black")
+        game = select_game(games, index)
+        board = position_at(game, ply)
+    except PgnError as exc:
+        return _pgn_error(request, form, summaries, exc.code)
+    return _pgn_page(
+        request, form=form, games=summaries, result_fen=board.fen()
     )

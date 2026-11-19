@@ -165,3 +165,63 @@ msgstr "将军的棋子过多"
 
 msgid "Impossible check"
 msgstr "不可能出现的将军"
+
+msgid "PGN navigation"
+msgstr "PGN 导航"
+
+msgid "Paste one or more games."
+msgstr "粘贴一局或多局 PGN。"
+
+msgid "Parse PGN"
+msgstr "解析 PGN"
+
+msgid "Game"
+msgstr "对局"
+
+msgid "Move number"
+msgstr "第几步"
+
+msgid "Side"
+msgstr "走子方"
+
+msgid "White"
+msgstr "白方"
+
+msgid "Black"
+msgstr "黑方"
+
+msgid "Get FEN"
+msgstr "获取 FEN"
+
+msgid "Only the mainline is followed; variations are ignored."
+msgstr "仅沿主线导航，变例将被忽略。"
+
+msgid "Invalid PGN"
+msgstr "PGN 无效"
+
+msgid "Game not found"
+msgstr "对局不存在"
+
+msgid "That move does not exist in this game."
+msgstr "该步在该对局中不存在。"
+
+msgid "Full FEN"
+msgstr "完整 FEN"
+
+msgid "Browse games and export the FEN at any half-move."
+msgstr "浏览对局并在任意半步导出 FEN。"
+
+msgid "PGN file"
+msgstr "PGN 文件"
+
+msgid "A file takes precedence over the pasted text."
+msgstr "文件优先于粘贴的文本。"
+
+msgid "The move number is invalid."
+msgstr "步数无效。"
+
+msgid "Game %(index)s"
+msgstr "对局 %(index)s"
+
+msgid "vs"
+msgstr "对"
