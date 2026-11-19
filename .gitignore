@@ -8,6 +8,10 @@ build/
 # uv / virtualenv
 .venv/
 
+# Local data (SQLite)
+data/
+*.db
+
 # Tooling caches
 .pytest_cache/
 .ruff_cache/

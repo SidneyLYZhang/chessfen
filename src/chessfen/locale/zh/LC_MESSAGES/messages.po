@@ -1,0 +1,17 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: chessfen\n"
+"Language: zh\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+msgid "Recognize, parse, and render chess positions"
+msgstr "识别、解析并生成国际象棋局面"
+
+msgid "Language"
+msgstr "语言"
+
+msgid "Open source under MIT"
+msgstr "MIT 开源"

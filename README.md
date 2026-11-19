@@ -7,9 +7,19 @@ Python tool (API + web app) for working with chess encodings — PGN, FEN — an
 Managed with [uv](https://docs.astral.sh/uv/). Requires Python 3.13+.
 
 ```bash
-uv sync          # install the project and its dependencies
-uv run chessfen  # run the CLI entry point
+uv sync                      # install the project and its dependencies
+uv run alembic upgrade head  # apply database migrations (SQLite by default)
+uv run chessfen              # serve on http://127.0.0.1:8000
+uv run pytest                # run the test suite
 ```
+
+Deploy with Docker:
+
+```bash
+docker compose up --build
+```
+
+Set `DATABASE_URL` to point at PostgreSQL instead of the default SQLite file.
 
 ## Agent configuration
 

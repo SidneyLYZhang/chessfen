@@ -7,7 +7,15 @@ authors = [
     { name = "Sidney Zhang", email = "liangyi@me.com" }
 ]
 requires-python = ">=3.13"
-dependencies = []
+dependencies = [
+    "alembic>=1.20.1",
+    "babel>=2.18.0",
+    "fastapi>=0.165.0",
+    "jinja2>=3.1.6",
+    "psycopg[binary]>=3.3.9",
+    "sqlalchemy>=2.1.9",
+    "uvicorn[standard]>=0.54.0",
+]
 
 [project.scripts]
 chessfen = "chessfen:main"
@@ -15,3 +23,19 @@ chessfen = "chessfen:main"
 [build-system]
 requires = ["uv_build>=0.13.9,<0.14.0"]
 build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "httpx2>=2.16.2",
+    "mypy>=2.4.1",
+    "pytest>=9.2.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.mypy]
+python_version = "3.13"
+files = ["src", "tests"]
+check_untyped_defs = true
+ignore_missing_imports = true

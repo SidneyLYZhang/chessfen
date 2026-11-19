@@ -1,0 +1,143 @@
+:root {
+  color-scheme: light dark;
+  --bg: #f7f7f5;
+  --surface: #ffffff;
+  --fg: #1c1c1a;
+  --muted: #6b6b66;
+  --accent: #166b45;
+  --border: #e2e2dd;
+  --radius: 12px;
+  --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial,
+    "Noto Sans", "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #141414;
+    --surface: #1d1d1b;
+    --fg: #ececea;
+    --muted: #9a9a94;
+    --accent: #5fbf8a;
+    --border: #2e2e2b;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+.container {
+  width: min(960px, 92vw);
+  margin: 0 auto;
+}
+
+.site-header {
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.header-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.9rem 0;
+}
+
+.brand {
+  font-weight: 700;
+  font-size: 1.15rem;
+  color: var(--fg);
+  text-decoration: none;
+  letter-spacing: 0.02em;
+}
+
+.lang-switch {
+  display: flex;
+  gap: 0.25rem;
+  flex-wrap: wrap;
+}
+
+.lang-switch a {
+  color: var(--muted);
+  text-decoration: none;
+  font-size: 0.9rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 8px;
+}
+
+.lang-switch a:hover {
+  color: var(--fg);
+  background: color-mix(in srgb, var(--fg) 6%, transparent);
+}
+
+.lang-switch a.active {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+main.container {
+  flex: 1;
+  padding: 3rem 0;
+}
+
+.hero {
+  max-width: 38rem;
+}
+
+.hero h1 {
+  font-size: clamp(2rem, 6vw, 3rem);
+  margin: 0 0 0.75rem;
+  letter-spacing: -0.02em;
+}
+
+.tagline {
+  font-size: clamp(1.05rem, 2.6vw, 1.25rem);
+  color: var(--muted);
+  margin: 0;
+}
+
+.site-footer {
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 0.85rem;
+  padding: 1.25rem 0;
+}
+
+.site-footer a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.site-footer a:hover {
+  text-decoration: underline;
+}
+
+@media (max-width: 640px) {
+  .header-inner {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+
+  main.container {
+    padding: 2rem 0;
+  }
+}
