@@ -4,12 +4,21 @@ from datetime import datetime, timezone
 from typing import Any, cast
 
 from fastapi import APIRouter, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
+from pydantic import BaseModel
 from sqlalchemy import select, update
 from sqlalchemy.orm import Session, sessionmaker
 from starlette.concurrency import run_in_threadpool
 
 from chessfen.models import ApiKey
+from chessfen.render import (
+    DEFAULT_SIZE,
+    FenSyntaxError,
+    RenderOptions,
+    RenderOptionsError,
+    parse_output_format,
+    render_fen,
+)
 from chessfen.security import key_matches, parse_api_key
 
 router = APIRouter(prefix="/api/v1")
@@ -20,6 +29,10 @@ API_ERRORS: dict[str, tuple[int, str]] = {
     "missing_api_key": (401, "An API key is required."),
     "invalid_api_key": (401, "The API key is invalid."),
     "api_key_revoked": (401, "The API key has been revoked."),
+    "invalid_request": (422, "The request is invalid."),
+    "invalid_fen": (400, "The FEN is invalid."),
+    "invalid_size": (400, "The size must be between 64 and 2048."),
+    "invalid_format": (400, "The format must be png or svg."),
 }
 
 
@@ -90,4 +103,36 @@ def me(request: Request) -> JSONResponse:
     key = cast(ApiKey, request.state.api_key)
     return JSONResponse(
         {"name": key.name, "prefix": key.prefix, "calls": key.call_count}
+    )
+
+
+class RenderPayload(BaseModel):
+    fen: str
+    size: int = DEFAULT_SIZE
+    flip: bool = False
+    coordinates: bool = True
+    format: str = "png"
+
+
+@router.post("/render")
+def render(payload: RenderPayload) -> Response:
+    try:
+        options = RenderOptions(
+            size=payload.size,
+            flip=payload.flip,
+            coordinates=payload.coordinates,
+            output_format=parse_output_format(payload.format),
+        )
+        result = render_fen(payload.fen, options)
+    except FenSyntaxError:
+        return api_error("invalid_fen")
+    except RenderOptionsError as exc:
+        return api_error(exc.code)
+    headers: dict[str, str] = {}
+    if result.warnings:
+        headers["X-ChessFEN-Warnings"] = ",".join(result.warnings)
+    return Response(
+        content=result.image_bytes,
+        media_type=result.media_type,
+        headers=headers,
     )

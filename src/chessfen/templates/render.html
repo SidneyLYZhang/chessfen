@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block title %}ChessFEN · {% trans %}Render FEN{% endtrans %}{% endblock %}
+
+{% block content %}
+<section class="panel">
+  <h1>{% trans %}Render FEN{% endtrans %}</h1>
+
+  {% if error == "invalid_fen" %}<p class="notice error">{% trans %}Invalid FEN{% endtrans %}</p>{% endif %}
+  {% if error == "invalid_size" %}<p class="notice error">{% trans %}Size must be between 64 and 2048.{% endtrans %}</p>{% endif %}
+  {% if error == "invalid_format" %}<p class="notice error">{% trans %}Invalid format.{% endtrans %}</p>{% endif %}
+
+  <form method="post" action="/tools/render" class="stack">
+    <label>FEN
+      <input type="text" name="fen" value="{{ form.fen }}" required>
+      <small class="muted">{% trans %}Placement-only or full FEN is accepted.{% endtrans %}</small>
+    </label>
+    <label>{% trans %}Board size{% endtrans %}
+      <input type="number" name="size" min="64" max="2048" value="{{ form.size }}">
+    </label>
+    <div class="options-row">
+      <label class="checkbox"><input type="checkbox" name="flip"{% if form.flip %} checked{% endif %}> {% trans %}Flip board{% endtrans %}</label>
+      <label class="checkbox"><input type="checkbox" name="coordinates"{% if form.coordinates %} checked{% endif %}> {% trans %}Coordinates{% endtrans %}</label>
+      <label>{% trans %}Format{% endtrans %}
+        <select name="format">
+          <option value="png"{% if form.format == "png" %} selected{% endif %}>PNG</option>
+          <option value="svg"{% if form.format == "svg" %} selected{% endif %}>SVG</option>
+        </select>
+      </label>
+    </div>
+    <button type="submit">{% trans %}Render{% endtrans %}</button>
+  </form>
+
+  {% if image_uri %}
+  <div class="render-result">
+    <img src="{{ image_uri }}" alt="{% trans %}Rendered board{% endtrans %}">
+    <p><a href="{{ image_uri }}" download="chessfen.{{ form.format }}">{% trans %}Download{% endtrans %}</a></p>
+    {% if warnings %}
+    <p class="notice">{% trans %}Warnings{% endtrans %}: {{ warnings|join(", ") }}</p>
+    {% endif %}
+  </div>
+  {% endif %}
+</section>
+{% endblock %}

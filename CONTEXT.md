@@ -54,6 +54,10 @@ _Avoid_: "per-square classification" (there is no per-square classifier; pieces 
 One entry of the 64-cell breakdown returned by Recognition: the piece assigned to that cell (or empty) and its detection confidence.
 _Avoid_: "tile", "cell output"
 
+**Position warning**:
+A machine-readable flag naming one way a FEN parses but describes an illegal Position, such as `no_white_king`. Warnings accompany a rendered image without blocking it; web labels are localized.
+_Avoid_: "error" (warnings do not reject input)
+
 **Rendering**:
 Producing a Board image from a Placement or Full FEN.
 _Avoid_: "drawing", "export"

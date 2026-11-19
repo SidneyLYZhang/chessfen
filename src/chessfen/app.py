@@ -3,20 +3,22 @@ from __future__ import annotations
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import RedirectResponse
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from itsdangerous import URLSafeTimedSerializer
 from sqlalchemy.orm import sessionmaker
 
 from chessfen.admin import AdminRequired
 from chessfen.admin import router as admin_router
-from chessfen.api import build_api_key_middleware
+from chessfen.api import API_NAMESPACE, api_error, build_api_key_middleware
 from chessfen.api import router as api_router
 from chessfen.db import build_engine
 from chessfen.i18n import LOCALE_COOKIE, SUPPORTED_LOCALES
 from chessfen.ratelimit import LoginRateLimiter
 from chessfen.settings import DEFAULT_SECRET_KEY, Settings, get_settings
 from chessfen.templating import render_response
+from chessfen.web import router as tools_router
 
 _ONE_YEAR_SECONDS = 60 * 60 * 24 * 365
 _STATIC_DIR = Path(__file__).parent / "static"
@@ -49,6 +51,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.mount("/static", StaticFiles(directory=_STATIC_DIR), name="static")
     app.include_router(admin_router)
     app.include_router(api_router)
+    app.include_router(tools_router)
     app.middleware("http")(build_api_key_middleware(app.state.session_factory))
 
     @app.exception_handler(AdminRequired)
@@ -56,6 +59,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         _request: Request, _exc: AdminRequired
     ) -> RedirectResponse:
         return RedirectResponse("/admin/login", status_code=303)
+
+    @app.exception_handler(RequestValidationError)
+    async def _validation_error(
+        request: Request, _exc: RequestValidationError
+    ) -> JSONResponse:
+        if request.url.path.startswith(API_NAMESPACE):
+            return api_error("invalid_request")
+        return JSONResponse({"detail": "Invalid request."}, status_code=422)
 
     @app.get("/health")
     def health() -> dict[str, str]:

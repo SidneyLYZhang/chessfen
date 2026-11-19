@@ -81,3 +81,87 @@ msgstr "Widerrufen"
 
 msgid "Revoke"
 msgstr "Widerrufen"
+
+msgid "Render FEN"
+msgstr "FEN rendern"
+
+msgid "Turn a FEN into a board image."
+msgstr "FEN in ein Brettbild umwandeln."
+
+msgid "Board size"
+msgstr "Brettgröße"
+
+msgid "Flip board"
+msgstr "Brett drehen"
+
+msgid "Coordinates"
+msgstr "Koordinaten"
+
+msgid "Format"
+msgstr "Format"
+
+msgid "Render"
+msgstr "Rendern"
+
+msgid "Invalid FEN"
+msgstr "Ungültige FEN"
+
+msgid "Size must be between 64 and 2048."
+msgstr "Die Größe muss zwischen 64 und 2048 liegen."
+
+msgid "Invalid format."
+msgstr "Ungültiges Ausgabeformat."
+
+msgid "Rendered board"
+msgstr "Gerendertes Brett"
+
+msgid "Download"
+msgstr "Herunterladen"
+
+msgid "Warnings"
+msgstr "Warnungen"
+
+msgid "Placement-only or full FEN is accepted."
+msgstr "Stellungsangabe oder vollständige FEN werden akzeptiert."
+
+msgid "No white king"
+msgstr "Kein weißer König"
+
+msgid "No black king"
+msgstr "Kein schwarzer König"
+
+msgid "Too many kings"
+msgstr "Zu viele Könige"
+
+msgid "Too many white pawns"
+msgstr "Zu viele weiße Bauern"
+
+msgid "Too many black pawns"
+msgstr "Zu viele schwarze Bauern"
+
+msgid "Pawns on the back rank"
+msgstr "Bauern auf der Grundreihe"
+
+msgid "Too many white pieces"
+msgstr "Zu viele weiße Figuren"
+
+msgid "Too many black pieces"
+msgstr "Zu viele schwarze Figuren"
+
+msgid "Bad castling rights"
+msgstr "Ungültige Rochaderechte"
+
+msgid "Invalid en passant square"
+msgstr "Ungültiges En-passant-Feld"
+
+msgid "The side not to move is in check"
+msgstr "Die nicht am Zug befindliche Seite steht im Schach"
+
+msgid "Empty board"
+msgstr "Leeres Brett"
+
+msgid "Too many checking pieces"
+msgstr "Zu viele angreifende Figuren"
+
+msgid "Impossible check"
+msgstr "Unmögliches Schach"

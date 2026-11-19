@@ -81,3 +81,87 @@ msgstr "已撤销"
 
 msgid "Revoke"
 msgstr "撤销"
+
+msgid "Render FEN"
+msgstr "渲染 FEN"
+
+msgid "Turn a FEN into a board image."
+msgstr "把 FEN 变成棋盘图片。"
+
+msgid "Board size"
+msgstr "棋盘尺寸"
+
+msgid "Flip board"
+msgstr "翻转棋盘"
+
+msgid "Coordinates"
+msgstr "坐标标注"
+
+msgid "Format"
+msgstr "格式"
+
+msgid "Render"
+msgstr "渲染"
+
+msgid "Invalid FEN"
+msgstr "FEN 格式无效"
+
+msgid "Size must be between 64 and 2048."
+msgstr "尺寸需在 64 到 2048 之间。"
+
+msgid "Invalid format."
+msgstr "输出格式无效。"
+
+msgid "Rendered board"
+msgstr "渲染结果"
+
+msgid "Download"
+msgstr "下载"
+
+msgid "Warnings"
+msgstr "警告"
+
+msgid "Placement-only or full FEN is accepted."
+msgstr "支持仅棋子摆放段或完整 FEN。"
+
+msgid "No white king"
+msgstr "缺少白王"
+
+msgid "No black king"
+msgstr "缺少黑王"
+
+msgid "Too many kings"
+msgstr "国王过多"
+
+msgid "Too many white pawns"
+msgstr "白兵过多"
+
+msgid "Too many black pawns"
+msgstr "黑兵过多"
+
+msgid "Pawns on the back rank"
+msgstr "兵在底线"
+
+msgid "Too many white pieces"
+msgstr "白方棋子过多"
+
+msgid "Too many black pieces"
+msgstr "黑方棋子过多"
+
+msgid "Bad castling rights"
+msgstr "易位权无效"
+
+msgid "Invalid en passant square"
+msgstr "吃过路兵格无效"
+
+msgid "The side not to move is in check"
+msgstr "非行棋方被将军"
+
+msgid "Empty board"
+msgstr "空棋盘"
+
+msgid "Too many checking pieces"
+msgstr "将军的棋子过多"
+
+msgid "Impossible check"
+msgstr "不可能出现的将军"
