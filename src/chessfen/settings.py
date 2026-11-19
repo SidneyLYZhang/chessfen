@@ -14,7 +14,7 @@ DEFAULT_RECOGNITION_MODEL_PATH = "models/yolo26m-finetuned.onnx"
 @dataclass(frozen=True)
 class Settings:
     database_url: str
-    secret_key: str
+    secret_key: str | None
     admin_password: str | None
     recognition_model_path: str = DEFAULT_RECOGNITION_MODEL_PATH
 
@@ -22,7 +22,7 @@ class Settings:
 def get_settings() -> Settings:
     return Settings(
         database_url=os.environ.get("DATABASE_URL", DEFAULT_DATABASE_URL),
-        secret_key=os.environ.get("SECRET_KEY", DEFAULT_SECRET_KEY),
+        secret_key=os.environ.get("SECRET_KEY") or None,
         admin_password=os.environ.get("ADMIN_PASSWORD") or None,
         recognition_model_path=os.environ.get(
             "RECOGNITION_MODEL_PATH", DEFAULT_RECOGNITION_MODEL_PATH

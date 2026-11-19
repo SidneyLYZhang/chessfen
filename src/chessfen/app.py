@@ -32,10 +32,7 @@ def _is_same_origin_path(target: str) -> bool:
 
 def create_app(settings: Settings | None = None) -> FastAPI:
     resolved = settings or get_settings()
-    if (
-        resolved.admin_password is not None
-        and resolved.secret_key == DEFAULT_SECRET_KEY
-    ):
+    if resolved.admin_password is not None and resolved.secret_key is None:
         raise RuntimeError(
             "SECRET_KEY must be set when ADMIN_PASSWORD is configured"
         )
@@ -47,7 +44,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         bind=engine, autoflush=False, expire_on_commit=False
     )
     app.state.admin_session_serializer = URLSafeTimedSerializer(
-        resolved.secret_key, salt="chessfen-admin"
+        resolved.secret_key or DEFAULT_SECRET_KEY, salt="chessfen-admin"
     )
     app.state.login_limiter = LoginRateLimiter(limit=5, window_seconds=60.0)
     app.state.recognizer = Recognizer(

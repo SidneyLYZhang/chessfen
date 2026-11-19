@@ -203,7 +203,21 @@ def test_secret_key_required_when_admin_enabled(tmp_path) -> None:
         create_app(
             Settings(
                 database_url=f"sqlite:///{(tmp_path / 'insecure.db').as_posix()}",
-                secret_key=DEFAULT_SECRET_KEY,
+                secret_key=None,
                 admin_password="secret",
             )
         )
+
+
+def test_explicit_secret_key_value_is_accepted(tmp_path) -> None:
+    # An explicitly configured value is honoured even when it equals the
+    # fallback constant used for the (admin-disabled) default app.
+    app = create_app(
+        Settings(
+            database_url=f"sqlite:///{(tmp_path / 'explicit.db').as_posix()}",
+            secret_key=DEFAULT_SECRET_KEY,
+            admin_password="secret",
+        )
+    )
+
+    assert app is not None
