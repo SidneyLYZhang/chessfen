@@ -279,3 +279,12 @@ msgstr "Die Seite muss w oder b sein."
 
 msgid "An image file is required."
 msgstr "Bitte eine Bilddatei auswählen."
+
+msgid "Copy FEN"
+msgstr "FEN kopieren"
+
+msgid "Copied"
+msgstr "Kopiert"
+
+msgid "Uploaded board"
+msgstr "Hochgeladenes Bild"

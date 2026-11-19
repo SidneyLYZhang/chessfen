@@ -236,13 +236,19 @@ def _recognize_page(
     *,
     form: dict[str, object],
     result: RecognitionResult | None = None,
+    preview_uri: str | None = None,
     error: str | None = None,
     status_code: int = 200,
 ) -> HTMLResponse:
     return render_response(
         request,
         "recognize.html",
-        {"form": form, "result": result, "error": error},
+        {
+            "form": form,
+            "result": result,
+            "preview_uri": preview_uri,
+            "error": error,
+        },
         status_code=status_code,
     )
 
@@ -263,16 +269,29 @@ def recognize_submit(
         return _recognize_page(
             request, form=form, error="no_image", status_code=400
         )
+    raw = image.file.read()
+    media_type = (
+        image.content_type
+        if image.content_type and image.content_type.startswith("image/")
+        else "image/png"
+    )
+    preview_uri = (
+        f"data:{media_type};base64,"
+        + base64.b64encode(raw).decode("ascii")
+    )
     try:
         result = request.app.state.recognizer.recognize(
-            image.file.read(), side_to_move=side
+            raw, side_to_move=side
         )
     except RecognitionError as exc:
         status_code = API_ERRORS.get(exc.code, (400, ""))[0]
         return _recognize_page(
             request,
             form=form,
+            preview_uri=preview_uri if exc.code != "invalid_image" else None,
             error=exc.code,
             status_code=status_code,
         )
-    return _recognize_page(request, form=form, result=result)
+    return _recognize_page(
+        request, form=form, result=result, preview_uri=preview_uri
+    )

@@ -352,6 +352,17 @@ label.checkbox {
   margin-top: 1.5rem;
 }
 
+.preview {
+  margin-top: 1.5rem;
+}
+
+.preview img {
+  max-width: 100%;
+  max-height: 24rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+
 .squares {
   display: grid;
   grid-template-columns: repeat(8, minmax(0, 1fr));

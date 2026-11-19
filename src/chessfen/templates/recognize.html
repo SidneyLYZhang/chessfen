@@ -20,6 +20,12 @@
     <button type="submit">{% trans %}Recognize{% endtrans %}</button>
   </form>
 
+  {% if preview_uri %}
+  <div class="preview">
+    <img src="{{ preview_uri }}" alt="{% trans %}Uploaded board{% endtrans %}">
+  </div>
+  {% endif %}
+
   {% if result %}
   <div class="result-columns">
     <div>
@@ -27,6 +33,7 @@
       <p class="secret">{{ result.placement }}</p>
       <h2>{% trans %}Full FEN{% endtrans %}</h2>
       <p class="secret" id="fen-text" data-fen-w="{{ result.fen_for("w") }}" data-fen-b="{{ result.fen_for("b") }}">{{ result.fen }}</p>
+      <button type="button" class="ghost" data-copy-target="fen-text" data-copied-label="{% trans %}Copied{% endtrans %}">{% trans %}Copy FEN{% endtrans %}</button>
       <label>{% trans %}Side to move{% endtrans %}
         <select id="side-select">
           <option value="w"{% if result.side_to_move == "w" %} selected{% endif %}>{% trans %}White{% endtrans %}</option>

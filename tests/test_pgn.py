@@ -169,6 +169,23 @@ def test_pgn_form_exports_fen_for_half_move(
     assert expected_fen in page.text
 
 
+def test_pgn_form_offers_copy_button(client: TestClient) -> None:
+    page = client.post(
+        "/tools/pgn",
+        data={
+            "pgn": _TWO_GAMES,
+            "game_index": "0",
+            "move_number": "1",
+            "side": "black",
+        },
+        headers=_EN,
+    )
+
+    assert page.status_code == 200
+    assert 'data-copy-target="fen-text"' in page.text
+    assert "Copy FEN" in page.text
+
+
 def test_pgn_form_move_zero_shows_initial_position(client: TestClient) -> None:
     page = client.post(
         "/tools/pgn",

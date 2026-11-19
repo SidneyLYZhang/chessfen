@@ -51,7 +51,8 @@
   {% if result_fen %}
   <div class="render-result">
     <h2>{% trans %}Full FEN{% endtrans %}</h2>
-    <p class="secret">{{ result_fen }}</p>
+    <p class="secret" id="fen-text">{{ result_fen }}</p>
+    <button type="button" class="ghost" data-copy-target="fen-text" data-copied-label="{% trans %}Copied{% endtrans %}">{% trans %}Copy FEN{% endtrans %}</button>
   </div>
   {% endif %}
 </section>

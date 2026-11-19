@@ -68,6 +68,9 @@ def test_recognize_upload_shows_placement_and_squares(
     assert "a8" in page.text
     assert "0.90" in page.text
     assert "未匹配棋子" not in page.text
+    assert 'data-copy-target="fen-text"' in page.text
+    assert "复制 FEN" in page.text
+    assert "data:image/png;base64,ZmFrZS1pbWFnZQ==" in page.text
 
 
 def test_recognize_upload_side_override_changes_fen(

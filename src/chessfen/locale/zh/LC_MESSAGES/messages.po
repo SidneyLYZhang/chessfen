@@ -279,3 +279,12 @@ msgstr "走子方必须是 w 或 b。"
 
 msgid "An image file is required."
 msgstr "请选择图片文件。"
+
+msgid "Copy FEN"
+msgstr "复制 FEN"
+
+msgid "Copied"
+msgstr "已复制"
+
+msgid "Uploaded board"
+msgstr "上传的图片"
