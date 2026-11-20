@@ -474,3 +474,57 @@ msgstr "Fußzeilennavigation"
 
 msgid "Render FEN positions, navigate PGN games to any Ply, and recognize Board images. ChessFEN is a small, self-hostable chess encoding tool."
 msgstr "FEN-Stellungen rendern, PGN-Partien bis zu jedem Ply durchlaufen und Brettbilder erkennen. ChessFEN ist ein kleines, selbst hostbares Werkzeug für Schachnotationen."
+
+msgid "Paste a Placement or Full FEN and render it as a board image."
+msgstr "Figurenstellung oder vollständige FEN einfügen und als Brettbild rendern."
+
+msgid "Render a Placement or Full FEN as a PNG or SVG board image."
+msgstr "Figurenstellung oder vollständige FEN als PNG- oder SVG-Brettbild rendern."
+
+msgid "Input FEN"
+msgstr "FEN eingeben"
+
+msgid "Examples"
+msgstr "Beispiele"
+
+msgid "Start position"
+msgstr "Grundstellung"
+
+msgid "Italian Game"
+msgstr "Italienische Eröffnung"
+
+msgid "King and pawn endgame"
+msgstr "Königs- und Bauernendspiel"
+
+msgid "Reset"
+msgstr "Zurücksetzen"
+
+msgid "Castling rights"
+msgstr "Rochaderechte"
+
+msgid "En passant"
+msgstr "En passant"
+
+msgid "Halfmove clock"
+msgstr "Halbzugzähler"
+
+msgid "Fullmove number"
+msgstr "Zugnummer"
+
+msgid "Yes"
+msgstr "Ja"
+
+msgid "No"
+msgstr "Nein"
+
+msgid "The board appears here."
+msgstr "Das Brett erscheint hier."
+
+msgid "Submit a FEN or pick an example to render a board image."
+msgstr "Sende eine FEN oder wähle ein Beispiel, um ein Brettbild zu rendern."
+
+msgid "Full FEN fields"
+msgstr "Felder der vollständigen FEN"
+
+msgid "Output details"
+msgstr "Ausgabedetails"

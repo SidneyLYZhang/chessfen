@@ -13,6 +13,17 @@ DEFAULT_SIZE = 480
 MIN_SIZE = 64
 MAX_SIZE = 2048
 
+# Approved brand palette: panel-colored light squares, ochre dark squares,
+# structural ink coordinates and frame. Piece artwork is unchanged.
+BRAND_BOARD_COLORS = {
+    "square light": "#F3F0E8",
+    "square dark": "#BF811D",
+    "margin": "#F3F0E8",
+    "inner border": "#3B2A17",
+    "outer border": "#3B2A17",
+    "coord": "#3B2A17",
+}
+
 OutputFormat = Literal["png", "svg"]
 
 
@@ -57,6 +68,7 @@ def render_fen(fen: str, options: RenderOptions | None = None) -> RenderResult:
         size=resolved.size,
         flipped=resolved.flip,
         coordinates=resolved.coordinates,
+        colors=BRAND_BOARD_COLORS,
     )
     warnings = position_warnings(board)
     if resolved.output_format == "svg":

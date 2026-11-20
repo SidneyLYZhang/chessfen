@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import base64
+from urllib.parse import urlencode
 
+import chess
 from fastapi import APIRouter, File, Form, Request, UploadFile
 from fastapi.responses import HTMLResponse
 
@@ -23,6 +25,7 @@ from chessfen.render import (
     FenSyntaxError,
     RenderOptions,
     RenderOptionsError,
+    parse_fen,
     parse_output_format,
     render_fen,
 )
@@ -31,6 +34,18 @@ from chessfen.templating import render_response
 router = APIRouter(prefix="/tools")
 
 STARTING_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+
+EXAMPLE_POSITIONS: tuple[tuple[str, str], ...] = (
+    ("Start position", STARTING_FEN),
+    (
+        "Italian Game",
+        "r1bqkb1r/pppp1ppp/2n2n2/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 4 4",
+    ),
+    (
+        "King and pawn endgame",
+        "8/8/4k3/8/8/4K3/4P3/8 w - - 0 1",
+    ),
+)
 
 WARNING_LABELS: dict[str, str] = {
     "no_white_king": "No white king",
@@ -69,12 +84,58 @@ def _rate_limited_response(response: HTMLResponse) -> HTMLResponse:
     return response
 
 
+def _default_render_form() -> dict[str, object]:
+    return {
+        "fen": STARTING_FEN,
+        "size": DEFAULT_SIZE,
+        "flip": False,
+        "coordinates": True,
+        "format": "png",
+    }
+
+
+def _query_bool(value: str | None, default: bool) -> bool:
+    if value is None:
+        return default
+    return value.lower() in {"1", "true", "on", "yes"}
+
+
+def _render_examples() -> list[dict[str, str]]:
+    return [
+        {
+            "label": label,
+            "href": (
+                "/tools/render?"
+                + urlencode({"fen": fen, "coordinates": "on"})
+            ),
+        }
+        for label, fen in EXAMPLE_POSITIONS
+    ]
+
+
+def _fen_summary(fen: str) -> dict[str, str]:
+    board = parse_fen(fen)
+    return {
+        "side": "w" if board.turn else "b",
+        "castling": board.castling_xfen(),
+        "en_passant": (
+            chess.square_name(board.ep_square)
+            if board.ep_square is not None
+            else "-"
+        ),
+        "halfmove": str(board.halfmove_clock),
+        "fullmove": str(board.fullmove_number),
+    }
+
+
 def _page(
     request: Request,
     *,
     form: dict[str, object],
     image_uri: str | None = None,
     warnings: list[str] | None = None,
+    summary: dict[str, str] | None = None,
+    result_meta: dict[str, object] | None = None,
     error: str | None = None,
     status_code: int = 200,
 ) -> HTMLResponse:
@@ -85,58 +146,35 @@ def _page(
             "form": form,
             "image_uri": image_uri,
             "warnings": warnings or [],
+            "summary": summary,
+            "result_meta": result_meta,
+            "examples": _render_examples(),
             "error": error,
         },
         status_code=status_code,
     )
 
 
-@router.get("/render")
-def render_page(request: Request) -> HTMLResponse:
-    return _page(
-        request,
-        form={
-            "fen": STARTING_FEN,
-            "size": DEFAULT_SIZE,
-            "flip": False,
-            "coordinates": True,
-            "format": "png",
-        },
-    )
-
-
-@router.post("/render")
-def render_submit(
-    request: Request,
-    fen: str = Form(""),
-    size: str = Form(str(DEFAULT_SIZE)),
-    flip: bool = Form(False),
-    coordinates: bool = Form(False),
-    format: str = Form("png"),
-) -> HTMLResponse:
-    form: dict[str, object] = {
-        "fen": fen,
-        "size": size,
-        "flip": flip,
-        "coordinates": coordinates,
-        "format": format,
-    }
+def _render_action(request: Request, form: dict[str, object]) -> HTMLResponse:
     if _consume_request_quota(request):
         return _rate_limited_response(
             _page(request, form=form, error="rate_limited", status_code=429)
         )
     try:
-        size_value = int(size)
+        size_value = int(str(form["size"]))
     except ValueError:
         return _page(request, form=form, error="invalid_size", status_code=400)
+    flip = bool(form["flip"])
+    coordinates = bool(form["coordinates"])
     try:
+        output_format = parse_output_format(str(form["format"]))
         result = render_fen(
-            fen,
+            str(form["fen"]),
             RenderOptions(
                 size=size_value,
                 flip=flip,
                 coordinates=coordinates,
-                output_format=parse_output_format(format),
+                output_format=output_format,
             ),
         )
     except FenSyntaxError:
@@ -152,6 +190,54 @@ def render_submit(
         form=form,
         image_uri=data_uri,
         warnings=_warning_labels(request, result.warnings),
+        summary=_fen_summary(str(form["fen"])),
+        result_meta={
+            "format": output_format,
+            "size": size_value,
+            "flip": flip,
+            "coordinates": coordinates,
+        },
+    )
+
+
+@router.get("/render")
+def render_page(request: Request) -> HTMLResponse:
+    # Example links use GET so they render without JavaScript; the initial
+    # page (no fen parameter) stays an empty workspace with the start FEN ready.
+    params = request.query_params
+    if "fen" not in params:
+        return _page(request, form=_default_render_form())
+    form: dict[str, object] = {
+        "fen": params.get("fen", STARTING_FEN),
+        "size": params.get("size", str(DEFAULT_SIZE)),
+        "flip": _query_bool(params.get("flip"), False),
+        "coordinates": _query_bool(params.get("coordinates"), True),
+        "format": params.get("format", "png"),
+    }
+    return _render_action(request, form)
+
+
+@router.post("/render")
+def render_submit(
+    request: Request,
+    fen: str = Form(""),
+    size: str = Form(str(DEFAULT_SIZE)),
+    flip: bool = Form(False),
+    coordinates: bool = Form(False),
+    format: str = Form("png"),
+) -> HTMLResponse:
+    # Checkboxes are omitted from the payload when unchecked, so the server
+    # defaults stay False; the initial page renders coordinates checked and
+    # the example links pass coordinates=on explicitly.
+    return _render_action(
+        request,
+        {
+            "fen": fen,
+            "size": size,
+            "flip": flip,
+            "coordinates": coordinates,
+            "format": format,
+        },
     )
 
 

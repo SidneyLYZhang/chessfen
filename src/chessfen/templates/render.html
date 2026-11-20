@@ -2,44 +2,113 @@
 
 {% block title %}ChessFEN · {% trans %}Render FEN{% endtrans %}{% endblock %}
 
+{% block description %}{% trans %}Render a Placement or Full FEN as a PNG or SVG board image.{% endtrans %}{% endblock %}
+
 {% block content %}
-<section class="panel">
-  <h1>{% trans %}Render FEN{% endtrans %}</h1>
-
-  {% if error == "invalid_fen" %}<p class="notice error">{% trans %}Invalid FEN{% endtrans %}</p>{% endif %}
-  {% if error == "invalid_size" %}<p class="notice error">{% trans %}Size must be between 64 and 2048.{% endtrans %}</p>{% endif %}
-  {% if error == "invalid_format" %}<p class="notice error">{% trans %}Invalid format.{% endtrans %}</p>{% endif %}
-  {% if error == "rate_limited" %}<p class="notice error">{% trans %}Too many requests. Try again later.{% endtrans %}</p>{% endif %}
-
-  <form method="post" action="/tools/render" class="stack">
-    <label>FEN
-      <input type="text" name="fen" value="{{ form.fen }}" required>
-      <small class="muted">{% trans %}Placement-only or full FEN is accepted.{% endtrans %}</small>
-    </label>
-    <label>{% trans %}Board size{% endtrans %}
-      <input type="number" name="size" min="64" max="2048" value="{{ form.size }}">
-    </label>
-    <div class="options-row">
-      <label class="checkbox"><input type="checkbox" name="flip"{% if form.flip %} checked{% endif %}> {% trans %}Flip board{% endtrans %}</label>
-      <label class="checkbox"><input type="checkbox" name="coordinates"{% if form.coordinates %} checked{% endif %}> {% trans %}Coordinates{% endtrans %}</label>
-      <label>{% trans %}Format{% endtrans %}
-        <select name="format">
-          <option value="png"{% if form.format == "png" %} selected{% endif %}>PNG</option>
-          <option value="svg"{% if form.format == "svg" %} selected{% endif %}>SVG</option>
-        </select>
-      </label>
-    </div>
-    <button type="submit">{% trans %}Render{% endtrans %}</button>
-  </form>
-
-  {% if image_uri %}
-  <div class="render-result">
-    <img src="{{ image_uri }}" alt="{% trans %}Rendered board{% endtrans %}">
-    <p><a href="{{ image_uri }}" download="chessfen.{{ form.format }}">{% trans %}Download{% endtrans %}</a></p>
-    {% if warnings %}
-    <p class="notice">{% trans %}Warnings{% endtrans %}: {{ warnings|join(", ") }}</p>
-    {% endif %}
+<header class="tool-header">
+  <div>
+    <p class="eyebrow" aria-hidden="true">WORKSPACE / FEN TO IMAGE</p>
+    <h1>{% trans %}Render FEN{% endtrans %}</h1>
+    <p class="tool-lead">{% trans %}Paste a Placement or Full FEN and render it as a board image.{% endtrans %}</p>
   </div>
-  {% endif %}
-</section>
+  <a class="text-icon-button" href="/learn/fen">{% trans %}FEN guide{% endtrans %} <span aria-hidden="true">→</span></a>
+</header>
+
+<div class="workspace-grid">
+  <section class="tool-panel">
+    <p class="eyebrow" aria-hidden="true">01 / INPUT</p>
+    <h2>{% trans %}Input FEN{% endtrans %}</h2>
+
+    {% if error %}
+      {% if error == "invalid_fen" %}<p class="form-error" role="alert">{% trans %}Invalid FEN{% endtrans %}</p>{% endif %}
+      {% if error == "invalid_size" %}<p class="form-error" role="alert">{% trans %}Size must be between 64 and 2048.{% endtrans %}</p>{% endif %}
+      {% if error == "invalid_format" %}<p class="form-error" role="alert">{% trans %}Invalid format.{% endtrans %}</p>{% endif %}
+      {% if error == "rate_limited" %}<p class="form-error" role="alert">{% trans %}Too many requests. Try again later.{% endtrans %}</p>{% endif %}
+    {% endif %}
+
+    <form method="post" action="/tools/render" class="render-form">
+      <div class="field">
+        <label class="field-label" for="fen">FEN</label>
+        <textarea id="fen" name="fen" class="text-area code-input fen-input" required spellcheck="false">{{ form.fen }}</textarea>
+        <p class="field-hint">{% trans %}Placement-only or full FEN is accepted.{% endtrans %}</p>
+      </div>
+
+      <div class="render-options">
+        <div class="field">
+          <label class="field-label" for="size">{% trans %}Board size{% endtrans %}</label>
+          <input class="text-input" type="number" id="size" name="size" min="64" max="2048" value="{{ form.size }}">
+        </div>
+        <div class="field">
+          <label class="field-label" for="format">{% trans %}Format{% endtrans %}</label>
+          <select class="select-input" id="format" name="format">
+            <option value="png"{% if form.format == "png" %} selected{% endif %}>PNG</option>
+            <option value="svg"{% if form.format == "svg" %} selected{% endif %}>SVG</option>
+          </select>
+        </div>
+        <div class="check-row">
+          <label class="check-field"><input type="checkbox" name="flip"{% if form.flip %} checked{% endif %}> {% trans %}Flip board{% endtrans %}</label>
+          <label class="check-field"><input type="checkbox" name="coordinates"{% if form.coordinates %} checked{% endif %}> {% trans %}Coordinates{% endtrans %}</label>
+        </div>
+      </div>
+
+      <div class="form-actions">
+        <button class="primary-button" type="submit">{% trans %}Render{% endtrans %}</button>
+        <a class="ghost-button" href="/tools/render">{% trans %}Reset{% endtrans %}</a>
+      </div>
+
+      <div class="example-links" role="group" aria-labelledby="examples-label">
+        <span class="field-label" id="examples-label">{% trans %}Examples{% endtrans %}</span>
+        {% for example in examples %}
+        <a href="{{ example.href }}">{{ gettext(example.label) }}</a>{% if not loop.last %}<span class="example-separator" aria-hidden="true">/</span>{% endif %}
+        {% endfor %}
+      </div>
+    </form>
+
+    {% if summary %}
+    <div class="fields-block">
+      <p class="eyebrow" aria-hidden="true">FIELDS / FULL FEN</p>
+      <dl class="field-summary" aria-label="{% trans %}Full FEN fields{% endtrans %}">
+        <div><dt>{% trans %}Side to move{% endtrans %}</dt><dd>{% if summary.side == "w" %}{% trans %}White{% endtrans %}{% else %}{% trans %}Black{% endtrans %}{% endif %}</dd></div>
+        <div><dt>{% trans %}Castling rights{% endtrans %}</dt><dd>{{ summary.castling }}</dd></div>
+        <div><dt>{% trans %}En passant{% endtrans %}</dt><dd>{{ summary.en_passant }}</dd></div>
+        <div><dt>{% trans %}Halfmove clock{% endtrans %}</dt><dd>{{ summary.halfmove }}</dd></div>
+        <div><dt>{% trans %}Fullmove number{% endtrans %}</dt><dd>{{ summary.fullmove }}</dd></div>
+      </dl>
+    </div>
+    {% endif %}
+  </section>
+
+  <section class="render-result-panel">
+    {% if image_uri %}
+    <div class="result-board">
+      <img src="{{ image_uri }}" alt="{% trans %}Rendered board{% endtrans %}" width="{{ result_meta.size }}" height="{{ result_meta.size }}">
+    </div>
+    <p class="eyebrow" aria-hidden="true">RESULT / BOARD</p>
+    <h2>{% trans %}Rendered board{% endtrans %}</h2>
+    {% if warnings %}
+    <div class="warning-block">
+      <p class="field-label" id="warnings-label">{% trans %}Warnings{% endtrans %}</p>
+      <ul class="warning-list" aria-labelledby="warnings-label">
+        {% for warning in warnings %}<li>{{ warning }}</li>{% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+    <dl class="render-meta" aria-label="{% trans %}Output details{% endtrans %}">
+      <div><dt>{% trans %}Format{% endtrans %}</dt><dd>{{ result_meta.format|upper }}</dd></div>
+      <div><dt>{% trans %}Board size{% endtrans %}</dt><dd>{{ result_meta.size }} px</dd></div>
+      <div><dt>{% trans %}Flip board{% endtrans %}</dt><dd>{% if result_meta.flip %}{% trans %}Yes{% endtrans %}{% else %}{% trans %}No{% endtrans %}{% endif %}</dd></div>
+      <div><dt>{% trans %}Coordinates{% endtrans %}</dt><dd>{% if result_meta.coordinates %}{% trans %}Yes{% endtrans %}{% else %}{% trans %}No{% endtrans %}{% endif %}</dd></div>
+    </dl>
+    <div class="result-actions">
+      <a class="primary-button" href="{{ image_uri }}" download="chessfen-position.{{ result_meta.format }}">{% trans %}Download{% endtrans %}</a>
+    </div>
+    {% else %}
+    <div class="empty-state">
+      <img src="/static/brand/mark-mono.svg" alt="" width="48" height="48">
+      <p class="empty-state-title">{% trans %}The board appears here.{% endtrans %}</p>
+      <p>{% trans %}Submit a FEN or pick an example to render a board image.{% endtrans %}</p>
+    </div>
+    {% endif %}
+  </section>
+</div>
 {% endblock %}

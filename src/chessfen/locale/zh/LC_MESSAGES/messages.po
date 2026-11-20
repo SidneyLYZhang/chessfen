@@ -474,3 +474,57 @@ msgstr "页脚导航"
 
 msgid "Render FEN positions, navigate PGN games to any Ply, and recognize Board images. ChessFEN is a small, self-hostable chess encoding tool."
 msgstr "渲染 FEN 局面、把 PGN 对局导航到任意 Ply、识别棋盘图片。ChessFEN 是一个小巧、可自托管的国际象棋编码工具。"
+
+msgid "Paste a Placement or Full FEN and render it as a board image."
+msgstr "粘贴棋子摆放段或完整 FEN，即可渲染为棋盘图片。"
+
+msgid "Render a Placement or Full FEN as a PNG or SVG board image."
+msgstr "把棋子摆放段或完整 FEN 渲染为 PNG 或 SVG 棋盘图片。"
+
+msgid "Input FEN"
+msgstr "输入 FEN"
+
+msgid "Examples"
+msgstr "示例"
+
+msgid "Start position"
+msgstr "初始局面"
+
+msgid "Italian Game"
+msgstr "意大利开局"
+
+msgid "King and pawn endgame"
+msgstr "王兵残局"
+
+msgid "Reset"
+msgstr "重置"
+
+msgid "Castling rights"
+msgstr "易位权"
+
+msgid "En passant"
+msgstr "吃过路兵"
+
+msgid "Halfmove clock"
+msgstr "半回合计数"
+
+msgid "Fullmove number"
+msgstr "回合数"
+
+msgid "Yes"
+msgstr "是"
+
+msgid "No"
+msgstr "否"
+
+msgid "The board appears here."
+msgstr "棋盘将在这里出现。"
+
+msgid "Submit a FEN or pick an example to render a board image."
+msgstr "提交 FEN 或选择一个示例即可渲染棋盘图片。"
+
+msgid "Full FEN fields"
+msgstr "完整 FEN 字段"
+
+msgid "Output details"
+msgstr "输出信息"
