@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import mimetypes
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request
@@ -29,6 +30,8 @@ from chessfen.web import router as tools_router
 
 _ONE_YEAR_SECONDS = 60 * 60 * 24 * 365
 _STATIC_DIR = Path(__file__).parent / "static"
+mimetypes.add_type("font/woff2", ".woff2")
+mimetypes.add_type("image/vnd.microsoft.icon", ".ico")
 _UPLOAD_OVERHEAD = 64 * 1024
 _UPLOAD_LIMITS: dict[str, tuple[int, str]] = {
     "/tools/recognize": (IMAGE_MAX_BYTES + _UPLOAD_OVERHEAD, "image_too_large"),

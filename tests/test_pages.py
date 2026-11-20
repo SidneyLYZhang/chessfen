@@ -62,7 +62,8 @@ def test_about_lists_star_badge_and_self_deploy(client: TestClient) -> None:
     assert 'class="badge"' in page.text
     assert "Star on GitHub" in page.text
     assert "https://github.com/SidneyLYZhang/chessfen" in page.text
-    assert "ghcr.io/sidnelyzhang/chessfen" in page.text
+    assert "ghcr.io/sidneylyzhang/chessfen" in page.text
+    assert "sidneylyzhang/chessfen" in page.text
     assert "docker run" in page.text
     assert "docker compose up -d" in page.text
     assert "ADMIN_PASSWORD=" in page.text

@@ -13,7 +13,7 @@
 
 ## 快速开始（Docker）
 
-每个 Release 会把预构建镜像推送到 `ghcr.io/sidnelyzhang/chessfen` 与 Docker Hub 的 `<DOCKERHUB_USERNAME>/chessfen`，并内置固定版本的识别模型。标签包含 `latest` 与版本标签（如 `v1.0.0`）。
+每个 Release 会把预构建镜像推送到 `ghcr.io/sidneylyzhang/chessfen` 与 Docker Hub 的 `sidneylyzhang/chessfen`，并内置固定版本的识别模型。标签包含 `latest` 与版本标签（如 `v1.0.0`）。
 
 ```bash
 docker run -d --name chessfen \
@@ -21,7 +21,7 @@ docker run -d --name chessfen \
   -e ADMIN_PASSWORD='replace-with-a-strong-password' \
   -e SECRET_KEY='replace-with-a-long-random-secret' \
   -v chessfen-data:/data \
-  ghcr.io/sidnelyzhang/chessfen:latest
+  ghcr.io/sidneylyzhang/chessfen:latest
 ```
 
 打开 <http://localhost:8000>，在 `/admin` 管理页创建 API 密钥。
@@ -54,7 +54,7 @@ uv run pytest                # 运行测试
 
 ## 配置
 
-- `CHESSFEN_IMAGE` — `docker-compose.yml` 使用的镜像（默认 `ghcr.io/sidnelyzhang/chessfen:latest`）。
+- `CHESSFEN_IMAGE` — `docker-compose.yml` 使用的镜像（默认 `ghcr.io/sidneylyzhang/chessfen:latest`）。
 - `DATABASE_URL` — 容器内默认 `sqlite:////data/chessfen.db`；设为 PostgreSQL 连接串（例如 `postgresql+psycopg://user:pass@host/db`）即可切换。
 - `ADMIN_PASSWORD` — 启用管理页；未设置时管理登录关闭。
 - `SECRET_KEY` — 用于签名管理会话 cookie；设置 `ADMIN_PASSWORD` 时必须同时设置。
@@ -97,7 +97,7 @@ git push origin v1.0.0
 
 测试通过后并行执行两个独立任务：
 
-1. **Publish**：构建并推送镜像到 GHCR（`ghcr.io/sidnelyzhang/chessfen`）与 Docker Hub（`<DOCKERHUB_USERNAME>/chessfen`），使用发布 tag 打标；稳定版额外打 `latest`。
+1. **Publish**：构建并推送镜像到 GHCR（`ghcr.io/sidneylyzhang/chessfen`）与 Docker Hub（`sidneylyzhang/chessfen`），使用发布 tag 打标；稳定版额外打 `latest`。
 2. **GitHub Release**：用带注释 tag 的消息作为发布说明创建 Release；轻量 tag 回退为 `Release <tag>`。包含连字符的 tag 会标记为预发布，且不移动 `latest`。
 
 GitHub Release 与镜像发布相互独立，Docker Hub 出现问题不会阻塞 Release。

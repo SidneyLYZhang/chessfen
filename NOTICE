@@ -26,6 +26,10 @@ ChessFEN incorporates or depends on the following components:
   licensed under CC BY-SA 3.0, as distributed with python-chess.
   https://creativecommons.org/licenses/by-sa/3.0/
 
+* Display and monospace webfonts: Space Grotesk by Florian Karsten and
+  IBM Plex Mono by IBM, both licensed under the SIL Open Font License 1.1.
+  License texts ship in src/chessfen/static/fonts/.
+
 * SVG rasterization uses resvg_py (MIT) and resvg (MPL-2.0).
   https://github.com/baseplate-admin/resvg-py
   https://github.com/linebender/resvg

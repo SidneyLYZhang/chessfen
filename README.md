@@ -13,7 +13,7 @@ Python tool (API + web app) for working with chess encodings — PGN, FEN — an
 
 ## Quick start (Docker)
 
-Each release publishes prebuilt images to `ghcr.io/sidnelyzhang/chessfen` and to Docker Hub as `<DOCKERHUB_USERNAME>/chessfen`, with the pinned recognition model baked in. Tags include `latest` and version tags such as `v1.0.0`.
+Each release publishes prebuilt images to `ghcr.io/sidneylyzhang/chessfen` and to Docker Hub as `sidneylyzhang/chessfen`, with the pinned recognition model baked in. Tags include `latest` and version tags such as `v1.0.0`.
 
 ```bash
 docker run -d --name chessfen \
@@ -21,7 +21,7 @@ docker run -d --name chessfen \
   -e ADMIN_PASSWORD='replace-with-a-strong-password' \
   -e SECRET_KEY='replace-with-a-long-random-secret' \
   -v chessfen-data:/data \
-  ghcr.io/sidnelyzhang/chessfen:latest
+  ghcr.io/sidneylyzhang/chessfen:latest
 ```
 
 Open <http://localhost:8000> and create API keys on the `/admin` page.
@@ -54,7 +54,7 @@ uv run pytest                # run the test suite
 
 ## Configuration
 
-- `CHESSFEN_IMAGE` — image used by `docker-compose.yml` (default `ghcr.io/sidnelyzhang/chessfen:latest`).
+- `CHESSFEN_IMAGE` — image used by `docker-compose.yml` (default `ghcr.io/sidneylyzhang/chessfen:latest`).
 - `DATABASE_URL` — defaults to `sqlite:////data/chessfen.db` inside the container; set a PostgreSQL URL (for example `postgresql+psycopg://user:pass@host/db`) to switch.
 - `ADMIN_PASSWORD` — enables the admin page; when unset, admin login is disabled.
 - `SECRET_KEY` — signs the admin session cookie; required when `ADMIN_PASSWORD` is set.
@@ -97,7 +97,7 @@ The `Release` workflow gates on the shared `Test` workflow (which also runs on p
 
 After the tests pass, two independent jobs run:
 
-1. **Publish**: builds and pushes the image to GHCR (`ghcr.io/sidnelyzhang/chessfen`) and Docker Hub (`<DOCKERHUB_USERNAME>/chessfen`), tagged with the release tag, plus `latest` for stable tags.
+1. **Publish**: builds and pushes the image to GHCR (`ghcr.io/sidneylyzhang/chessfen`) and Docker Hub (`sidneylyzhang/chessfen`), tagged with the release tag, plus `latest` for stable tags.
 2. **GitHub release**: creates a release whose notes are the annotated tag message; lightweight tags fall back to `Release <tag>`. Tags containing a hyphen are marked as prereleases and do not move `latest`.
 
 The GitHub release is independent of image publication, so a Docker Hub problem never blocks it.

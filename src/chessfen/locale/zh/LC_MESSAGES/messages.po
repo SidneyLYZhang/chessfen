@@ -400,8 +400,8 @@ msgstr "在 GitHub 上加星"
 msgid "Self-deploy"
 msgstr "自部署"
 
-msgid "Release images are published to GHCR (ghcr.io/sidnelyzhang/chessfen) and Docker Hub (&lt;DOCKERHUB_USERNAME&gt;/chessfen), with the recognition model baked in. If the GHCR package is private, run docker login ghcr.io first. Run one with Docker:"
-msgstr "发布镜像已发布到 GHCR（ghcr.io/sidnelyzhang/chessfen）与 Docker Hub（&lt;DOCKERHUB_USERNAME&gt;/chessfen），识别模型已内置。若 GHCR 包仍为私有，请先执行 docker login ghcr.io。用 Docker 运行："
+msgid "Release images are published to GHCR (ghcr.io/sidneylyzhang/chessfen) and Docker Hub (sidneylyzhang/chessfen), with the recognition model baked in. If the GHCR package is private, run docker login ghcr.io first. Run one with Docker:"
+msgstr "发布镜像已发布到 GHCR（ghcr.io/sidneylyzhang/chessfen）与 Docker Hub（sidneylyzhang/chessfen），识别模型已内置。若 GHCR 包仍为私有，请先执行 docker login ghcr.io。用 Docker 运行："
 
 msgid "The repository also ships a docker-compose.yml for the published image: copy .env.example to .env, set ADMIN_PASSWORD and SECRET_KEY, then run docker compose up -d. Add docker-compose.build.yml to build from source instead."
 msgstr "仓库还提供面向已发布镜像的 docker-compose.yml：把 .env.example 复制为 .env 并设置 ADMIN_PASSWORD 与 SECRET_KEY，然后运行 docker compose up -d；使用 docker-compose.build.yml 可改为源码构建。"

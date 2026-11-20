@@ -1,6 +1,6 @@
 services:
   chessfen:
-    image: ${CHESSFEN_IMAGE:-ghcr.io/sidnelyzhang/chessfen:latest}
+    image: ${CHESSFEN_IMAGE:-ghcr.io/sidneylyzhang/chessfen:latest}
     ports:
       - "127.0.0.1:8000:8000"
     environment:
