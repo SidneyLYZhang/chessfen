@@ -1,23 +1,59 @@
 {% extends "base.html" %}
 
+{% block title %}ChessFEN · {% trans %}Chess encodings and position images{% endtrans %}{% endblock %}
+
+{% block description %}{% trans %}Render FEN positions, navigate PGN games to any Ply, and recognize Board images. ChessFEN is a small, self-hostable chess encoding tool.{% endtrans %}{% endblock %}
+
 {% block content %}
-<section class="hero">
-  <h1>ChessFEN</h1>
-  <p class="tagline">{% trans %}Recognize, parse, and render chess positions{% endtrans %}</p>
+<section class="home-hero">
+  <div class="home-copy">
+    <p class="eyebrow" aria-hidden="true">POSITIONS / ENCODINGS / IMAGES</p>
+    <h1>{% trans %}Recognize, parse, and render chess positions{% endtrans %}</h1>
+    <p class="home-lead">{% trans %}Render any FEN, navigate a PGN to any Ply, or recognize a Board image — one small, self-hostable tool.{% endtrans %}</p>
+    <div class="home-actions">
+      <a class="primary-button" href="/tools/render">{% trans %}Render FEN{% endtrans %}</a>
+      <a class="secondary-button" href="/tools/recognize">{% trans %}Recognize board{% endtrans %}</a>
+    </div>
+  </div>
+  <aside class="home-aside" aria-hidden="true">
+    <img src="/static/brand/mark.svg" alt="" width="96" height="96">
+    <p class="home-aside-code">FEN ↔ PGN ↔ IMAGE</p>
+    <p class="home-aside-note">64 SQUARES / ONE LINE</p>
+  </aside>
 </section>
 
-<section class="cards">
-  <a class="card" href="/tools/render">
-    <h2>{% trans %}Render FEN{% endtrans %}</h2>
-    <p>{% trans %}Turn a FEN into a board image.{% endtrans %}</p>
-  </a>
-  <a class="card" href="/tools/pgn">
-    <h2>{% trans %}PGN navigation{% endtrans %}</h2>
-    <p>{% trans %}Browse games and export the Full FEN at any half-move.{% endtrans %}</p>
-  </a>
-  <a class="card" href="/tools/recognize">
-    <h2>{% trans %}Recognize board{% endtrans %}</h2>
-    <p>{% trans %}Upload a board image and get its Placement.{% endtrans %}</p>
-  </a>
+<section class="home-tools" aria-label="{% trans %}Tools{% endtrans %}">
+  <p class="eyebrow" aria-hidden="true">TOOLS / 01–03</p>
+  <div class="tool-cards">
+    <a class="tool-card" href="/tools/render">
+      <span class="eyebrow" aria-hidden="true">01 / FEN → IMAGE</span>
+      <h2>{% trans %}Render FEN{% endtrans %}</h2>
+      <p>{% trans %}Turn a FEN into a board image.{% endtrans %}</p>
+      <span class="tool-card-meta" aria-hidden="true">PNG · SVG · SIZE · FLIP · COORDINATES</span>
+      <span class="tool-card-link">{% trans %}Open tool{% endtrans %} <span aria-hidden="true">→</span></span>
+    </a>
+    <a class="tool-card" href="/tools/pgn">
+      <span class="eyebrow" aria-hidden="true">02 / PGN → FEN</span>
+      <h2>{% trans %}PGN navigation{% endtrans %}</h2>
+      <p>{% trans %}Browse a Game and export the Full FEN at any Ply.{% endtrans %}</p>
+      <span class="tool-card-meta" aria-hidden="true">GAME · PLY · FULL FEN</span>
+      <span class="tool-card-link">{% trans %}Open tool{% endtrans %} <span aria-hidden="true">→</span></span>
+    </a>
+    <a class="tool-card" href="/tools/recognize">
+      <span class="eyebrow" aria-hidden="true">03 / IMAGE → FEN</span>
+      <h2>{% trans %}Recognize board{% endtrans %}</h2>
+      <p>{% trans %}Upload a board image and get its Placement.{% endtrans %}</p>
+      <span class="tool-card-meta" aria-hidden="true">IMAGE · PLACEMENT · 64 SQUARES</span>
+      <span class="tool-card-link">{% trans %}Open tool{% endtrans %} <span aria-hidden="true">→</span></span>
+    </a>
+  </div>
+</section>
+
+<section class="open-strip">
+  <div>
+    <p class="eyebrow" aria-hidden="true">OPEN / SELF-HOSTED</p>
+    <p>{% trans %}One Docker image, CPU-only, with the recognition model baked in. Learn how to self-host on the About page.{% endtrans %}</p>
+  </div>
+  <a class="text-icon-button" href="/about">{% trans %}About the project{% endtrans %} <span aria-hidden="true">→</span></a>
 </section>
 {% endblock %}

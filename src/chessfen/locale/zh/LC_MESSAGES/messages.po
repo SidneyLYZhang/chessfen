@@ -423,3 +423,54 @@ msgstr "棋子图片：CBurnett 棋子集，由 python-chess 渲染（CC-BY-SA 3
 
 msgid "Licensing: ChessFEN is released under the GPL-3.0-or-later license."
 msgstr "许可：ChessFEN 以 GPL-3.0-or-later 许可证发布。"
+
+msgid "Skip to main content"
+msgstr "跳至主要内容"
+
+msgid "ChessFEN home"
+msgstr "ChessFEN 首页"
+
+msgid "Tools"
+msgstr "工具"
+
+msgid "Resources"
+msgstr "资源"
+
+msgid "FEN guide"
+msgstr "FEN 指南"
+
+msgid "PGN guide"
+msgstr "PGN 指南"
+
+msgid "Menu"
+msgstr "菜单"
+
+msgid "Close"
+msgstr "关闭"
+
+msgid "Chess positions and encodings"
+msgstr "国际象棋局面与编码"
+
+msgid "Chess encodings and position images"
+msgstr "国际象棋编码与局面图像"
+
+msgid "Render any FEN, navigate a PGN to any Ply, or recognize a Board image — one small, self-hostable tool."
+msgstr "渲染任意 FEN、把 PGN 导航到任意 Ply，或识别棋盘图片——一个小巧、可自托管的工具。"
+
+msgid "Open tool"
+msgstr "打开工具"
+
+msgid "Browse a Game and export the Full FEN at any Ply."
+msgstr "浏览对局，并在任意 Ply 导出完整 FEN。"
+
+msgid "One Docker image, CPU-only, with the recognition model baked in. Learn how to self-host on the About page."
+msgstr "单个 Docker 镜像，纯 CPU 运行，识别模型已内置。在关于页了解如何自托管。"
+
+msgid "About the project"
+msgstr "关于项目"
+
+msgid "Footer navigation"
+msgstr "页脚导航"
+
+msgid "Render FEN positions, navigate PGN games to any Ply, and recognize Board images. ChessFEN is a small, self-hostable chess encoding tool."
+msgstr "渲染 FEN 局面、把 PGN 对局导航到任意 Ply、识别棋盘图片。ChessFEN 是一个小巧、可自托管的国际象棋编码工具。"

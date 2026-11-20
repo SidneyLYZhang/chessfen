@@ -1,10 +1,17 @@
+{%- macro language_links(full) -%}
+  {% for code, label in locales %}
+  <a href="/lang/{{ code }}?next={{ next_path|urlencode }}"{% if code == locale %} aria-current="true"{% endif %}>{{ label if full else code|upper }}</a>
+  {% endfor %}
+{%- endmacro -%}
 <!doctype html>
 <html lang="{{ locale }}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}ChessFEN{% endblock %}</title>
+  <meta name="description" content="{% block description %}{% trans %}Recognize, parse, and render chess positions{% endtrans %}{% endblock %}">
   <meta name="theme-color" content="#3B2A17">
+  <meta name="color-scheme" content="light">
   <link rel="icon" href="/static/brand/favicon.svg" type="image/svg+xml">
   <link rel="icon" href="/static/brand/favicon.ico" sizes="any">
   <link rel="icon" href="/static/brand/favicon-dark.ico" media="(prefers-color-scheme: dark)">
@@ -13,59 +20,94 @@
   <link rel="apple-touch-icon" href="/static/brand/apple-touch-icon.png">
   <link rel="stylesheet" href="/static/css/legacy.css">
   <link rel="stylesheet" href="/static/css/app.css">
+  <script src="/static/js/app.js"></script>
 </head>
-<body>
-  <header class="site-header">
-    <div class="container header-inner">
-      <a class="brand" href="/">ChessFEN</a>
-      <nav class="site-nav" aria-label="{% trans %}Main navigation{% endtrans %}">
-        <a href="/learn/fen">FEN</a>
-        <a href="/learn/pgn">PGN</a>
-        <a href="/about">{% trans %}About{% endtrans %}</a>
+<body class="v2">
+  {% set tool_nav = [
+    ("/tools/render", gettext("FEN")),
+    ("/tools/pgn", gettext("PGN")),
+    ("/tools/recognize", gettext("Recognize")),
+  ] %}
+  {% set resource_nav = [
+    ("/learn/fen", gettext("FEN guide")),
+    ("/learn/pgn", gettext("PGN guide")),
+    ("/about", gettext("About")),
+  ] %}
+
+  <a class="skip-link" href="#main-content">{% trans %}Skip to main content{% endtrans %}</a>
+
+  <header class="app-header">
+    <div class="app-header-inner">
+      <a class="app-brand" href="/" aria-label="{% trans %}ChessFEN home{% endtrans %}">
+        <img src="/static/brand/mark.svg" alt="" width="38" height="38">
+        <span class="app-wordmark">chessfen</span>
+      </a>
+
+      <nav class="app-nav" aria-label="{% trans %}Main navigation{% endtrans %}">
+        <div class="app-nav-group">
+          <span class="app-nav-label">{% trans %}Tools{% endtrans %}</span>
+          {% for href, label in tool_nav %}
+          <a href="{{ href }}"{% if request.url.path == href %} aria-current="page"{% endif %}>{{ label }}</a>
+          {% endfor %}
+        </div>
+        <div class="app-nav-group">
+          <span class="app-nav-label">{% trans %}Resources{% endtrans %}</span>
+          {% for href, label in resource_nav %}
+          <a href="{{ href }}"{% if request.url.path == href %} aria-current="page"{% endif %}>{{ label }}</a>
+          {% endfor %}
+        </div>
       </nav>
-      <nav class="lang-switch" aria-label="{% trans %}Language{% endtrans %}">
-        {% for code, label in locales %}
-        <a href="/lang/{{ code }}?next={{ next_path|urlencode }}"{% if code == locale %} class="active" aria-current="true"{% endif %}>{{ label }}</a>
-        {% endfor %}
+
+      <nav class="app-lang" aria-label="{% trans %}Language{% endtrans %}">
+        {{ language_links(false) }}
       </nav>
+
+      <button class="app-menu-toggle" type="button" data-menu-toggle aria-expanded="false" aria-controls="mobile-menu">
+        <span class="app-menu-icon" aria-hidden="true"></span>
+        <span class="app-menu-label-open">{% trans %}Menu{% endtrans %}</span>
+        <span class="app-menu-label-close">{% trans %}Close{% endtrans %}</span>
+      </button>
     </div>
+
+    <nav class="app-menu-panel" id="mobile-menu" data-menu-panel data-open="false" aria-label="{% trans %}Main navigation{% endtrans %}">
+      <div class="app-menu-group">
+        <p class="app-nav-label">{% trans %}Tools{% endtrans %}</p>
+        {% for href, label in tool_nav %}
+        <a href="{{ href }}"{% if request.url.path == href %} aria-current="page"{% endif %}>{{ label }}</a>
+        {% endfor %}
+      </div>
+      <div class="app-menu-group">
+        <p class="app-nav-label">{% trans %}Resources{% endtrans %}</p>
+        {% for href, label in resource_nav %}
+        <a href="{{ href }}"{% if request.url.path == href %} aria-current="page"{% endif %}>{{ label }}</a>
+        {% endfor %}
+      </div>
+      <div class="app-menu-group app-menu-lang">
+        <p class="app-nav-label">{% trans %}Language{% endtrans %}</p>
+        {{ language_links(true) }}
+      </div>
+    </nav>
   </header>
-  <main class="container">
-    {% block content %}{% endblock %}
+
+  <main id="main-content" class="app-main" tabindex="-1">
+    <div class="app-container">
+      {% block content %}{% endblock %}
+    </div>
   </main>
-  <footer class="site-footer">
-    <div class="container">{% trans %}Open source under GPL-3.0-or-later{% endtrans %} · <a href="https://github.com/SidneyLYZhang/chessfen">GitHub</a></div>
+
+  <footer class="app-footer">
+    <div class="app-footer-inner">
+      <div class="app-footer-identity">
+        <span class="app-wordmark">chessfen</span>
+        <span class="app-footer-tagline">{% trans %}Chess positions and encodings{% endtrans %}</span>
+      </div>
+      <nav class="app-footer-nav" aria-label="{% trans %}Footer navigation{% endtrans %}">
+        <a href="/about">{% trans %}About{% endtrans %}</a>
+        <a href="https://github.com/SidneyLYZhang/chessfen">GitHub</a>
+        <a class="app-footer-admin" href="/admin">{% trans %}Admin{% endtrans %}</a>
+      </nav>
+      <p class="app-footer-license">{% trans %}Open source under GPL-3.0-or-later{% endtrans %}</p>
+    </div>
   </footer>
-  <script>
-    (function () {
-      function copyText(text) {
-        if (navigator.clipboard && window.isSecureContext) {
-          return navigator.clipboard.writeText(text);
-        }
-        var area = document.createElement("textarea");
-        area.value = text;
-        area.style.position = "fixed";
-        area.style.opacity = "0";
-        document.body.appendChild(area);
-        area.select();
-        try { document.execCommand("copy"); } catch (error) { /* ignore */ }
-        document.body.removeChild(area);
-        return Promise.resolve();
-      }
-      document.addEventListener("click", function (event) {
-        if (!(event.target instanceof Element)) { return; }
-        var button = event.target.closest("[data-copy-target]");
-        if (!button) { return; }
-        var target = document.getElementById(button.getAttribute("data-copy-target"));
-        if (!target) { return; }
-        copyText(target.textContent.trim()).then(function () {
-          var original = button.getAttribute("data-copy-label") || button.textContent;
-          button.setAttribute("data-copy-label", original);
-          button.textContent = button.getAttribute("data-copied-label") || original;
-          setTimeout(function () { button.textContent = original; }, 1500);
-        });
-      });
-    })();
-  </script>
 </body>
 </html>

@@ -423,3 +423,54 @@ msgstr "Figurenbilder: das CBurnett-Schachfigurenset, gerendert mit python-chess
 
 msgid "Licensing: ChessFEN is released under the GPL-3.0-or-later license."
 msgstr "Lizenz: ChessFEN steht unter der GPL-3.0-or-later-Lizenz."
+
+msgid "Skip to main content"
+msgstr "Zum Hauptinhalt springen"
+
+msgid "ChessFEN home"
+msgstr "ChessFEN-Startseite"
+
+msgid "Tools"
+msgstr "Werkzeuge"
+
+msgid "Resources"
+msgstr "Ressourcen"
+
+msgid "FEN guide"
+msgstr "FEN-Leitfaden"
+
+msgid "PGN guide"
+msgstr "PGN-Leitfaden"
+
+msgid "Menu"
+msgstr "Menü"
+
+msgid "Close"
+msgstr "Schließen"
+
+msgid "Chess positions and encodings"
+msgstr "Schachstellungen und Notationen"
+
+msgid "Chess encodings and position images"
+msgstr "Schachnotationen und Stellungsbilder"
+
+msgid "Render any FEN, navigate a PGN to any Ply, or recognize a Board image — one small, self-hostable tool."
+msgstr "Jede FEN rendern, ein PGN bis zu jedem Ply durchlaufen oder ein Brettbild erkennen – ein kleines, selbst hostbares Werkzeug."
+
+msgid "Open tool"
+msgstr "Werkzeug öffnen"
+
+msgid "Browse a Game and export the Full FEN at any Ply."
+msgstr "Eine Partie durchlaufen und die vollständige FEN nach jedem Ply exportieren."
+
+msgid "One Docker image, CPU-only, with the recognition model baked in. Learn how to self-host on the About page."
+msgstr "Ein einziges Docker-Image, nur CPU, mit eingebettetem Erkennungsmodell. Auf der Über-Seite steht, wie du selbst hostest."
+
+msgid "About the project"
+msgstr "Über das Projekt"
+
+msgid "Footer navigation"
+msgstr "Fußzeilennavigation"
+
+msgid "Render FEN positions, navigate PGN games to any Ply, and recognize Board images. ChessFEN is a small, self-hostable chess encoding tool."
+msgstr "FEN-Stellungen rendern, PGN-Partien bis zu jedem Ply durchlaufen und Brettbilder erkennen. ChessFEN ist ein kleines, selbst hostbares Werkzeug für Schachnotationen."
