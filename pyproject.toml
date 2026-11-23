@@ -1,6 +1,6 @@
 [project]
 name = "chessfen"
-version = "1.0.0"
+version = "1.1.0"
 description = "API and web app for chess encodings (PGN, FEN) and board position images"
 license = "GPL-3.0-or-later"
 license-files = ["LICENSE", "NOTICE"]

@@ -7,13 +7,21 @@ Python tool (API + web app) for working with chess encodings — PGN, FEN — an
 ## Features
 
 - **Board recognition**: upload a 2D board image and get its Placement, with per-square confidences.
-- **PGN navigation**: choose a game from a multi-game PGN and export the Full FEN after any half-move.
+- **PGN navigation**: choose a game from a multi-game PGN and export the Full FEN after any Ply.
 - **FEN rendering**: turn any FEN into a PNG or SVG board image.
 - **Web UI and API**: API keys are issued from an admin page; the interface is available in Chinese, English, and German.
 
+## What's new in v1.1.0
+
+- Every page is rebuilt on one brand-aligned design system: warm paper and ochre surfaces, structural ink, self-hosted Space Grotesk and IBM Plex Mono, a new mark, and matching favicons.
+- PGN navigation adds a board preview and a clickable Mainline move grid while keeping the precise "after White's/Black's Nth move" controls; FEN rendering gains brand board colors, a Full FEN field summary, and server-rendered example links.
+- Recognition shows the source image beside a reconstructed board, copyable Placement and Full FEN, and a 64-square confidence breakdown; the guides, About, admin login and key management, and a localized 404 are rebuilt on the same system.
+- All main flows still work without JavaScript; the interface remains Chinese, English, and German.
+- Container namespace references are corrected to `sidneylyzhang` throughout.
+
 ## Quick start (Docker)
 
-Each release publishes prebuilt images to `ghcr.io/sidneylyzhang/chessfen` and to Docker Hub as `sidneylyzhang/chessfen`, with the pinned recognition model baked in. Tags include `latest` and version tags such as `v1.0.0`.
+Each release publishes prebuilt images to `ghcr.io/sidneylyzhang/chessfen` and to Docker Hub as `sidneylyzhang/chessfen`, with the pinned recognition model baked in. Tags include `latest` and version tags such as `v1.1.0`.
 
 ```bash
 docker run -d --name chessfen \
@@ -89,8 +97,8 @@ The API is gated by an API key sent as `X-API-Key: cf_...`; keys are issued from
 Push an annotated version tag to publish a release:
 
 ```bash
-git tag -a v1.0.0 -m "ChessFEN 1.0.0"
-git push origin v1.0.0
+git tag -a v1.1.0 -m "ChessFEN 1.1.0"
+git push origin v1.1.0
 ```
 
 The `Release` workflow gates on the shared `Test` workflow (which also runs on pushes to `main` and pull requests): unit tests, mypy, and a Docker image smoke test that boots the container, issues an API key, and performs a real recognition through the baked model. CI downloads the pinned model weights so the real-model tests run instead of being skipped.
@@ -106,7 +114,7 @@ Required repository secrets for Docker Hub: `DOCKERHUB_USERNAME` (lowercase) and
 
 ## License
 
-ChessFEN is licensed under GPL-3.0-or-later; see [LICENSE](LICENSE) for the full text and [NOTICE](NOTICE) for third-party components (python-chess GPL-3.0+, 2d-chess-ocr weights MIT, CBurnett pieces CC BY-SA 3.0, resvg_py/resvg MIT/MPL-2.0).
+ChessFEN is licensed under GPL-3.0-or-later; see [LICENSE](LICENSE) for the full text and [NOTICE](NOTICE) for third-party components (python-chess GPL-3.0+, 2d-chess-ocr weights MIT, CBurnett pieces CC BY-SA 3.0, resvg_py/resvg MIT/MPL-2.0, Space Grotesk and IBM Plex Mono under the SIL OFL 1.1).
 
 ## Agent configuration
 

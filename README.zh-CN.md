@@ -7,13 +7,21 @@
 ## 功能
 
 - **棋盘识别**：上传二维棋盘图片，得到棋子摆放段（Placement）及逐格置信度。
-- **PGN 导航**：在一个多局 PGN 中选择对局，导出任意半步之后的完整 FEN。
+- **PGN 导航**：在一个多局 PGN 中选择对局，导出任意 Ply 之后的完整 FEN。
 - **FEN 渲染**：把任意 FEN 渲染为 PNG 或 SVG 棋盘图片。
 - **网页界面与 API**：通过管理页签发 API 密钥；界面支持中文、英文和德文。
 
+## v1.1.0 更新
+
+- 全部页面基于同一套品牌设计系统重建：暖纸色与赭色面板、结构墨色、自托管 Space Grotesk 与 IBM Plex Mono、新 mark 及配套 favicon。
+- PGN 导航新增棋盘预览与可点击的主线着法网格，同时保留“白方/黑方第 N 步之后”的精确控制；FEN 渲染采用品牌棋盘配色，新增完整 FEN 字段摘要与服务端渲染的示例链接。
+- 识别页并排显示原图与重建棋盘，提供可复制的棋子摆放段与完整 FEN，以及 64 格置信度明细；指南、关于、管理登录与密钥管理、本地化 404 均基于同一设计系统重建。
+- 所有主流程仍可在禁用 JavaScript 时完成；界面继续支持中文、英文和德文。
+- 容器命名空间引用已全部更正为 `sidneylyzhang`。
+
 ## 快速开始（Docker）
 
-每个 Release 会把预构建镜像推送到 `ghcr.io/sidneylyzhang/chessfen` 与 Docker Hub 的 `sidneylyzhang/chessfen`，并内置固定版本的识别模型。标签包含 `latest` 与版本标签（如 `v1.0.0`）。
+每个 Release 会把预构建镜像推送到 `ghcr.io/sidneylyzhang/chessfen` 与 Docker Hub 的 `sidneylyzhang/chessfen`，并内置固定版本的识别模型。标签包含 `latest` 与版本标签（如 `v1.1.0`）。
 
 ```bash
 docker run -d --name chessfen \
@@ -89,8 +97,8 @@ API 通过 `X-API-Key: cf_...` 认证；密钥在管理页签发。端点：`POS
 推送带注释的版本 tag 即可发布：
 
 ```bash
-git tag -a v1.0.0 -m "ChessFEN 1.0.0"
-git push origin v1.0.0
+git tag -a v1.1.0 -m "ChessFEN 1.1.0"
+git push origin v1.1.0
 ```
 
 `Release` 工作流先经过共享的 `Test` 工作流（该工作流也在推送到 `main` 和 Pull Request 时运行）：单元测试、mypy，以及 Docker 镜像冒烟测试（启动容器、签发 API 密钥、用内置模型做一次真实识别）。CI 会下载并校验固定模型，使真实模型测试不再被跳过。
@@ -106,7 +114,7 @@ Docker Hub 需要仓库 Secrets：`DOCKERHUB_USERNAME`（小写）与 `DOCKERHUB
 
 ## 许可证
 
-ChessFEN 以 GPL-3.0-or-later 发布；完整文本见 [LICENSE](LICENSE)，第三方组件见 [NOTICE](NOTICE)（python-chess GPL-3.0+、2d-chess-ocr 权重 MIT、CBurnett 棋子 CC BY-SA 3.0、resvg_py/resvg MIT/MPL-2.0）。
+ChessFEN 以 GPL-3.0-or-later 发布；完整文本见 [LICENSE](LICENSE)，第三方组件见 [NOTICE](NOTICE)（python-chess GPL-3.0+、2d-chess-ocr 权重 MIT、CBurnett 棋子 CC BY-SA 3.0、resvg_py/resvg MIT/MPL-2.0、Space Grotesk 与 IBM Plex Mono 采用 SIL OFL 1.1）。
 
 ## Agent 配置
 
