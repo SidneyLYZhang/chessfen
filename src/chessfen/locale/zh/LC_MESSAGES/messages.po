@@ -558,3 +558,18 @@ msgstr "Ply 无效。"
 
 msgid "After White's/Black's Nth move."
 msgstr "白方/黑方第 N 步之后。"
+
+msgid "Choose a board image"
+msgstr "选择棋盘图片"
+
+msgid "A cropped, axis-aligned board image works best; PNG or JPEG recommended, up to 10 MB."
+msgstr "裁剪好、轴对齐的棋盘图片效果最佳；建议使用 PNG 或 JPEG，最大 10 MB。"
+
+msgid "Recognized position"
+msgstr "识别出的局面"
+
+msgid "The results appear here."
+msgstr "识别结果将在这里出现。"
+
+msgid "Upload a board image to start recognition."
+msgstr "上传棋盘图片即可开始识别。"

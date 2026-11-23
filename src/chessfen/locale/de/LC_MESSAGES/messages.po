@@ -558,3 +558,18 @@ msgstr "Der Halbzug ist ungültig."
 
 msgid "After White's/Black's Nth move."
 msgstr "Nach dem N. Zug von Weiß/Schwarz."
+
+msgid "Choose a board image"
+msgstr "Brettbild auswählen"
+
+msgid "A cropped, axis-aligned board image works best; PNG or JPEG recommended, up to 10 MB."
+msgstr "Ein zugeschnittenes, achsenparalleles Brettbild eignet sich am besten; PNG oder JPEG empfohlen, bis 10 MB."
+
+msgid "Recognized position"
+msgstr "Erkannte Stellung"
+
+msgid "The results appear here."
+msgstr "Die Ergebnisse erscheinen hier."
+
+msgid "Upload a board image to start recognition."
+msgstr "Lade ein Brettbild hoch, um die Erkennung zu starten."

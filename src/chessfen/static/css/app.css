@@ -1434,3 +1434,168 @@ html.js .v2 .app-menu-toggle {
     justify-self: start;
   }
 }
+
+/* Recognition tool ------------------------------------------------------------ */
+
+.v2 .recognize-form {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.v2 .upload-box {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-5);
+  border: 1px dashed var(--line-soft);
+  background: var(--paper-1);
+}
+
+.v2 .upload-box .file-input {
+  border-style: solid;
+  background: var(--paper-0);
+}
+
+.v2 .source-figure {
+  display: grid;
+  gap: var(--space-2);
+  margin: var(--space-5) 0 0;
+}
+
+.v2 .source-figure img {
+  display: block;
+  width: 100%;
+  max-height: 22rem;
+  object-fit: contain;
+  border: 1px solid var(--line-soft);
+  background: var(--paper-1);
+}
+
+.v2 .recognize-controls {
+  display: grid;
+  grid-template-columns: 10rem minmax(0, 1fr);
+  gap: var(--space-4);
+  align-items: start;
+}
+
+.v2 .recognize-value {
+  display: flex;
+  align-items: center;
+  min-height: 2.75rem;
+  color: var(--ink-1);
+  font-size: var(--text-base);
+}
+
+.v2 .confidence-section {
+  margin-top: var(--space-7);
+  padding-top: var(--space-5);
+  border-top: 1px solid var(--ink-1);
+}
+
+.v2 #show-confidence {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.v2 .confidence-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.v2 .confidence-head label {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.75rem;
+  padding: 0 var(--space-4);
+  border: 1px solid var(--line-soft);
+  color: var(--ink-2);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.v2 #show-confidence:checked + .confidence-head label {
+  background: var(--ink-1);
+  border-color: var(--ink-1);
+  color: var(--paper-warm);
+}
+
+.v2 #show-confidence:focus-visible + .confidence-head label {
+  outline: 2px solid var(--ochre-dark);
+  outline-offset: 3px;
+}
+
+.v2 .squares {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  gap: 2px;
+  max-width: 56rem;
+  margin-top: var(--space-4);
+}
+
+.v2 .square {
+  aspect-ratio: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  background: var(--paper-warm);
+  background: color-mix(in oklch, var(--panel) 82%, var(--ochre-1) 18%);
+  border: 1px solid var(--line-soft);
+  border-radius: 0;
+}
+
+.v2 .square:nth-child(16n+1),
+.v2 .square:nth-child(16n+3),
+.v2 .square:nth-child(16n+5),
+.v2 .square:nth-child(16n+7),
+.v2 .square:nth-child(16n+10),
+.v2 .square:nth-child(16n+12),
+.v2 .square:nth-child(16n+14),
+.v2 .square:nth-child(16n+16) {
+  background: var(--panel);
+}
+
+.v2 .square .piece {
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
+.v2 .square .square-name {
+  color: var(--ink-3);
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+}
+
+.v2 .square .confidence {
+  display: none;
+  color: var(--ink-2);
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+}
+
+.v2 #show-confidence:checked ~ .squares .confidence {
+  display: block;
+}
+
+.v2 .square[data-low="true"] .confidence {
+  color: var(--error-1);
+}
+
+@media (max-width: 700px) {
+  .v2 .recognize-controls {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .v2 .confidence-head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

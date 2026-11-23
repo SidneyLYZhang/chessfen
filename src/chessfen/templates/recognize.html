@@ -2,82 +2,131 @@
 
 {% block title %}ChessFEN · {% trans %}Recognize board{% endtrans %}{% endblock %}
 
+{% block description %}{% trans %}Upload a board image to get its Placement.{% endtrans %}{% endblock %}
+
 {% block content %}
-<section class="panel">
-  <h1>{% trans %}Recognize board{% endtrans %}</h1>
-  <p class="muted">{% trans %}Upload a board image to get its Placement.{% endtrans %}</p>
-
-  {% if error == "no_image" %}<p class="notice error">{% trans %}An image file is required.{% endtrans %}</p>{% endif %}
-  {% if error == "invalid_image" %}<p class="notice error">{% trans %}Invalid image{% endtrans %}</p>{% endif %}
-  {% if error == "image_too_large" %}<p class="notice error">{% trans %}The image must be 10 MB or smaller.{% endtrans %}</p>{% endif %}
-  {% if error == "no_board_detected" %}<p class="notice error">{% trans %}No chessboard detected{% endtrans %}</p>{% endif %}
-  {% if error == "recognition_unavailable" %}<p class="notice error">{% trans %}Recognition is not available on this server.{% endtrans %}</p>{% endif %}
-  {% if error == "invalid_side" %}<p class="notice error">{% trans %}The side must be w or b.{% endtrans %}</p>{% endif %}
-  {% if error == "rate_limited" %}<p class="notice error">{% trans %}Too many requests. Try again later.{% endtrans %}</p>{% endif %}
-
-  <form method="post" action="/tools/recognize" enctype="multipart/form-data" class="stack">
-    <label>{% trans %}Board image{% endtrans %}
-      <input type="file" name="image" accept="image/*" required>
-    </label>
-    <button type="submit">{% trans %}Recognize{% endtrans %}</button>
-  </form>
-
-  {% if preview_uri %}
-  <div class="preview">
-    <img src="{{ preview_uri }}" alt="{% trans %}Uploaded board{% endtrans %}">
+{% set piece_glyphs = {
+  "P": "♙", "N": "♘", "B": "♗", "R": "♖", "Q": "♕", "K": "♔",
+  "p": "♟", "n": "♞", "b": "♝", "r": "♜", "q": "♛", "k": "♚",
+} %}
+{# Confidence below this threshold is flagged for review. #}
+{% set low_confidence = 0.85 %}
+<header class="tool-header">
+  <div>
+    <p class="eyebrow" aria-hidden="true">WORKSPACE / BOARD TO FEN</p>
+    <h1>{% trans %}Recognize board{% endtrans %}</h1>
+    <p class="tool-lead">{% trans %}Upload a board image to get its Placement.{% endtrans %}</p>
   </div>
-  {% endif %}
+  <a class="text-icon-button" href="/learn/fen">{% trans %}FEN guide{% endtrans %} <span aria-hidden="true">→</span></a>
+</header>
 
-  {% if result %}
-  <div class="result-columns">
-    <div>
-      <h2>{% trans %}Placement{% endtrans %}</h2>
-      <p class="secret">{{ result.placement }}</p>
-      <h2>{% trans %}Full FEN{% endtrans %}</h2>
-      <p class="secret" id="fen-text" data-fen-w="{{ result.fen_for("w") }}" data-fen-b="{{ result.fen_for("b") }}">{{ result.fen }}</p>
-      <button type="button" class="ghost" data-copy-target="fen-text" data-copied-label="{% trans %}Copied{% endtrans %}">{% trans %}Copy FEN{% endtrans %}</button>
-      <label>{% trans %}Side to move{% endtrans %}
-        <select id="side-select">
+<div class="workspace-grid">
+  <section class="tool-panel">
+    <p class="eyebrow" aria-hidden="true">01 / SOURCE IMAGE</p>
+    <h2>{% trans %}Board image{% endtrans %}</h2>
+
+    {% if error %}
+      {% if error == "no_image" %}<p class="form-error" role="alert">{% trans %}An image file is required.{% endtrans %}</p>{% endif %}
+      {% if error == "invalid_image" %}<p class="form-error" role="alert">{% trans %}Invalid image{% endtrans %}</p>{% endif %}
+      {% if error == "image_too_large" %}<p class="form-error" role="alert">{% trans %}The image must be 10 MB or smaller.{% endtrans %}</p>{% endif %}
+      {% if error == "no_board_detected" %}<p class="form-error" role="alert">{% trans %}No chessboard detected{% endtrans %}</p>{% endif %}
+      {% if error == "recognition_unavailable" %}<p class="form-error" role="alert">{% trans %}Recognition is not available on this server.{% endtrans %}</p>{% endif %}
+      {% if error == "invalid_side" %}<p class="form-error" role="alert">{% trans %}The side must be w or b.{% endtrans %}</p>{% endif %}
+      {% if error == "rate_limited" %}<p class="form-error" role="alert">{% trans %}Too many requests. Try again later.{% endtrans %}</p>{% endif %}
+    {% endif %}
+
+    <form method="post" action="/tools/recognize" enctype="multipart/form-data" class="recognize-form">
+      <div class="upload-box">
+        <label class="field-label" for="image">{% trans %}Choose a board image{% endtrans %}</label>
+        <input class="file-input" type="file" id="image" name="image" accept="image/*" aria-describedby="image-hint" required>
+        <p class="field-hint" id="image-hint">{% trans %}A cropped, axis-aligned board image works best; PNG or JPEG recommended, up to 10 MB.{% endtrans %}</p>
+      </div>
+      <div class="form-actions">
+        <button class="primary-button" type="submit">{% trans %}Recognize{% endtrans %}</button>
+      </div>
+    </form>
+
+    {% if preview_uri %}
+    <figure class="source-figure">
+      <img src="{{ preview_uri }}" alt="{% trans %}Board image{% endtrans %}">
+    </figure>
+    {% endif %}
+  </section>
+
+  <section class="result-panel">
+    {% if result %}
+    {% if board_uri %}
+    <div class="result-board">
+      <img src="{{ board_uri }}" alt="{% trans %}Recognized position{% endtrans %}" width="{{ board_size }}" height="{{ board_size }}">
+    </div>
+    {% endif %}
+    <p class="eyebrow" aria-hidden="true">RESULT / POSITION</p>
+    <h2>{% trans %}Recognized position{% endtrans %}</h2>
+
+    <div class="code-block">
+      <div class="code-block-header">
+        <span class="code-block-label">{% trans %}Placement{% endtrans %}</span>
+      </div>
+      <pre><code>{{ result.placement }}</code></pre>
+    </div>
+
+    <div class="code-block">
+      <div class="code-block-header">
+        <span class="code-block-label">{% trans %}Full FEN{% endtrans %}</span>
+        <button class="ghost-button small-button" type="button" data-copy-target="fen-text" data-copied-label="{% trans %}Copied{% endtrans %}">{% trans %}Copy FEN{% endtrans %}</button>
+      </div>
+      <pre><code id="fen-text" data-fen-w="{{ result.fen_for("w") }}" data-fen-b="{{ result.fen_for("b") }}">{{ result.fen }}</code></pre>
+    </div>
+
+    <div class="recognize-controls">
+      <div class="field">
+        <label class="field-label" for="side-select">{% trans %}Side to move{% endtrans %}</label>
+        <select class="select-input" id="side-select">
           <option value="w"{% if result.side_to_move == "w" %} selected{% endif %}>{% trans %}White{% endtrans %}</option>
           <option value="b"{% if result.side_to_move == "b" %} selected{% endif %}>{% trans %}Black{% endtrans %}</option>
         </select>
-      </label>
-      <p class="muted">{% trans %}Orientation{% endtrans %}:
-        {% if result.orientation == "normal" %}{% trans %}Normal{% endtrans %}
-        {% elif result.orientation == "flipped" %}{% trans %}Flipped{% endtrans %}
-        {% else %}{% trans %}Unknown{% endtrans %}{% endif %}
-      </p>
-      {% if result.unmatched %}
-      <p class="notice">{% trans count=result.unmatched %}Unmatched pieces: {{ count }}{% endtrans %}</p>
-      {% endif %}
-    </div>
-    <div>
-      <input type="checkbox" id="show-confidence">
-      <label for="show-confidence">{% trans %}Show confidence{% endtrans %}</label>
-      <div class="squares">
-        {% for square in result.squares %}
-        <div class="square">
-          <span class="piece">{{ square.piece or "·" }}</span>
-          <span class="square-name">{{ square.square }}</span>
-          <span class="confidence">{% if square.confidence is not none %}{{ "%.2f"|format(square.confidence) }}{% endif %}</span>
-        </div>
-        {% endfor %}
+      </div>
+      <div class="field">
+        <span class="field-label">{% trans %}Orientation{% endtrans %}</span>
+        <span class="recognize-value">{% if result.orientation == "normal" %}{% trans %}Normal{% endtrans %}{% elif result.orientation == "flipped" %}{% trans %}Flipped{% endtrans %}{% else %}{% trans %}Unknown{% endtrans %}{% endif %}</span>
       </div>
     </div>
+
+    {% if result.unmatched or position_warnings %}
+    <div class="warning-block">
+      <p class="field-label">{% trans %}Warnings{% endtrans %}</p>
+      <ul class="warning-list">
+        {% if result.unmatched %}<li>{% trans count=result.unmatched %}Unmatched pieces: {{ count }}{% endtrans %}</li>{% endif %}
+        {% for warning in position_warnings %}<li>{{ warning }}</li>{% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+    {% else %}
+    <div class="empty-state">
+      <img src="/static/brand/mark-mono.svg" alt="" width="48" height="48">
+      <p class="empty-state-title">{% trans %}The results appear here.{% endtrans %}</p>
+      <p>{% trans %}Upload a board image to start recognition.{% endtrans %}</p>
+    </div>
+    {% endif %}
+  </section>
+</div>
+
+{% if result %}
+<section class="confidence-section">
+  <input type="checkbox" id="show-confidence">
+  <div class="confidence-head">
+    <p class="eyebrow" aria-hidden="true">REVIEW / 64 SQUARES</p>
+    <label for="show-confidence">{% trans %}Show confidence{% endtrans %}</label>
   </div>
-  <script>
-    (function () {
-      var select = document.getElementById("side-select");
-      var fen = document.getElementById("fen-text");
-      if (select && fen) {
-        select.addEventListener("change", function () {
-          fen.textContent = select.value === "b"
-            ? fen.getAttribute("data-fen-b")
-            : fen.getAttribute("data-fen-w");
-        });
-      }
-    })();
-  </script>
-  {% endif %}
+  <div class="squares">
+    {% for square in result.squares %}
+    <div class="square"{% if square.confidence is not none and square.confidence < low_confidence %} data-low="true"{% endif %}>
+      <span class="piece" aria-hidden="true">{{ piece_glyphs.get(square.piece, square.piece or "·") }}</span>
+      <span class="square-name">{{ square.square }}</span>
+      <span class="confidence">{% if square.confidence is not none %}{{ "%.2f"|format(square.confidence) }}{% endif %}</span>
+    </div>
+    {% endfor %}
+  </div>
 </section>
+{% endif %}
 {% endblock %}

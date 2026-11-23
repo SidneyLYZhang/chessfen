@@ -99,6 +99,13 @@ def _image_data_uri(result: RenderResult) -> str:
     return _data_uri(result.media_type, result.image_bytes)
 
 
+def _board_preview(fen: str) -> RenderResult:
+    return render_fen(
+        fen,
+        RenderOptions(size=DEFAULT_SIZE, coordinates=True),
+    )
+
+
 def _default_render_form() -> dict[str, object]:
     return {
         "fen": STARTING_FEN,
@@ -404,10 +411,7 @@ def pgn_submit(
         board = position_at(game, selected_ply)
     except PgnError as exc:
         return _pgn_error(request, form, summaries, exc.code)
-    board_result = render_fen(
-        board.fen(),
-        RenderOptions(size=DEFAULT_SIZE, coordinates=True),
-    )
+    board_result = _board_preview(board.fen())
     if selected_ply == 0:
         form["move_number"] = "0"
         form["side"] = "black" if starts_black else "white"
@@ -436,6 +440,8 @@ def _recognize_page(
     form: dict[str, object],
     result: RecognitionResult | None = None,
     preview_uri: str | None = None,
+    board_uri: str | None = None,
+    position_warnings: list[str] | None = None,
     error: str | None = None,
     status_code: int = 200,
 ) -> HTMLResponse:
@@ -446,6 +452,9 @@ def _recognize_page(
             "form": form,
             "result": result,
             "preview_uri": preview_uri,
+            "board_uri": board_uri,
+            "position_warnings": position_warnings or [],
+            "board_size": DEFAULT_SIZE,
             "error": error,
         },
         status_code=status_code,
@@ -519,6 +528,19 @@ def recognize_submit(
             error=exc.code,
             status_code=status_code,
         )
+    board_uri: str | None = None
+    position_warnings: list[str] = []
+    try:
+        board_result = _board_preview(result.placement)
+        board_uri = _image_data_uri(board_result)
+        position_warnings = _warning_labels(request, board_result.warnings)
+    except FenSyntaxError:
+        board_uri = None
     return _recognize_page(
-        request, form=form, result=result, preview_uri=preview_uri
+        request,
+        form=form,
+        result=result,
+        preview_uri=preview_uri,
+        board_uri=board_uri,
+        position_warnings=position_warnings,
     )

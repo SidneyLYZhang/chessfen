@@ -78,6 +78,19 @@
       });
     }
 
+    var sideSelect = document.getElementById("side-select");
+    var fenText = document.getElementById("fen-text");
+    if (sideSelect && fenText) {
+      sideSelect.addEventListener("change", function () {
+        var next = sideSelect.value === "b"
+          ? fenText.getAttribute("data-fen-b")
+          : fenText.getAttribute("data-fen-w");
+        if (next) {
+          fenText.textContent = next;
+        }
+      });
+    }
+
     document.addEventListener("click", function (event) {
       if (!(event.target instanceof Element)) {
         return;
