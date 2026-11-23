@@ -87,6 +87,14 @@ def test_shared_script_replaces_inline_copy_handler(client: TestClient) -> None:
     assert "<script>" not in page.text
 
 
+def test_every_page_loads_only_the_shared_script(client: TestClient) -> None:
+    for path in _PUBLIC_PAGES:
+        page = client.get(path, headers=_EN)
+
+        assert page.text.count("<script") == 1, path
+        assert '<script src="/static/js/app.js"></script>' in page.text, path
+
+
 def test_home_hero_cards_and_open_strip(client: TestClient) -> None:
     page = client.get("/", headers=_EN)
 

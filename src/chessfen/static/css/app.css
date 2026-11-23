@@ -1,11 +1,9 @@
 /*
-  ChessFEN design system — v2 foundation.
+  ChessFEN design system — the single stylesheet for the site.
 
-  Loaded after legacy.css. Every rule, including the design tokens, is scoped
-  to `body.v2`, a class added together with the new shell, so this file stays
-  visually inert while the migration is in progress. Legacy styles are removed
-  at the end of the migration; this file then becomes the single source of
-  truth.
+  Page rules are scoped to `body.v2`; the reset, `:root`, and `html.js` hooks
+  are global. The body class is the application-shell hook for page styles and
+  the reduced-motion reset.
 
   Brand palette (approved specification):
     primary ochre #BF811D · structural ink #3B2A17 · panel #F3F0E8
@@ -37,9 +35,15 @@
   font-display: swap;
 }
 
-/* The redesign is light-only; this overrides the legacy scheme-aware tokens. */
+/* The redesign is light-only. */
 :root {
   color-scheme: light;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
 }
 
 body.v2 {
@@ -91,19 +95,12 @@ body.v2 {
   --page-max: 90rem; /* 1440px */
   --header-height: 4.75rem; /* 76px */
   --radius: 0;
-
-  /* Legacy token bridge: unmigrated page components adopt the new palette
-     while their own tickets are pending. Removed with the legacy stylesheet. */
-  --bg: var(--paper-0);
-  --surface: var(--paper-1);
-  --fg: var(--ink-1);
-  --muted: var(--ink-3);
-  --accent: var(--ink-1);
-  --border: var(--line-soft);
-  --font: var(--font-sans);
 }
 
 body.v2 {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
   margin: 0;
   background: var(--paper-0);
   color: var(--ink-1);
@@ -712,16 +709,6 @@ html.js .v2 .app-menu-toggle {
   max-width: var(--page-max);
   margin: 0 auto;
   padding: var(--space-7) 2.5rem var(--space-8);
-}
-
-/* Transitional: unmigrated pages keep their legacy panels but stay readable
-   inside the wider shell. Removed with the legacy stylesheet. */
-.v2 .app-container > .panel,
-.v2 .app-container > .prose {
-  width: 100%;
-  max-width: 60rem;
-  margin-right: auto;
-  margin-left: auto;
 }
 
 .v2 .app-footer {
@@ -2218,6 +2205,14 @@ html:has(body.v2) {
 
 .v2 .admin-status-revoked {
   color: var(--error-1);
+}
+
+.v2 .admin-revoked-at {
+  display: block;
+  margin-top: 2px;
+  color: var(--ink-3);
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
 }
 
 .v2 .revoke-confirm summary {

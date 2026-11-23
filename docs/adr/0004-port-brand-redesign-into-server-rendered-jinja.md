@@ -1,6 +1,6 @@
 # Port the brand redesign into the server-rendered Jinja app
 
-Status: accepted
+Status: accepted — implemented in #11–#19; the legacy stylesheet was removed once the last page migrated.
 
 The owner approved a complete visual redesign, delivered as a React + Vite + Tailwind prototype covering every page. The production app is a FastAPI application with Jinja templates, form posts, gettext, and a single hand-written stylesheet; it has no Node build step, and the Docker image must stay small and CPU-light. The redesign therefore becomes a **port of the visual system into the existing server-rendered stack**, not an adoption of the prototype's implementation.
 

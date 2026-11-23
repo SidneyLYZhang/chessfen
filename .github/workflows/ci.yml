@@ -80,6 +80,16 @@ jobs:
           test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8000/)" = "200"
           test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8000/admin/login)" = "200"
           test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8000/api/v1/me)" = "401"
+          for asset in \
+            /static/css/app.css \
+            /static/js/app.js \
+            /static/brand/mark.svg \
+            /static/brand/favicon.svg \
+            /static/brand/icon-512.png \
+            /static/fonts/space-grotesk-latin-variable.woff2; do
+            test "$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:8000$asset")" = "200"
+          done
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8000/static/css/legacy.css)" = "404"
           docker exec chessfen-ci test -s /app/models/yolo26m-finetuned.onnx
 
           cookie_jar="$(mktemp)"
