@@ -12,8 +12,11 @@ from chessfen.i18n import LOCALE_COOKIE, load_translations, negotiate_locale
 from chessfen.limits import IMAGE_MAX_BYTES, PGN_MAX_BYTES
 from chessfen.pgn import (
     GameSummary,
+    MoveRow,
     PgnError,
+    count_plies,
     load_games,
+    mainline_rows,
     ply_for_move,
     position_at,
     select_game,
@@ -25,6 +28,7 @@ from chessfen.render import (
     FenSyntaxError,
     RenderOptions,
     RenderOptionsError,
+    RenderResult,
     parse_fen,
     parse_output_format,
     render_fen,
@@ -82,6 +86,17 @@ def _consume_request_quota(request: Request) -> bool:
 def _rate_limited_response(response: HTMLResponse) -> HTMLResponse:
     response.headers["Retry-After"] = "60"
     return response
+
+
+def _data_uri(media_type: str, payload: bytes) -> str:
+    return (
+        f"data:{media_type};base64,"
+        + base64.b64encode(payload).decode("ascii")
+    )
+
+
+def _image_data_uri(result: RenderResult) -> str:
+    return _data_uri(result.media_type, result.image_bytes)
 
 
 def _default_render_form() -> dict[str, object]:
@@ -181,10 +196,7 @@ def _render_action(request: Request, form: dict[str, object]) -> HTMLResponse:
         return _page(request, form=form, error="invalid_fen", status_code=400)
     except RenderOptionsError as exc:
         return _page(request, form=form, error=exc.code, status_code=400)
-    data_uri = (
-        f"data:{result.media_type};base64,"
-        + base64.b64encode(result.image_bytes).decode("ascii")
-    )
+    data_uri = _image_data_uri(result)
     return _page(
         request,
         form=form,
@@ -241,12 +253,27 @@ def render_submit(
     )
 
 
+def _default_pgn_form() -> dict[str, object]:
+    return {
+        "pgn": "",
+        "game_index": "",
+        "move_number": "1",
+        "side": "white",
+    }
+
+
 def _pgn_page(
     request: Request,
     *,
     form: dict[str, object],
     games: list[GameSummary] | None = None,
     result_fen: str | None = None,
+    board_uri: str | None = None,
+    move_rows: list[MoveRow] | None = None,
+    selected_game: GameSummary | None = None,
+    selected_ply: int | None = None,
+    total_plies: int | None = None,
+    side_to_move: str | None = None,
     error: str | None = None,
     status_code: int = 200,
 ) -> HTMLResponse:
@@ -257,6 +284,13 @@ def _pgn_page(
             "form": form,
             "games": games or [],
             "result_fen": result_fen,
+            "board_uri": board_uri,
+            "move_rows": move_rows or [],
+            "selected_game": selected_game,
+            "selected_ply": selected_ply,
+            "total_plies": total_plies,
+            "side_to_move": side_to_move,
+            "board_size": DEFAULT_SIZE,
             "error": error,
         },
         status_code=status_code,
@@ -283,10 +317,7 @@ def _decode_pgn_bytes(raw: bytes) -> str:
 
 @router.get("/pgn")
 def pgn_page(request: Request) -> HTMLResponse:
-    return _pgn_page(
-        request,
-        form={"pgn": "", "game_index": "", "move_number": "1", "side": "white"},
-    )
+    return _pgn_page(request, form=_default_pgn_form())
 
 
 @router.post("/pgn")
@@ -297,18 +328,18 @@ def pgn_submit(
     game_index: str = Form(""),
     move_number: str = Form("1"),
     side: str = Form("white"),
+    mode: str = Form(""),
+    ply: str = Form(""),
 ) -> HTMLResponse:
     if pgn_file is not None and pgn_file.filename:
         raw = pgn_file.file.read()
         if len(raw) > PGN_MAX_BYTES:
+            error_form = _default_pgn_form()
+            error_form["move_number"] = move_number
+            error_form["side"] = side
             return _pgn_page(
                 request,
-                form={
-                    "pgn": "",
-                    "game_index": "",
-                    "move_number": move_number,
-                    "side": side,
-                },
+                form=error_form,
                 error="pgn_too_large",
                 status_code=API_ERRORS["pgn_too_large"][0],
             )
@@ -316,14 +347,12 @@ def pgn_submit(
     elif len(pgn.encode("utf-8")) > PGN_MAX_BYTES:
         # Defence in depth: Starlette usually rejects a >1 MB form field first
         # and the HTTP-exception handler translates that to this same page.
+        error_form = _default_pgn_form()
+        error_form["move_number"] = move_number
+        error_form["side"] = side
         return _pgn_page(
             request,
-            form={
-                "pgn": "",
-                "game_index": "",
-                "move_number": move_number,
-                "side": side,
-            },
+            form=error_form,
             error="pgn_too_large",
             status_code=API_ERRORS["pgn_too_large"][0],
         )
@@ -338,24 +367,66 @@ def pgn_submit(
     except PgnError as exc:
         return _pgn_page(request, form=form, error=exc.code, status_code=400)
     summaries = [summarize(game, index) for index, game in enumerate(games)]
-    if game_index == "":
+    if mode == "parse" or game_index == "":
         return _pgn_page(request, form=form, games=summaries)
     try:
         index = int(game_index)
     except ValueError:
         return _pgn_error(request, form, summaries, "invalid_game")
     try:
-        move = int(move_number)
-    except ValueError:
-        return _pgn_error(request, form, summaries, "invalid_move")
-    try:
-        ply = ply_for_move(move, black=side == "black")
         game = select_game(games, index)
-        board = position_at(game, ply)
     except PgnError as exc:
         return _pgn_error(request, form, summaries, exc.code)
+    # Parse/Open submit mode=...; the move grid submits ply; the precise
+    # controls submit neither and fall back to move_number/side.
+    starts_black = not game.board().turn
+    if mode == "open":
+        selected_ply = 0
+    elif ply:
+        try:
+            selected_ply = int(ply)
+        except ValueError:
+            return _pgn_error(request, form, summaries, "invalid_ply")
+    else:
+        try:
+            move = int(move_number)
+        except ValueError:
+            return _pgn_error(request, form, summaries, "invalid_move")
+        try:
+            selected_ply = ply_for_move(
+                move,
+                black=side == "black",
+                starts_black=starts_black,
+            )
+        except PgnError as exc:
+            return _pgn_error(request, form, summaries, exc.code)
+    try:
+        board = position_at(game, selected_ply)
+    except PgnError as exc:
+        return _pgn_error(request, form, summaries, exc.code)
+    board_result = render_fen(
+        board.fen(),
+        RenderOptions(size=DEFAULT_SIZE, coordinates=True),
+    )
+    if selected_ply == 0:
+        form["move_number"] = "0"
+        form["side"] = "black" if starts_black else "white"
+    else:
+        form["move_number"] = str((selected_ply + 1) // 2)
+        is_white = (selected_ply % 2 == 1) != starts_black
+        form["side"] = "white" if is_white else "black"
+    form["game_index"] = str(index)
     return _pgn_page(
-        request, form=form, games=summaries, result_fen=board.fen()
+        request,
+        form=form,
+        games=summaries,
+        result_fen=board.fen(),
+        board_uri=_image_data_uri(board_result),
+        move_rows=mainline_rows(game),
+        selected_game=summaries[index],
+        selected_ply=selected_ply,
+        total_plies=count_plies(game),
+        side_to_move="w" if board.turn else "b",
     )
 
 
@@ -393,12 +464,7 @@ def oversized_upload_page(
     if request.url.path == "/tools/pgn":
         return _pgn_page(
             request,
-            form={
-                "pgn": "",
-                "game_index": "",
-                "move_number": "1",
-                "side": "white",
-            },
+            form=_default_pgn_form(),
             error=code,
             status_code=status_code,
         )
@@ -439,10 +505,7 @@ def recognize_submit(
         if image.content_type and image.content_type.startswith("image/")
         else "image/png"
     )
-    preview_uri = (
-        f"data:{media_type};base64,"
-        + base64.b64encode(raw).decode("ascii")
-    )
+    preview_uri = _data_uri(media_type, raw)
     try:
         result = request.app.state.recognizer.recognize(
             raw, side_to_move=side

@@ -528,3 +528,33 @@ msgstr "Felder der vollständigen FEN"
 
 msgid "Output details"
 msgstr "Ausgabedetails"
+
+msgid "Navigate a PGN Game to any Ply and export the Full FEN."
+msgstr "Eine PGN-Partie bis zu jedem Ply durchlaufen und die vollständige FEN exportieren."
+
+msgid "Upload a PGN, pick a Game, and follow the Mainline to any Ply."
+msgstr "Lade ein PGN hoch, wähle eine Partie und folge der Hauptvariante bis zu jedem Ply."
+
+msgid "Open game"
+msgstr "Partie öffnen"
+
+msgid "Initial position"
+msgstr "Grundstellung"
+
+msgid "Mainline moves"
+msgstr "Züge der Hauptvariante"
+
+msgid "Ply"
+msgstr "Halbzug"
+
+msgid "Position details"
+msgstr "Stellungsdetails"
+
+msgid "Paste a PGN and open a game to preview positions."
+msgstr "Füge ein PGN ein und öffne eine Partie, um Stellungen zu sehen."
+
+msgid "The Ply is invalid."
+msgstr "Der Halbzug ist ungültig."
+
+msgid "After White's/Black's Nth move."
+msgstr "Nach dem N. Zug von Weiß/Schwarz."

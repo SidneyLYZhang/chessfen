@@ -2,59 +2,130 @@
 
 {% block title %}ChessFEN · {% trans %}PGN navigation{% endtrans %}{% endblock %}
 
+{% block description %}{% trans %}Navigate a PGN Game to any Ply and export the Full FEN.{% endtrans %}{% endblock %}
+
 {% block content %}
-<section class="panel">
-  <h1>{% trans %}PGN navigation{% endtrans %}</h1>
-  <p class="muted">{% trans %}Only the mainline is followed; variations are ignored.{% endtrans %}</p>
-
-  {% if error == "invalid_pgn" %}<p class="notice error">{% trans %}Invalid PGN{% endtrans %}</p>{% endif %}
-  {% if error == "invalid_game" %}<p class="notice error">{% trans %}Game not found{% endtrans %}</p>{% endif %}
-  {% if error == "invalid_move" %}<p class="notice error">{% trans %}The move number is invalid.{% endtrans %}</p>{% endif %}
-  {% if error == "ply_out_of_range" %}<p class="notice error">{% trans %}That move does not exist in this game.{% endtrans %}</p>{% endif %}
-  {% if error == "pgn_too_large" %}<p class="notice error">{% trans %}The PGN must be 1 MB or smaller.{% endtrans %}</p>{% endif %}
-
-  <form method="post" action="/tools/pgn" enctype="multipart/form-data" class="stack">
-    <label>PGN
-      <textarea name="pgn" rows="10" placeholder="{% trans %}Paste one or more games.{% endtrans %}">{{ form.pgn }}</textarea>
-    </label>
-    <label>{% trans %}PGN file{% endtrans %}
-      <input type="file" name="pgn_file" accept=".pgn,text/plain">
-      <small class="muted">{% trans %}A file takes precedence over the pasted text.{% endtrans %}</small>
-    </label>
-    <button type="submit">{% trans %}Parse PGN{% endtrans %}</button>
-  </form>
-
-  {% if games %}
-  <form method="post" action="/tools/pgn" class="stack extract-form">
-    <input type="hidden" name="pgn" value="{{ form.pgn }}">
-    <div class="options-row">
-      <label>{% trans %}Game{% endtrans %}
-        <select name="game_index">
-          {% for game in games %}
-          <option value="{{ game.index }}"{% if form.game_index == game.index|string %} selected{% endif %}>{% trans index=game.index + 1 %}Game {{ index }}{% endtrans %}: {{ game.white_player }} {% trans %}vs{% endtrans %} {{ game.black_player }} ({{ game.result }})</option>
-          {% endfor %}
-        </select>
-      </label>
-      <label>{% trans %}Move number{% endtrans %}
-        <input type="number" name="move_number" min="0" value="{{ form.move_number }}">
-      </label>
-      <label>{% trans %}Side{% endtrans %}
-        <select name="side">
-          <option value="white"{% if form.side != "black" %} selected{% endif %}>{% trans %}White{% endtrans %}</option>
-          <option value="black"{% if form.side == "black" %} selected{% endif %}>{% trans %}Black{% endtrans %}</option>
-        </select>
-      </label>
-      <button type="submit">{% trans %}Get FEN{% endtrans %}</button>
-    </div>
-  </form>
-  {% endif %}
-
-  {% if result_fen %}
-  <div class="render-result">
-    <h2>{% trans %}Full FEN{% endtrans %}</h2>
-    <p class="secret" id="fen-text">{{ result_fen }}</p>
-    <button type="button" class="ghost" data-copy-target="fen-text" data-copied-label="{% trans %}Copied{% endtrans %}">{% trans %}Copy FEN{% endtrans %}</button>
+<header class="tool-header">
+  <div>
+    <p class="eyebrow" aria-hidden="true">WORKSPACE / PGN TO FEN</p>
+    <h1>{% trans %}PGN navigation{% endtrans %}</h1>
+    <p class="tool-lead">{% trans %}Upload a PGN, pick a Game, and follow the Mainline to any Ply.{% endtrans %}</p>
+    <p class="field-hint">{% trans %}Only the mainline is followed; variations are ignored.{% endtrans %}</p>
   </div>
-  {% endif %}
-</section>
+  <a class="text-icon-button" href="/learn/pgn">{% trans %}PGN guide{% endtrans %} <span aria-hidden="true">→</span></a>
+</header>
+
+<div class="workspace-grid">
+  <section class="tool-panel">
+    <p class="eyebrow" aria-hidden="true">01 / SOURCE</p>
+    <h2>PGN</h2>
+
+    {% if error %}
+      {% if error == "invalid_pgn" %}<p class="form-error" role="alert">{% trans %}Invalid PGN{% endtrans %}</p>{% endif %}
+      {% if error == "invalid_game" %}<p class="form-error" role="alert">{% trans %}Game not found{% endtrans %}</p>{% endif %}
+      {% if error == "invalid_move" %}<p class="form-error" role="alert">{% trans %}The move number is invalid.{% endtrans %}</p>{% endif %}
+      {% if error == "invalid_ply" %}<p class="form-error" role="alert">{% trans %}The Ply is invalid.{% endtrans %}</p>{% endif %}
+      {% if error == "ply_out_of_range" %}<p class="form-error" role="alert">{% trans %}That move does not exist in this game.{% endtrans %}</p>{% endif %}
+      {% if error == "pgn_too_large" %}<p class="form-error" role="alert">{% trans %}The PGN must be 1 MB or smaller.{% endtrans %}</p>{% endif %}
+    {% endif %}
+
+    <form method="post" action="/tools/pgn" enctype="multipart/form-data" class="pgn-form">
+      <div class="field">
+        <label class="field-label" for="pgn">PGN</label>
+        <textarea id="pgn" name="pgn" class="text-area code-input pgn-input" spellcheck="false" placeholder="{% trans %}Paste one or more games.{% endtrans %}">{{ form.pgn }}</textarea>
+      </div>
+
+      <div class="field">
+        <label class="field-label" for="pgn_file">{% trans %}PGN file{% endtrans %}</label>
+        <input class="file-input" type="file" id="pgn_file" name="pgn_file" accept=".pgn,text/plain">
+        <p class="field-hint">{% trans %}A file takes precedence over the pasted text.{% endtrans %}</p>
+      </div>
+
+      <div class="form-actions">
+        <button class="primary-button" type="submit" name="mode" value="parse">{% trans %}Parse PGN{% endtrans %}</button>
+      </div>
+
+      {% if games %}
+      <div class="pgn-game">
+        <p class="eyebrow" aria-hidden="true">02 / GAME</p>
+        <div class="pgn-game-row">
+          <div class="field">
+            <label class="field-label" for="game_index">{% trans %}Game{% endtrans %}</label>
+            <select class="select-input" id="game_index" name="game_index">
+              {% for game in games %}
+              <option value="{{ game.index }}"{% if form.game_index == game.index|string %} selected{% endif %}>{% trans index=game.index + 1 %}Game {{ index }}{% endtrans %}: {{ game.white_player }} {% trans %}vs{% endtrans %} {{ game.black_player }} ({{ game.result }})</option>
+              {% endfor %}
+            </select>
+          </div>
+          <button class="secondary-button" type="submit" name="mode" value="open">{% trans %}Open game{% endtrans %}</button>
+        </div>
+      </div>
+      {% endif %}
+
+      {% if selected_game %}
+      <div class="pgn-navigation">
+        <p class="eyebrow" aria-hidden="true">03 / LOCATE</p>
+        <div class="pgn-moves" role="group" aria-label="{% trans %}Mainline moves{% endtrans %}">
+          <button class="pgn-move-button pgn-initial" type="submit" name="ply" value="0"{% if selected_ply == 0 %} aria-current="true"{% endif %}>{% trans %}Initial position{% endtrans %}</button>
+          {% for row in move_rows %}
+          <div class="pgn-move-row">
+            <span class="pgn-move-number">{{ row.number }}.</span>
+            {% if row.white %}
+            <button class="pgn-move-button" type="submit" name="ply" value="{{ row.white.ply }}"{% if selected_ply == row.white.ply %} aria-current="true"{% endif %}>{{ row.white.san }}</button>
+            {% else %}<span></span>{% endif %}
+            {% if row.black %}
+            <button class="pgn-move-button" type="submit" name="ply" value="{{ row.black.ply }}"{% if selected_ply == row.black.ply %} aria-current="true"{% endif %}>{{ row.black.san }}</button>
+            {% else %}<span></span>{% endif %}
+          </div>
+          {% endfor %}
+        </div>
+
+        <div class="pgn-precise">
+          <div class="field">
+            <label class="field-label" for="move_number">{% trans %}Move number{% endtrans %}</label>
+            <input class="text-input" type="number" id="move_number" name="move_number" min="0" value="{{ form.move_number }}">
+          </div>
+          <div class="field">
+            <label class="field-label" for="side">{% trans %}Side{% endtrans %}</label>
+            <select class="select-input" id="side" name="side">
+              <option value="white"{% if form.side != "black" %} selected{% endif %}>{% trans %}White{% endtrans %}</option>
+              <option value="black"{% if form.side == "black" %} selected{% endif %}>{% trans %}Black{% endtrans %}</option>
+            </select>
+          </div>
+          <button class="secondary-button" type="submit" name="mode" value="locate">{% trans %}Get FEN{% endtrans %}</button>
+        </div>
+        <p class="field-hint">{% trans %}After White's/Black's Nth move.{% endtrans %}</p>
+      </div>
+      {% endif %}
+    </form>
+  </section>
+
+  <section class="result-panel">
+    {% if board_uri %}
+    <div class="result-board">
+      <img src="{{ board_uri }}" alt="{% trans %}Rendered board{% endtrans %}" width="{{ board_size }}" height="{{ board_size }}">
+    </div>
+    <p class="eyebrow" aria-hidden="true">RESULT / POSITION</p>
+    <h2>{% trans %}Rendered board{% endtrans %}</h2>
+    <dl class="result-meta" aria-label="{% trans %}Position details{% endtrans %}">
+      <div><dt>{% trans %}Game{% endtrans %}</dt><dd>{{ selected_game.white_player }} {% trans %}vs{% endtrans %} {{ selected_game.black_player }}</dd></div>
+      <div><dt>{% trans %}Ply{% endtrans %}</dt><dd>{{ selected_ply }} / {{ total_plies }}</dd></div>
+      <div><dt>{% trans %}Side to move{% endtrans %}</dt><dd>{% if side_to_move == "w" %}{% trans %}White{% endtrans %}{% else %}{% trans %}Black{% endtrans %}{% endif %}</dd></div>
+    </dl>
+    <div class="code-block pgn-fen">
+      <div class="code-block-header">
+        <span class="code-block-label">{% trans %}Full FEN{% endtrans %}</span>
+        <button class="ghost-button small-button" type="button" data-copy-target="fen-text" data-copied-label="{% trans %}Copied{% endtrans %}">{% trans %}Copy FEN{% endtrans %}</button>
+      </div>
+      <pre><code id="fen-text">{{ result_fen }}</code></pre>
+    </div>
+    {% else %}
+    <div class="empty-state">
+      <img src="/static/brand/mark-mono.svg" alt="" width="48" height="48">
+      <p class="empty-state-title">{% trans %}The board appears here.{% endtrans %}</p>
+      <p>{% trans %}Paste a PGN and open a game to preview positions.{% endtrans %}</p>
+    </div>
+    {% endif %}
+  </section>
+</div>
 {% endblock %}

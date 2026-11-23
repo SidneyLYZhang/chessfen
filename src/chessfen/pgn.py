@@ -21,6 +21,21 @@ class GameSummary:
     result: str
 
 
+@dataclass(frozen=True)
+class MoveEntry:
+    ply: int
+    number: int
+    side: str
+    san: str
+
+
+@dataclass(frozen=True)
+class MoveRow:
+    number: int
+    white: MoveEntry | None
+    black: MoveEntry | None
+
+
 def load_games(pgn_text: str) -> list[chess.pgn.Game]:
     """Parse every Game in a PGN document.
 
@@ -52,6 +67,41 @@ def count_plies(game: chess.pgn.Game) -> int:
     return sum(1 for _ in game.mainline_moves())
 
 
+def mainline_rows(game: chess.pgn.Game) -> list[MoveRow]:
+    """Build the Mainline move grid, one row per full move.
+
+    The side and full move number come from the board, so a Game that starts
+    from a FEN with Black to move yields an opening row with no White entry.
+    """
+    board = game.board()
+    rows: list[MoveRow] = []
+    for ply, move in enumerate(game.mainline_moves(), start=1):
+        side = "white" if board.turn else "black"
+        entry = MoveEntry(
+            ply=ply,
+            number=board.fullmove_number,
+            side=side,
+            san=board.san(move),
+        )
+        if side == "white" or not rows:
+            rows.append(
+                MoveRow(
+                    number=entry.number,
+                    white=entry if side == "white" else None,
+                    black=None if side == "white" else entry,
+                )
+            )
+        else:
+            previous = rows[-1]
+            rows[-1] = MoveRow(
+                number=previous.number,
+                white=previous.white,
+                black=entry,
+            )
+        board.push(move)
+    return rows
+
+
 def select_game(games: list[chess.pgn.Game], game_index: int) -> chess.pgn.Game:
     if game_index < 0 or game_index >= len(games):
         raise PgnError("invalid_game")
@@ -68,17 +118,23 @@ def position_at(game: chess.pgn.Game, ply: int) -> chess.Board:
     return board
 
 
-def ply_for_move(move_number: int, *, black: bool) -> int:
+def ply_for_move(
+    move_number: int, *, black: bool, starts_black: bool = False
+) -> int:
     """Map "after White/Black's Nth move" onto a ply (half-move count).
 
-    Ply 0 is the initial Position; White's Nth move ends at ply 2N-1 and
-    Black's Nth move ends at ply 2N.
+    Ply 0 is the initial Position. For a Game that starts with White,
+    White's Nth move ends at ply 2N-1 and Black's Nth move at ply 2N;
+    ``starts_black`` flips that mapping for FEN-started Games where Black
+    moves first.
     """
     if move_number < 0:
         raise PgnError("ply_out_of_range")
     if move_number == 0:
         return 0
-    return 2 * move_number if black else 2 * move_number - 1
+    if black == starts_black:
+        return 2 * move_number - 1
+    return 2 * move_number
 
 
 def summarize(game: chess.pgn.Game, index: int) -> GameSummary:

@@ -528,3 +528,33 @@ msgstr "完整 FEN 字段"
 
 msgid "Output details"
 msgstr "输出信息"
+
+msgid "Navigate a PGN Game to any Ply and export the Full FEN."
+msgstr "把 PGN 对局导航到任意 Ply，并导出完整 FEN。"
+
+msgid "Upload a PGN, pick a Game, and follow the Mainline to any Ply."
+msgstr "上传 PGN，选择对局，沿主线导航到任意 Ply。"
+
+msgid "Open game"
+msgstr "打开对局"
+
+msgid "Initial position"
+msgstr "初始局面"
+
+msgid "Mainline moves"
+msgstr "主线着法"
+
+msgid "Ply"
+msgstr "半步"
+
+msgid "Position details"
+msgstr "局面信息"
+
+msgid "Paste a PGN and open a game to preview positions."
+msgstr "粘贴 PGN 并打开一局对局，即可预览局面。"
+
+msgid "The Ply is invalid."
+msgstr "Ply 无效。"
+
+msgid "After White's/Black's Nth move."
+msgstr "白方/黑方第 N 步之后。"

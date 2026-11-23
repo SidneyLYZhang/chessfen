@@ -78,7 +78,7 @@
     {% endif %}
   </section>
 
-  <section class="render-result-panel">
+  <section class="result-panel">
     {% if image_uri %}
     <div class="result-board">
       <img src="{{ image_uri }}" alt="{% trans %}Rendered board{% endtrans %}" width="{{ result_meta.size }}" height="{{ result_meta.size }}">
@@ -93,7 +93,7 @@
       </ul>
     </div>
     {% endif %}
-    <dl class="render-meta" aria-label="{% trans %}Output details{% endtrans %}">
+    <dl class="result-meta" aria-label="{% trans %}Output details{% endtrans %}">
       <div><dt>{% trans %}Format{% endtrans %}</dt><dd>{{ result_meta.format|upper }}</dd></div>
       <div><dt>{% trans %}Board size{% endtrans %}</dt><dd>{{ result_meta.size }} px</dd></div>
       <div><dt>{% trans %}Flip board{% endtrans %}</dt><dd>{% if result_meta.flip %}{% trans %}Yes{% endtrans %}{% else %}{% trans %}No{% endtrans %}{% endif %}</dd></div>
