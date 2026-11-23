@@ -6,7 +6,7 @@
 
 {% macro toc_list() %}
 <ul class="guide-toc-list">
-  <li><a href="#piece-placement">{% trans %}Piece placement{% endtrans %}</a></li>
+  <li><a href="#piece-placement">{% trans %}Placement{% endtrans %}</a></li>
   <li><a href="#five-fields">{% trans %}The other five fields{% endtrans %}</a></li>
   <li><a href="#usage">{% trans %}Where ChessFEN uses FEN{% endtrans %}</a></li>
   <li><a href="#faq">{% trans %}Frequently asked questions{% endtrans %}</a></li>
@@ -24,8 +24,8 @@
 
 {% block guide_content %}
 <section class="guide-section" id="piece-placement">
-  <h2>{% trans %}Piece placement{% endtrans %}</h2>
-  <p>{% trans %}A FEN string starts with the piece placement: eight ranks from rank 8 down to rank 1, separated by /.{% endtrans %}</p>
+  <h2>{% trans %}Placement{% endtrans %}</h2>
+  <p>{% trans %}A FEN string starts with the Placement: eight ranks from rank 8 down to rank 1, separated by /.{% endtrans %}</p>
   <p>{% trans %}Uppercase letters stand for White pieces (K, Q, R, B, N, P) and lowercase letters for Black pieces. Digits encode runs of empty squares.{% endtrans %}</p>
 
   <div class="code-block">
@@ -41,7 +41,7 @@
 
 <section class="guide-section" id="five-fields">
   <h2>{% trans %}The other five fields{% endtrans %}</h2>
-  <p>{% trans %}A complete FEN adds five space-separated fields: the side to move (w or b), castling rights (KQkq, or - for none), an en passant target square (or -), the halfmove clock, and the fullmove number.{% endtrans %}</p>
+  <p>{% trans %}A Full FEN adds five space-separated fields: the side to move (w or b), castling rights (KQkq, or - for none), an en passant target square (or -), the halfmove clock, and the fullmove number.{% endtrans %}</p>
 
   <div class="code-block">
     <div class="code-block-header">
@@ -74,7 +74,7 @@
   <h2>{% trans %}Where ChessFEN uses FEN{% endtrans %}</h2>
   <ul>
     <li>{% trans %}Recognition reads a board image and returns its Placement, with a per-square breakdown.{% endtrans %}</li>
-    <li>{% trans %}PGN navigation exports the Full FEN after any half-move.{% endtrans %}</li>
+    <li>{% trans %}PGN navigation exports the Full FEN after any Ply.{% endtrans %}</li>
     <li>{% trans %}Rendering turns any syntactically valid FEN into a board image.{% endtrans %}</li>
   </ul>
 

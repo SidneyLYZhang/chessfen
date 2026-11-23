@@ -123,8 +123,25 @@ def test_render_web_rate_limit(client: TestClient) -> None:
     assert "请求过多" in blocked.text
     assert blocked.headers.get("retry-after") == "60"
 
+    example = client.get(
+        "/tools/render",
+        params={"fen": _STARTING_FEN, "coordinates": "on"},
+    )
+    assert example.status_code == 200
+
     german = client.post(
         "/tools/render", data=data, headers={"Accept-Language": "de"}
     )
     assert german.status_code == 429
     assert "Zu viele Anfragen" in german.text
+
+
+def test_render_example_links_do_not_consume_the_quota(
+    client: TestClient,
+) -> None:
+    for _ in range(25):
+        page = client.get(
+            "/tools/render",
+            params={"fen": _STARTING_FEN, "coordinates": "on"},
+        )
+        assert page.status_code == 200

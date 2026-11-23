@@ -119,22 +119,23 @@ def position_at(game: chess.pgn.Game, ply: int) -> chess.Board:
 
 
 def ply_for_move(
-    move_number: int, *, black: bool, starts_black: bool = False
+    rows: list[MoveRow], move_number: int, *, black: bool
 ) -> int:
-    """Map "after White/Black's Nth move" onto a ply (half-move count).
+    """Map "after White/Black's Nth move" onto a Ply.
 
-    Ply 0 is the initial Position. For a Game that starts with White,
-    White's Nth move ends at ply 2N-1 and Black's Nth move at ply 2N;
-    ``starts_black`` flips that mapping for FEN-started Games where Black
-    moves first.
+    The lookup uses the move grid's own numbering, so it stays correct for
+    Games that start from a FEN, including those where Black moves first or
+    the fullmove number is not 1. Ply 0 is the initial Position.
     """
     if move_number < 0:
         raise PgnError("ply_out_of_range")
     if move_number == 0:
         return 0
-    if black == starts_black:
-        return 2 * move_number - 1
-    return 2 * move_number
+    for row in rows:
+        entry = row.black if black else row.white
+        if entry is not None and entry.number == move_number:
+            return entry.ply
+    raise PgnError("ply_out_of_range")
 
 
 def summarize(game: chess.pgn.Game, index: int) -> GameSummary:

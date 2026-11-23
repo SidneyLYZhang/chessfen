@@ -121,7 +121,7 @@ msgstr "下载"
 msgid "Warnings"
 msgstr "警告"
 
-msgid "Placement-only or full FEN is accepted."
+msgid "Placement-only or Full FEN is accepted."
 msgstr "支持仅棋子摆放段或完整 FEN。"
 
 msgid "No white king"
@@ -208,7 +208,7 @@ msgstr "该步在该对局中不存在。"
 msgid "Full FEN"
 msgstr "完整 FEN"
 
-msgid "Browse games and export the Full FEN at any half-move."
+msgid "Browse games and export the Full FEN at any Ply."
 msgstr "浏览对局并在任意半步导出完整 FEN。"
 
 msgid "PGN file"
@@ -310,10 +310,10 @@ msgstr "理解 FEN"
 msgid "FEN (Forsyth–Edwards Notation) is the standard text format for a chess position. ChessFEN uses it to pass positions between board images, PGN games, and rendered boards."
 msgstr "FEN（Forsyth–Edwards 记谱法）是国际象棋局面的标准文本格式。ChessFEN 用它在上传棋盘图、PGN 对局与渲染图片之间传递局面。"
 
-msgid "Piece placement"
+msgid "Placement"
 msgstr "棋子摆放段"
 
-msgid "A FEN string starts with the piece placement: eight ranks from rank 8 down to rank 1, separated by /."
+msgid "A FEN string starts with the Placement: eight ranks from rank 8 down to rank 1, separated by /."
 msgstr "FEN 字符串以棋子摆放段开头：从第 8 横排到第 1 横排共 8 段，用 / 分隔。"
 
 msgid "Uppercase letters stand for White pieces (K, Q, R, B, N, P) and lowercase letters for Black pieces. Digits encode runs of empty squares."
@@ -325,7 +325,7 @@ msgstr "这就是初始局面。"
 msgid "The other five fields"
 msgstr "其余五个字段"
 
-msgid "A complete FEN adds five space-separated fields: the side to move (w or b), castling rights (KQkq, or - for none), an en passant target square (or -), the halfmove clock, and the fullmove number."
+msgid "A Full FEN adds five space-separated fields: the side to move (w or b), castling rights (KQkq, or - for none), an en passant target square (or -), the halfmove clock, and the fullmove number."
 msgstr "完整 FEN 还会追加五个以空格分隔的字段：走子方（w 或 b）、易位权（KQkq，无则 -）、吃过路兵目标格（无则 -）、半回合计数与回合数。"
 
 msgid "ChessFEN distinguishes the first field as a Placement from the six-field Full FEN. A picture can only reveal where the pieces stand, so recognition returns a Placement; the side to move is chosen by the caller and the remaining fields default to - - 0 1."
@@ -337,8 +337,8 @@ msgstr "ChessFEN 中的 FEN"
 msgid "Recognition reads a board image and returns its Placement, with a per-square breakdown."
 msgstr "识别读取棋盘图片并返回棋子摆放段，附逐格明细。"
 
-msgid "PGN navigation exports the Full FEN after any half-move."
-msgstr "PGN 导航可导出任意半步之后的完整 FEN。"
+msgid "PGN navigation exports the Full FEN after any Ply."
+msgstr "PGN 导航可导出任意 Ply 之后的完整 FEN。"
 
 msgid "Rendering turns any syntactically valid FEN into a board image."
 msgstr "渲染把任意语法合法的 FEN 变成棋盘图片。"
@@ -358,14 +358,14 @@ msgstr "标签与着法"
 msgid "A game begins with tag pairs in square brackets, followed by the moves in numbered pairs — White's move, then Black's."
 msgstr "一局棋以方括号中的标签对开头，随后是按回合编号的着法——白方先走，黑方随后。"
 
-msgid "Moves, half-moves and plies"
-msgstr "回合、半步与 ply"
+msgid "Moves and Plies"
+msgstr "回合与 Ply"
 
-msgid "Each numbered move contains up to two half-moves, or plies. White's Nth move ends at ply 2N-1 and Black's Nth move at ply 2N; ply 0 is the initial position."
-msgstr "每个回合最多包含两个半步（ply）。白方第 N 步结束于 ply 2N-1，黑方第 N 步结束于 ply 2N；ply 0 是初始局面。"
+msgid "Each numbered move contains up to two Plies, one per side. White's Nth move ends at ply 2N-1 and Black's Nth move at ply 2N; ply 0 is the initial position."
+msgstr "每个回合最多包含两个 Ply（每方各一）。白方第 N 步结束于 ply 2N-1，黑方第 N 步结束于 ply 2N；ply 0 是初始局面。"
 
-msgid "ChessFEN lets you pick exactly that half-move and exports the resulting Full FEN."
-msgstr "ChessFEN 允许精确选择该半步，并导出对应的完整 FEN。"
+msgid "ChessFEN lets you pick exactly that Ply and exports the resulting Full FEN."
+msgstr "ChessFEN 允许精确选择该 Ply，并导出对应的完整 FEN。"
 
 msgid "Mainline and variations"
 msgstr "主线与变例"
@@ -376,8 +376,8 @@ msgstr "括号中是变例——考虑过但未实际走的替代线路。ChessF
 msgid "Several games in one file"
 msgstr "一个文件中的多局"
 
-msgid "A PGN document may contain many games. ChessFEN lists them all so you can choose one, then jump to any half-move."
-msgstr "一个 PGN 文档可包含多局。ChessFEN 会全部列出供你选择，然后跳转到任意半步。"
+msgid "A PGN document may contain many games. ChessFEN lists them all so you can choose one, then jump to any Ply."
+msgstr "一个 PGN 文档可包含多局。ChessFEN 会全部列出供你选择，然后跳转到任意 Ply。"
 
 msgid "Try PGN navigation"
 msgstr "试用 PGN 导航"
@@ -643,8 +643,8 @@ msgstr "描述对局的元数据。"
 msgid "Starts a full move; Black's reply follows."
 msgstr "开始一个回合；随后是黑方应着。"
 
-msgid "One half-move; White's Nth move ends at ply 2N-1 and Black's at 2N."
-msgstr "一个半步；白方第 N 步结束于半步 2N-1，黑方结束于 2N。"
+msgid "One Ply; White's Nth move ends at ply 2N-1 and Black's at 2N."
+msgstr "一个 Ply；白方第 N 步结束于 ply 2N-1，黑方结束于 ply 2N。"
 
 msgid "Variation"
 msgstr "变例"
@@ -670,8 +670,8 @@ msgstr "PGN 格式有误时会怎样？"
 msgid "The whole document is rejected so that no wrong Position is served."
 msgstr "整份文档都会被拒绝，以免返回错误局面。"
 
-msgid "How do I choose a specific half-move?"
-msgstr "如何选择特定的半步？"
+msgid "How do I choose a specific Ply?"
+msgstr "如何选择特定的 Ply？"
 
 msgid "Pick a Game, then click a move in the grid or use the move number and side controls."
 msgstr "选择一个对局，然后在网格中点击着法，或使用回合数与走子方控件。"

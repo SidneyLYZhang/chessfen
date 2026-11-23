@@ -7,7 +7,7 @@
 {% macro toc_list() %}
 <ul class="guide-toc-list">
   <li><a href="#tags-and-moves">{% trans %}Tags and moves{% endtrans %}</a></li>
-  <li><a href="#plies">{% trans %}Moves, half-moves and plies{% endtrans %}</a></li>
+  <li><a href="#plies">{% trans %}Moves and Plies{% endtrans %}</a></li>
   <li><a href="#mainline">{% trans %}Mainline and variations{% endtrans %}</a></li>
   <li><a href="#games">{% trans %}Several games in one file{% endtrans %}</a></li>
   <li><a href="#faq">{% trans %}Frequently asked questions{% endtrans %}</a></li>
@@ -42,9 +42,9 @@
 </section>
 
 <section class="guide-section" id="plies">
-  <h2>{% trans %}Moves, half-moves and plies{% endtrans %}</h2>
-  <p>{% trans %}Each numbered move contains up to two half-moves, or plies. White's Nth move ends at ply 2N-1 and Black's Nth move at ply 2N; ply 0 is the initial position.{% endtrans %}</p>
-  <p>{% trans %}ChessFEN lets you pick exactly that half-move and exports the resulting Full FEN.{% endtrans %}</p>
+  <h2>{% trans %}Moves and Plies{% endtrans %}</h2>
+  <p>{% trans %}Each numbered move contains up to two Plies, one per side. White's Nth move ends at ply 2N-1 and Black's Nth move at ply 2N; ply 0 is the initial position.{% endtrans %}</p>
+  <p>{% trans %}ChessFEN lets you pick exactly that Ply and exports the resulting Full FEN.{% endtrans %}</p>
 
   <div class="table-scroll">
     <table class="definition-table">
@@ -54,7 +54,7 @@
       <tbody>
         <tr><th scope="row">{% trans %}Tag pair{% endtrans %}</th><td><code>[White "Alice"]</code></td><td>{% trans %}Metadata about the Game.{% endtrans %}</td></tr>
         <tr><th scope="row">{% trans %}Move number{% endtrans %}</th><td><code>1.</code></td><td>{% trans %}Starts a full move; Black's reply follows.{% endtrans %}</td></tr>
-        <tr><th scope="row">{% trans %}Ply{% endtrans %}</th><td><code>2N-1</code></td><td>{% trans %}One half-move; White's Nth move ends at ply 2N-1 and Black's at 2N.{% endtrans %}</td></tr>
+        <tr><th scope="row">{% trans %}Ply{% endtrans %}</th><td><code>2N-1</code></td><td>{% trans %}One Ply; White's Nth move ends at ply 2N-1 and Black's at 2N.{% endtrans %}</td></tr>
         <tr><th scope="row">{% trans %}Variation{% endtrans %}</th><td><code>(1. d4 d5)</code></td><td>{% trans %}An alternative line; ChessFEN ignores variations.{% endtrans %}</td></tr>
         <tr><th scope="row">{% trans %}Result{% endtrans %}</th><td><code>1-0</code></td><td>{% trans %}The Game outcome: 1-0, 0-1, 1/2-1/2, or *.{% endtrans %}</td></tr>
       </tbody>
@@ -77,7 +77,7 @@
 
 <section class="guide-section" id="games">
   <h2>{% trans %}Several games in one file{% endtrans %}</h2>
-  <p>{% trans %}A PGN document may contain many games. ChessFEN lists them all so you can choose one, then jump to any half-move.{% endtrans %}</p>
+  <p>{% trans %}A PGN document may contain many games. ChessFEN lists them all so you can choose one, then jump to any Ply.{% endtrans %}</p>
 
   <div class="guide-links">
     <a class="primary-button" href="/tools/pgn">{% trans %}Try PGN navigation{% endtrans %}</a>
@@ -97,7 +97,7 @@
       <p>{% trans %}The whole document is rejected so that no wrong Position is served.{% endtrans %}</p>
     </details>
     <details>
-      <summary>{% trans %}How do I choose a specific half-move?{% endtrans %}</summary>
+      <summary>{% trans %}How do I choose a specific Ply?{% endtrans %}</summary>
       <p>{% trans %}Pick a Game, then click a move in the grid or use the move number and side controls.{% endtrans %}</p>
     </details>
   </div>

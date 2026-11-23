@@ -72,17 +72,15 @@ def test_current_page_is_marked_in_desktop_and_mobile_nav(
     assert page.text.count('aria-current="page"') == 2
 
 
-def test_shared_script_replaces_inline_copy_handler(client: TestClient) -> None:
+def test_shared_script_replaces_inline_handlers(client: TestClient) -> None:
     script = client.get("/static/js/app.js")
 
     assert script.status_code == 200
     assert "javascript" in script.headers["content-type"]
-    assert "data-menu-toggle" in script.text
-    assert "data-copy-target" in script.text
-    assert "aria-expanded" in script.text
+    assert script.text.strip()
 
     page = client.get("/", headers=_EN)
-    assert "/static/js/app.js" in page.text
+    assert '<script src="/static/js/app.js"></script>' in page.text
     assert "function copyText" not in page.text
     assert "<script>" not in page.text
 

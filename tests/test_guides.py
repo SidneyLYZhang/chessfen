@@ -45,7 +45,7 @@ _GUIDES: dict[str, Guide] = {
         questions=(
             "Are variations included?",
             "What happens to a malformed PGN?",
-            "How do I choose a specific half-move?",
+            "How do I choose a specific Ply?",
         ),
     ),
 }

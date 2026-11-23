@@ -150,7 +150,7 @@ def _fen_summary(fen: str) -> dict[str, str]:
     }
 
 
-def _page(
+def _render_page(
     request: Request,
     *,
     form: dict[str, object],
@@ -177,15 +177,17 @@ def _page(
     )
 
 
-def _render_action(request: Request, form: dict[str, object]) -> HTMLResponse:
-    if _consume_request_quota(request):
+def _render_action(
+    request: Request, form: dict[str, object], *, apply_rate_limit: bool = True
+) -> HTMLResponse:
+    if apply_rate_limit and _consume_request_quota(request):
         return _rate_limited_response(
-            _page(request, form=form, error="rate_limited", status_code=429)
+            _render_page(request, form=form, error="rate_limited", status_code=429)
         )
     try:
         size_value = int(str(form["size"]))
     except ValueError:
-        return _page(request, form=form, error="invalid_size", status_code=400)
+        return _render_page(request, form=form, error="invalid_size", status_code=400)
     flip = bool(form["flip"])
     coordinates = bool(form["coordinates"])
     try:
@@ -200,11 +202,11 @@ def _render_action(request: Request, form: dict[str, object]) -> HTMLResponse:
             ),
         )
     except FenSyntaxError:
-        return _page(request, form=form, error="invalid_fen", status_code=400)
+        return _render_page(request, form=form, error="invalid_fen", status_code=400)
     except RenderOptionsError as exc:
-        return _page(request, form=form, error=exc.code, status_code=400)
+        return _render_page(request, form=form, error=exc.code, status_code=400)
     data_uri = _image_data_uri(result)
-    return _page(
+    return _render_page(
         request,
         form=form,
         image_uri=data_uri,
@@ -225,7 +227,7 @@ def render_page(request: Request) -> HTMLResponse:
     # page (no fen parameter) stays an empty workspace with the start FEN ready.
     params = request.query_params
     if "fen" not in params:
-        return _page(request, form=_default_render_form())
+        return _render_page(request, form=_default_render_form())
     form: dict[str, object] = {
         "fen": params.get("fen", STARTING_FEN),
         "size": params.get("size", str(DEFAULT_SIZE)),
@@ -233,7 +235,7 @@ def render_page(request: Request) -> HTMLResponse:
         "coordinates": _query_bool(params.get("coordinates"), True),
         "format": params.get("format", "png"),
     }
-    return _render_action(request, form)
+    return _render_action(request, form, apply_rate_limit=False)
 
 
 @router.post("/render")
@@ -385,7 +387,9 @@ def pgn_submit(
     except PgnError as exc:
         return _pgn_error(request, form, summaries, exc.code)
     # Parse/Open submit mode=...; the move grid submits ply; the precise
-    # controls submit neither and fall back to move_number/side.
+    # controls submit neither and fall back to move_number/side. The grid's
+    # own numbering is the source of truth for FEN-started Games.
+    move_rows = mainline_rows(game)
     starts_black = not game.board().turn
     if mode == "open":
         selected_ply = 0
@@ -401,9 +405,7 @@ def pgn_submit(
             return _pgn_error(request, form, summaries, "invalid_move")
         try:
             selected_ply = ply_for_move(
-                move,
-                black=side == "black",
-                starts_black=starts_black,
+                move_rows, move, black=side == "black"
             )
         except PgnError as exc:
             return _pgn_error(request, form, summaries, exc.code)
@@ -416,9 +418,14 @@ def pgn_submit(
         form["move_number"] = "0"
         form["side"] = "black" if starts_black else "white"
     else:
-        form["move_number"] = str((selected_ply + 1) // 2)
-        is_white = (selected_ply % 2 == 1) != starts_black
-        form["side"] = "white" if is_white else "black"
+        selected_entry = next(
+            entry
+            for row in move_rows
+            for entry in (row.white, row.black)
+            if entry is not None and entry.ply == selected_ply
+        )
+        form["move_number"] = str(selected_entry.number)
+        form["side"] = selected_entry.side
     form["game_index"] = str(index)
     return _pgn_page(
         request,
@@ -426,7 +433,7 @@ def pgn_submit(
         games=summaries,
         result_fen=board.fen(),
         board_uri=_image_data_uri(board_result),
-        move_rows=mainline_rows(game),
+        move_rows=move_rows,
         selected_game=summaries[index],
         selected_ply=selected_ply,
         total_plies=count_plies(game),
@@ -441,7 +448,6 @@ def _recognize_page(
     result: RecognitionResult | None = None,
     preview_uri: str | None = None,
     board_uri: str | None = None,
-    position_warnings: list[str] | None = None,
     error: str | None = None,
     status_code: int = 200,
 ) -> HTMLResponse:
@@ -453,7 +459,6 @@ def _recognize_page(
             "result": result,
             "preview_uri": preview_uri,
             "board_uri": board_uri,
-            "position_warnings": position_warnings or [],
             "board_size": DEFAULT_SIZE,
             "error": error,
         },
@@ -529,11 +534,9 @@ def recognize_submit(
             status_code=status_code,
         )
     board_uri: str | None = None
-    position_warnings: list[str] = []
     try:
         board_result = _board_preview(result.placement)
         board_uri = _image_data_uri(board_result)
-        position_warnings = _warning_labels(request, board_result.warnings)
     except FenSyntaxError:
         board_uri = None
     return _recognize_page(
@@ -542,5 +545,4 @@ def recognize_submit(
         result=result,
         preview_uri=preview_uri,
         board_uri=board_uri,
-        position_warnings=position_warnings,
     )

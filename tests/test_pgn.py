@@ -27,6 +27,14 @@ _BLACK_START_GAME = '''[Event "FEN start"]
 1... Nf6 2. Nf3 *
 '''
 
+_BLACK_START_MOVE20_GAME = '''[Event "FEN start at move 20"]
+[SetUp "1"]
+[FEN "rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 20"]
+[Result "*"]
+
+20... Nf6 21. Nf3 *
+'''
+
 _TWO_GAMES = '''[Event "Test"]
 [White "Alice"]
 [Black "Bob"]
@@ -500,7 +508,7 @@ def test_pgn_handles_fen_start_with_black_to_move(client: TestClient) -> None:
         data={
             "pgn": _BLACK_START_GAME,
             "game_index": "0",
-            "move_number": "1",
+            "move_number": "2",
             "side": "white",
             "mode": "locate",
         },
@@ -508,8 +516,72 @@ def test_pgn_handles_fen_start_with_black_to_move(client: TestClient) -> None:
     )
     assert _FEN_AFTER_NF3 in precise_white.text
     assert 'value="2" aria-current="true">Nf3</button>' in precise_white.text
+    assert re.search(r'id="move_number"[^>]*value="2"', precise_white.text)
     assert '<option value="white" selected>White</option>' in precise_white.text
     assert "<dt>Side to move</dt><dd>Black</dd>" in precise_white.text
+
+    grid = client.post(
+        "/tools/pgn",
+        data={"pgn": _BLACK_START_GAME, "game_index": "0", "ply": "2"},
+        headers=_EN,
+    )
+    assert _FEN_AFTER_NF3 in grid.text
+    assert 'value="2" aria-current="true">Nf3</button>' in grid.text
+    assert re.search(r'id="move_number"[^>]*value="2"', grid.text)
+    assert '<option value="white" selected>White</option>' in grid.text
+
+    beyond = client.post(
+        "/tools/pgn",
+        data={
+            "pgn": _BLACK_START_GAME,
+            "game_index": "0",
+            "move_number": "1",
+            "side": "white",
+            "mode": "locate",
+        },
+        headers=_EN,
+    )
+    assert beyond.status_code == 400
+    assert "That move does not exist in this game." in beyond.text
+
+
+def test_pgn_precise_controls_keep_fen_fullmove_number(
+    client: TestClient,
+) -> None:
+    first = client.post(
+        "/tools/pgn",
+        data={
+            "pgn": _BLACK_START_MOVE20_GAME,
+            "game_index": "0",
+            "move_number": "20",
+            "side": "black",
+            "mode": "locate",
+        },
+        headers=_EN,
+    )
+
+    assert first.status_code == 200
+    assert _FEN_AFTER_NF6 in first.text
+    assert re.search(r'id="move_number"[^>]*value="20"', first.text)
+    assert '<option value="black" selected>Black</option>' in first.text
+
+    second = client.post(
+        "/tools/pgn",
+        data={
+            "pgn": _BLACK_START_MOVE20_GAME,
+            "game_index": "0",
+            "move_number": "21",
+            "side": "white",
+            "mode": "locate",
+        },
+        headers=_EN,
+    )
+
+    assert second.status_code == 200
+    assert _FEN_AFTER_NF3 in second.text
+    assert 'value="2" aria-current="true">Nf3</button>' in second.text
+    assert re.search(r'id="move_number"[^>]*value="21"', second.text)
+    assert '<option value="white" selected>White</option>' in second.text
 
 
 def test_pgn_rejects_invalid_and_out_of_range_ply(

@@ -10,7 +10,7 @@
   "p": "♟", "n": "♞", "b": "♝", "r": "♜", "q": "♛", "k": "♚",
 } %}
 {# Confidence below this threshold is flagged for review. #}
-{% set low_confidence = 0.85 %}
+{% set low_confidence = 0.80 %}
 <header class="tool-header">
   <div>
     <p class="eyebrow" aria-hidden="true">WORKSPACE / BOARD TO FEN</p>
@@ -92,12 +92,11 @@
       </div>
     </div>
 
-    {% if result.unmatched or position_warnings %}
+    {% if result.unmatched %}
     <div class="warning-block">
       <p class="field-label">{% trans %}Warnings{% endtrans %}</p>
       <ul class="warning-list">
-        {% if result.unmatched %}<li>{% trans count=result.unmatched %}Unmatched pieces: {{ count }}{% endtrans %}</li>{% endif %}
-        {% for warning in position_warnings %}<li>{{ warning }}</li>{% endfor %}
+        <li>{% trans count=result.unmatched %}Unmatched pieces: {{ count }}{% endtrans %}</li>
       </ul>
     </div>
     {% endif %}

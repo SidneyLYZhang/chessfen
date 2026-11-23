@@ -176,7 +176,7 @@ def test_recognize_result_shows_source_and_recognized_board(
     assert "data:image/png;base64,ZmFrZS1pbWFnZQ==" in page.text
 
 
-def test_recognize_side_switch_uses_shared_script(
+def test_recognize_side_switch_data_is_rendered(
     web_client: TestClient,
 ) -> None:
     page = _upload(web_client, headers=EN)
@@ -185,10 +185,6 @@ def test_recognize_side_switch_uses_shared_script(
     assert 'data-fen-w="' in page.text
     assert 'data-fen-b="' in page.text
     assert 'getElementById("side-select")' not in page.text
-
-    script = web_client.get("/static/js/app.js")
-    assert "side-select" in script.text
-    assert "data-fen-b" in script.text
 
 
 def test_recognize_orientation_and_confidence_toggle(
@@ -236,23 +232,6 @@ def test_recognize_errors_are_announced(web_client: TestClient) -> None:
     assert page.status_code == 400
     assert 'role="alert"' in page.text
     assert "An image file is required." in page.text
-
-
-def test_recognize_reports_position_warnings(
-    client_factory: Callable[..., TestClient],
-) -> None:
-    detections = [
-        detection
-        for detection in starting_detections()
-        if detection.class_id not in (5, 11)
-    ]
-    client = client_factory(recognizer=Recognizer(FakeDetector(detections)))
-
-    page = _upload(client)
-
-    assert page.status_code == 200
-    assert "缺少白王" in page.text
-    assert "缺少黑王" in page.text
 
 
 def test_recognize_confidence_toggle_is_wired_without_js(

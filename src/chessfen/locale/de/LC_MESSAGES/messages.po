@@ -121,7 +121,7 @@ msgstr "Herunterladen"
 msgid "Warnings"
 msgstr "Warnungen"
 
-msgid "Placement-only or full FEN is accepted."
+msgid "Placement-only or Full FEN is accepted."
 msgstr "Stellungsangabe oder vollständige FEN werden akzeptiert."
 
 msgid "No white king"
@@ -208,7 +208,7 @@ msgstr "Dieser Zug existiert in dieser Partie nicht."
 msgid "Full FEN"
 msgstr "Vollständige FEN"
 
-msgid "Browse games and export the Full FEN at any half-move."
+msgid "Browse games and export the Full FEN at any Ply."
 msgstr "Partien durchsuchen und die vollständige FEN an jedem Halbzug exportieren."
 
 msgid "PGN file"
@@ -310,10 +310,10 @@ msgstr "FEN verstehen"
 msgid "FEN (Forsyth–Edwards Notation) is the standard text format for a chess position. ChessFEN uses it to pass positions between board images, PGN games, and rendered boards."
 msgstr "FEN (Forsyth–Edwards Notation) ist das Standard-Textformat für eine Schachstellung. ChessFEN nutzt es, um Stellungen zwischen Brettbildern, PGN-Partien und gerenderten Brettern auszutauschen."
 
-msgid "Piece placement"
+msgid "Placement"
 msgstr "Figurenstellung"
 
-msgid "A FEN string starts with the piece placement: eight ranks from rank 8 down to rank 1, separated by /."
+msgid "A FEN string starts with the Placement: eight ranks from rank 8 down to rank 1, separated by /."
 msgstr "Ein FEN-String beginnt mit der Figurenstellung: acht Reihen von Reihe 8 bis Reihe 1, getrennt durch /."
 
 msgid "Uppercase letters stand for White pieces (K, Q, R, B, N, P) and lowercase letters for Black pieces. Digits encode runs of empty squares."
@@ -325,7 +325,7 @@ msgstr "Das ist die Grundstellung."
 msgid "The other five fields"
 msgstr "Die übrigen fünf Felder"
 
-msgid "A complete FEN adds five space-separated fields: the side to move (w or b), castling rights (KQkq, or - for none), an en passant target square (or -), the halfmove clock, and the fullmove number."
+msgid "A Full FEN adds five space-separated fields: the side to move (w or b), castling rights (KQkq, or - for none), an en passant target square (or -), the halfmove clock, and the fullmove number."
 msgstr "Ein vollständiges FEN ergänzt fünf durch Leerzeichen getrennte Felder: die Seite am Zug (w oder b), Rochaderechte (KQkq oder - für keine), ein En-passant-Zielfeld (oder -), die Halbzugzählung und die Zugnummer."
 
 msgid "ChessFEN distinguishes the first field as a Placement from the six-field Full FEN. A picture can only reveal where the pieces stand, so recognition returns a Placement; the side to move is chosen by the caller and the remaining fields default to - - 0 1."
@@ -337,8 +337,8 @@ msgstr "Wo ChessFEN FEN verwendet"
 msgid "Recognition reads a board image and returns its Placement, with a per-square breakdown."
 msgstr "Die Erkennung liest ein Brettbild und liefert die Figurenstellung samt Aufschlüsselung pro Feld."
 
-msgid "PGN navigation exports the Full FEN after any half-move."
-msgstr "Die PGN-Navigation exportiert die vollständige FEN nach jedem Halbzug."
+msgid "PGN navigation exports the Full FEN after any Ply."
+msgstr "Die PGN-Navigation exportiert die vollständige FEN nach jedem Ply."
 
 msgid "Rendering turns any syntactically valid FEN into a board image."
 msgstr "Das Rendern macht aus jeder syntaktisch gültigen FEN ein Brettbild."
@@ -358,14 +358,14 @@ msgstr "Tags und Züge"
 msgid "A game begins with tag pairs in square brackets, followed by the moves in numbered pairs — White's move, then Black's."
 msgstr "Eine Partie beginnt mit Tag-Paaren in eckigen Klammern, gefolgt von den Zügen in nummerierten Paaren — erst Weiß, dann Schwarz."
 
-msgid "Moves, half-moves and plies"
-msgstr "Züge, Halbzüge und Plies"
+msgid "Moves and Plies"
+msgstr "Züge und Plies"
 
-msgid "Each numbered move contains up to two half-moves, or plies. White's Nth move ends at ply 2N-1 and Black's Nth move at ply 2N; ply 0 is the initial position."
-msgstr "Jeder nummerierte Zug enthält bis zu zwei Halbzüge (Plies). Der N-te Zug von Weiß endet bei Ply 2N-1, der N-te Zug von Schwarz bei Ply 2N; Ply 0 ist die Grundstellung."
+msgid "Each numbered move contains up to two Plies, one per side. White's Nth move ends at ply 2N-1 and Black's Nth move at ply 2N; ply 0 is the initial position."
+msgstr "Jeder nummerierte Zug enthält bis zu zwei Plies (je einen pro Seite). Der N-te Zug von Weiß endet bei Ply 2N-1, der N-te Zug von Schwarz bei Ply 2N; Ply 0 ist die Grundstellung."
 
-msgid "ChessFEN lets you pick exactly that half-move and exports the resulting Full FEN."
-msgstr "ChessFEN lässt dich genau diesen Halbzug wählen und exportiert die zugehörige vollständige FEN."
+msgid "ChessFEN lets you pick exactly that Ply and exports the resulting Full FEN."
+msgstr "ChessFEN lässt dich genau diesen Ply wählen und exportiert die zugehörige vollständige FEN."
 
 msgid "Mainline and variations"
 msgstr "Hauptvariante und Varianten"
@@ -376,8 +376,8 @@ msgstr "Klammern enthalten Varianten — erwogene, aber nicht gespielte Alternat
 msgid "Several games in one file"
 msgstr "Mehrere Partien in einer Datei"
 
-msgid "A PGN document may contain many games. ChessFEN lists them all so you can choose one, then jump to any half-move."
-msgstr "Ein PGN-Dokument kann viele Partien enthalten. ChessFEN listet sie alle auf; du wählst eine aus und springst zu jedem Halbzug."
+msgid "A PGN document may contain many games. ChessFEN lists them all so you can choose one, then jump to any Ply."
+msgstr "Ein PGN-Dokument kann viele Partien enthalten. ChessFEN listet sie alle auf; du wählst eine aus und springst zu jedem Ply."
 
 msgid "Try PGN navigation"
 msgstr "PGN-Navigation ausprobieren"
@@ -643,8 +643,8 @@ msgstr "Metadaten zur Partie."
 msgid "Starts a full move; Black's reply follows."
 msgstr "Beginnt einen vollen Zug; Schwarz antwortet."
 
-msgid "One half-move; White's Nth move ends at ply 2N-1 and Black's at 2N."
-msgstr "Ein Halbzug; der N-te Zug von Weiß endet bei Ply 2N-1, der von Schwarz bei 2N."
+msgid "One Ply; White's Nth move ends at ply 2N-1 and Black's at 2N."
+msgstr "Ein Ply; der N-te Zug von Weiß endet bei Ply 2N-1, der von Schwarz bei 2N."
 
 msgid "Variation"
 msgstr "Variante"
@@ -670,8 +670,8 @@ msgstr "Was passiert mit einem fehlerhaften PGN?"
 msgid "The whole document is rejected so that no wrong Position is served."
 msgstr "Das gesamte Dokument wird abgelehnt, damit keine falsche Stellung ausgeliefert wird."
 
-msgid "How do I choose a specific half-move?"
-msgstr "Wie wähle ich einen bestimmten Halbzug?"
+msgid "How do I choose a specific Ply?"
+msgstr "Wie wähle ich einen bestimmten Ply?"
 
 msgid "Pick a Game, then click a move in the grid or use the move number and side controls."
 msgstr "Wähle eine Partie und klicke dann im Raster auf einen Zug oder nutze die Felder für Zugnummer und Seite."
