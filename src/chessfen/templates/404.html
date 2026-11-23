@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+
+{% block title %}ChessFEN · {% trans %}Page not found{% endtrans %}{% endblock %}
+
+{% block description %}{% trans %}The page you requested does not exist.{% endtrans %}{% endblock %}
+
+{% block content %}
+<section class="not-found">
+  <p class="eyebrow" aria-hidden="true">404 / POSITION NOT FOUND</p>
+  <img class="not-found-mark" src="/static/brand/mark-mono.svg" alt="" width="64" height="64">
+  <h1>{% trans %}Page not found{% endtrans %}</h1>
+  <p class="not-found-lead">{% trans %}The page you requested does not exist.{% endtrans %}</p>
+  <div class="not-found-links">
+    <a class="primary-button" href="/">{% trans %}Go home{% endtrans %}</a>
+    <a class="secondary-button" href="/tools/render">{% trans %}Render FEN{% endtrans %}</a>
+    <a class="secondary-button" href="/tools/pgn">{% trans %}PGN navigation{% endtrans %}</a>
+    <a class="secondary-button" href="/tools/recognize">{% trans %}Recognize board{% endtrans %}</a>
+  </div>
+</section>
+{% endblock %}

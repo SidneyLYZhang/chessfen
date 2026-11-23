@@ -2,20 +2,36 @@
 
 {% block title %}ChessFEN · {% trans %}Admin{% endtrans %}{% endblock %}
 
+{% block description %}{% trans %}Sign in to manage ChessFEN API keys.{% endtrans %}{% endblock %}
+
 {% block content %}
-<section class="panel narrow">
-  <h1>{% trans %}Admin{% endtrans %}</h1>
-  {% if not configured %}
-  <p class="notice error">{% trans %}Admin is not configured.{% endtrans %}</p>
-  {% else %}
-  {% if error == "invalid" %}<p class="notice error">{% trans %}Invalid password{% endtrans %}</p>{% endif %}
-  {% if error == "rate_limited" %}<p class="notice error">{% trans %}Too many attempts. Try again later.{% endtrans %}</p>{% endif %}
-  <form method="post" action="/admin/login" class="stack">
-    <label>{% trans %}Password{% endtrans %}
-      <input type="password" name="password" required autofocus>
-    </label>
-    <button type="submit">{% trans %}Sign in{% endtrans %}</button>
-  </form>
-  {% endif %}
+<section class="login-layout">
+  <aside class="login-brand" aria-hidden="true">
+    <img src="/static/brand/mark-reverse.svg" alt="" width="64" height="64">
+    <div>
+      <p class="login-brand-code">64 SQUARES → ONE LINE → CONTROLLED ACCESS</p>
+      <p class="login-brand-note">ADMIN / API KEYS</p>
+    </div>
+  </aside>
+
+  <div class="login-panel">
+    <p class="eyebrow" aria-hidden="true">SIGN IN / ADMIN</p>
+    <h1>{% trans %}Admin{% endtrans %}</h1>
+
+    {% if not configured %}
+    <p class="form-error" role="alert">{% trans %}Admin is not configured.{% endtrans %}</p>
+    {% else %}
+    {% if error == "invalid" %}<p class="form-error" role="alert">{% trans %}Invalid password{% endtrans %}</p>{% endif %}
+    {% if error == "rate_limited" %}<p class="form-error" role="alert">{% trans %}Too many attempts. Try again later.{% endtrans %}</p>{% endif %}
+
+    <form method="post" action="/admin/login" class="login-form">
+      <div class="field">
+        <label class="field-label" for="password">{% trans %}Password{% endtrans %}</label>
+        <input class="text-input" type="password" id="password" name="password" required autofocus>
+      </div>
+      <button class="primary-button" type="submit">{% trans %}Sign in{% endtrans %}</button>
+    </form>
+    {% endif %}
+  </div>
 </section>
 {% endblock %}

@@ -98,6 +98,18 @@ def _create_key(client: TestClient, name: str = "Alice"):
     )
 
 
+def _revoke_newest(client: TestClient) -> None:
+    page = client.get("/admin", headers=_EN)
+    match = re.search(r"/admin/keys/(\d+)/revoke", page.text)
+    assert match is not None
+    response = client.post(
+        f"/admin/keys/{match.group(1)}/revoke",
+        headers=_EN,
+        follow_redirects=False,
+    )
+    assert response.status_code == 303
+
+
 def test_create_key_reveals_secret_only_once(client: TestClient) -> None:
     _login(client, "test-admin")
 
@@ -106,10 +118,168 @@ def test_create_key_reveals_secret_only_once(client: TestClient) -> None:
     assert created.status_code == 200
     full_key = _extract_key(created)
     prefix = _prefix_of(full_key)
+    assert 'id="new-key-text"' in created.text
+    assert 'data-copy-target="new-key-text"' in created.text
 
     listed = client.get("/admin", headers=_EN)
     assert prefix in listed.text
     assert full_key not in listed.text
+
+
+def test_admin_stats_count_total_active_and_revoked(client: TestClient) -> None:
+    _login(client, "test-admin")
+    _create_key(client, "Alice")
+    _create_key(client, "Bob")
+    _revoke_newest(client)
+
+    page = client.get("/admin", headers=_EN)
+
+    assert '<strong id="stat-total">2</strong>' in page.text
+    assert '<strong id="stat-active">1</strong>' in page.text
+    assert '<strong id="stat-revoked">1</strong>' in page.text
+
+
+def test_admin_searches_by_name_and_prefix(client: TestClient) -> None:
+    _login(client, "test-admin")
+    alice = _create_key(client, "Alice")
+    _create_key(client, "Bob")
+    alice_prefix = _prefix_of(_extract_key(alice))
+
+    by_name = client.get("/admin?q=ali", headers=_EN)
+    assert "Alice" in by_name.text
+    assert "Bob" not in by_name.text
+    assert 'value="ali"' in by_name.text
+
+    by_prefix = client.get(f"/admin?q={alice_prefix}", headers=_EN)
+    assert alice_prefix in by_prefix.text
+    assert "Bob" not in by_prefix.text
+
+
+def test_admin_filters_by_status(client: TestClient) -> None:
+    _login(client, "test-admin")
+    _create_key(client, "Alice")
+    _create_key(client, "Bob")
+    _revoke_newest(client)
+
+    active = client.get("/admin?status=active", headers=_EN)
+    assert "Alice" in active.text
+    assert "Bob" not in active.text
+    assert '<option value="active" selected>' in active.text
+
+    revoked = client.get("/admin?status=revoked", headers=_EN)
+    assert "Bob" in revoked.text
+    assert "Alice" not in revoked.text
+    assert '<option value="revoked" selected>' in revoked.text
+
+    combined = client.get("/admin?q=ali&status=revoked", headers=_EN)
+    assert "No keys match these filters." in combined.text
+    assert "Clear filters" in combined.text
+
+
+def test_admin_empty_search_state(client: TestClient) -> None:
+    _login(client, "test-admin")
+    _create_key(client, "Alice")
+
+    page = client.get("/admin?q=zzz", headers=_EN)
+
+    assert "No keys match these filters." in page.text
+    assert "Clear filters" in page.text
+    empty = page.text.split('class="admin-empty"', 1)[1].split(
+        "</section>", 1
+    )[0]
+    assert 'href="/admin"' in empty
+
+
+def test_admin_search_treats_wildcards_literally(client: TestClient) -> None:
+    _login(client, "test-admin")
+    _create_key(client, "Alice")
+
+    page = client.get("/admin?q=%25", headers=_EN)
+
+    assert "No keys match these filters." in page.text
+
+
+def test_admin_invalid_status_falls_back_to_all(client: TestClient) -> None:
+    _login(client, "test-admin")
+    _create_key(client, "Alice")
+
+    page = client.get("/admin?status=nope", headers=_EN)
+
+    assert "Alice" in page.text
+    assert '<option value="all" selected>' in page.text
+
+
+def test_create_key_preserves_the_status_filter(client: TestClient) -> None:
+    _login(client, "test-admin")
+
+    page = client.post(
+        "/admin/keys",
+        data={"name": "Alice", "status": "active"},
+        headers=_EN,
+    )
+
+    assert page.status_code == 200
+    assert '<option value="active" selected>' in page.text
+    assert 'name="status" value="active"' in page.text
+
+
+def test_revoke_preserves_the_status_filter(client: TestClient) -> None:
+    _login(client, "test-admin")
+    _create_key(client, "Alice")
+
+    page = client.get("/admin?status=active", headers=_EN)
+    match = re.search(
+        r'action="(/admin/keys/\d+/revoke\?status=active)"', page.text
+    )
+    assert match is not None
+
+    response = client.post(
+        match.group(1), headers=_EN, follow_redirects=False
+    )
+
+    assert response.status_code == 303
+    assert response.headers["location"] == "/admin?status=active"
+
+
+def test_revoke_requires_native_confirmation(client: TestClient) -> None:
+    _login(client, "test-admin")
+    _create_key(client, "Alice")
+
+    page = client.get("/admin", headers=_EN)
+
+    assert 'class="revoke-confirm"' in page.text
+    assert "<details" in page.text
+    assert "Confirm revoke" in page.text
+    assert re.search(r"/admin/keys/\d+/revoke", page.text)
+
+
+def test_login_page_has_brand_panel(client: TestClient) -> None:
+    page = client.get("/admin/login", headers=_EN)
+
+    assert 'class="login-brand"' in page.text
+    assert "/static/brand/mark-reverse.svg" in page.text
+    assert 'type="password"' in page.text
+    assert 'name="password"' in page.text
+
+
+def test_admin_page_is_localized(client: TestClient) -> None:
+    _login(client, "test-admin")
+
+    page = client.get("/admin", headers={"Accept-Language": "de"})
+
+    assert "API-Schlüssel" in page.text
+    assert "Gesamt" in page.text
+    assert "Suchen" in page.text
+
+
+def test_unknown_api_path_stays_json(client: TestClient, api_key: str) -> None:
+    response = client.get(
+        "/api/v1/nope", headers={"X-API-Key": api_key}
+    )
+
+    assert response.status_code == 404
+    assert response.headers["content-type"].startswith("application/json")
+    assert "Page not found" not in response.text
 
 
 def test_create_key_requires_a_name(client: TestClient) -> None:

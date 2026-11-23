@@ -130,3 +130,39 @@ def test_footer_states_the_license(client: TestClient) -> None:
 
     assert "GPL-3.0-or-later 开源" in zh.text
     assert "Open source under GPL-3.0-or-later" in en.text
+
+
+def test_unknown_page_returns_localized_404(client: TestClient) -> None:
+    en = client.get("/no-such-page", headers=_EN)
+
+    assert en.status_code == 404
+    assert "Page not found" in en.text
+    assert "Go home" in en.text
+    assert 'class="app-header"' in en.text
+    for href in ("/", "/tools/render", "/tools/pgn", "/tools/recognize"):
+        assert f'href="{href}"' in en.text
+
+    zh = client.get("/no-such-page", headers=_ZH)
+    assert zh.status_code == 404
+    assert "页面未找到" in zh.text
+    assert "返回首页" in zh.text
+
+    de = client.get("/no-such-page", headers=_DE)
+    assert de.status_code == 404
+    assert "Seite nicht gefunden" in de.text
+    assert "Zur Startseite" in de.text
+
+
+def test_static_missing_path_stays_non_html(client: TestClient) -> None:
+    response = client.get("/static/no-such-file.css")
+
+    assert response.status_code == 404
+    assert "Page not found" not in response.text
+
+
+def test_bare_api_path_stays_json(client: TestClient) -> None:
+    response = client.get("/api")
+
+    assert response.status_code == 404
+    assert response.headers["content-type"].startswith("application/json")
+    assert "Page not found" not in response.text

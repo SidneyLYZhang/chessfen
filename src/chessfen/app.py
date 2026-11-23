@@ -128,6 +128,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             page = oversized_upload_page(request, "pgn_too_large")
             if page is not None:
                 return page
+        if (
+            exc.status_code == 404
+            and request.method in {"GET", "HEAD"}
+            and not (
+                request.url.path == "/api"
+                or request.url.path.startswith("/api/")
+            )
+            and not request.url.path.startswith("/static/")
+        ):
+            return render_response(request, "404.html", status_code=404)
         return await http_exception_handler(request, exc)
 
     @app.get("/health")

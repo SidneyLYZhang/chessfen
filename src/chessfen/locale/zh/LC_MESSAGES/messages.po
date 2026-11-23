@@ -696,3 +696,48 @@ msgstr "GPL-3.0-or-later，识别模型与棋子集在下方致谢。"
 
 msgid "ChessFEN is an open-source, self-hostable chess encoding tool."
 msgstr "ChessFEN 是一个开源、可自托管的国际象棋编码工具。"
+
+msgid "Total"
+msgstr "总数"
+
+msgid "Search"
+msgstr "搜索"
+
+msgid "Name or prefix"
+msgstr "名称或前缀"
+
+msgid "All"
+msgstr "全部"
+
+msgid "Filter"
+msgstr "筛选"
+
+msgid "Clear filters"
+msgstr "清除筛选"
+
+msgid "Confirm revoke"
+msgstr "确认撤销"
+
+msgid "No keys match these filters."
+msgstr "没有匹配筛选条件的密钥。"
+
+msgid "Actions"
+msgstr "操作"
+
+msgid "Page not found"
+msgstr "页面未找到"
+
+msgid "The page you requested does not exist."
+msgstr "你请求的页面不存在。"
+
+msgid "Go home"
+msgstr "返回首页"
+
+msgid "API key"
+msgstr "API 密钥"
+
+msgid "Manage the API keys that grant access to the ChessFEN API."
+msgstr "管理授予 ChessFEN API 访问权限的 API 密钥。"
+
+msgid "Sign in to manage ChessFEN API keys."
+msgstr "登录以管理 ChessFEN API 密钥。"

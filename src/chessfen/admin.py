@@ -3,11 +3,12 @@ from __future__ import annotations
 import hmac
 from collections.abc import Iterator
 from datetime import datetime, timezone
+from urllib.parse import urlencode
 
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import RedirectResponse
 from itsdangerous import BadSignature, SignatureExpired
-from sqlalchemy import select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from chessfen.models import ApiKey
@@ -50,8 +51,86 @@ def _db_session(request: Request) -> Iterator[Session]:
         session.close()
 
 
-def _list_keys(session: Session) -> list[ApiKey]:
-    return list(session.scalars(select(ApiKey).order_by(ApiKey.id.desc())))
+def _normalize_filters(q: str, status: str) -> tuple[str, str]:
+    q = (q or "").strip()
+    status = status or "all"
+    if status not in {"all", "active", "revoked"}:
+        status = "all"
+    return q, status
+
+
+def _read_filters(request: Request) -> tuple[str, str]:
+    return _normalize_filters(
+        request.query_params.get("q") or "",
+        request.query_params.get("status") or "all",
+    )
+
+
+def _filter_query(q: str, status: str) -> str:
+    values: dict[str, str] = {}
+    if q:
+        values["q"] = q
+    if status != "all":
+        values["status"] = status
+    return urlencode(values)
+
+
+def _like_pattern(q: str) -> str:
+    escaped = (
+        q.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+    )
+    return f"%{escaped}%"
+
+
+def _list_keys(
+    session: Session, *, q: str = "", status: str = "all"
+) -> list[ApiKey]:
+    statement = select(ApiKey).order_by(ApiKey.id.desc())
+    if q:
+        pattern = _like_pattern(q)
+        statement = statement.where(
+            or_(
+                ApiKey.name.ilike(pattern, escape="\\"),
+                ApiKey.prefix.ilike(pattern, escape="\\"),
+            )
+        )
+    if status == "active":
+        statement = statement.where(ApiKey.revoked_at.is_(None))
+    elif status == "revoked":
+        statement = statement.where(ApiKey.revoked_at.is_not(None))
+    return list(session.scalars(statement))
+
+
+def _key_stats(session: Session) -> dict[str, int]:
+    total = session.scalar(select(func.count()).select_from(ApiKey)) or 0
+    active = (
+        session.scalar(
+            select(func.count())
+            .select_from(ApiKey)
+            .where(ApiKey.revoked_at.is_(None))
+        )
+        or 0
+    )
+    return {"total": total, "active": active, "revoked": total - active}
+
+
+def _admin_context(
+    session: Session,
+    *,
+    q: str = "",
+    status: str = "all",
+    new_key: str | None = None,
+    error: str | None = None,
+) -> dict[str, object]:
+    return {
+        "keys": _list_keys(session, q=q, status=status),
+        "stats": _key_stats(session),
+        "filters": {"q": q, "status": status},
+        "filters_active": bool(q) or status != "all",
+        "filter_query": _filter_query(q, status),
+        "new_key": new_key,
+        "error": error,
+    }
 
 
 @router.get("/login")
@@ -121,10 +200,11 @@ def admin_home(
     session: Session = Depends(_db_session),
     _admin: None = Depends(require_admin),
 ):
+    q, status = _read_filters(request)
     return render_response(
         request,
         "admin/index.html",
-        {"keys": _list_keys(session), "new_key": None, "error": None},
+        _admin_context(session, q=q, status=status),
     )
 
 
@@ -132,15 +212,20 @@ def admin_home(
 def create_key(
     request: Request,
     name: str = Form(...),
+    q: str = Form(""),
+    status: str = Form("all"),
     session: Session = Depends(_db_session),
     _admin: None = Depends(require_admin),
 ):
+    q, status = _normalize_filters(q, status)
     cleaned = name.strip()
     if not cleaned:
         return render_response(
             request,
             "admin/index.html",
-            {"keys": _list_keys(session), "new_key": None, "error": "name_required"},
+            _admin_context(
+                session, q=q, status=status, error="name_required"
+            ),
             status_code=422,
         )
     full_key, prefix, key_hash = generate_api_key()
@@ -157,7 +242,7 @@ def create_key(
     return render_response(
         request,
         "admin/index.html",
-        {"keys": _list_keys(session), "new_key": full_key, "error": None},
+        _admin_context(session, q=q, status=status, new_key=full_key),
     )
 
 
@@ -172,4 +257,9 @@ def revoke_key(
     if key is not None and key.revoked_at is None:
         key.revoked_at = datetime.now(timezone.utc)
         session.commit()
-    return RedirectResponse("/admin", status_code=303)
+    q, status = _read_filters(request)
+    target = "/admin"
+    query = _filter_query(q, status)
+    if query:
+        target += f"?{query}"
+    return RedirectResponse(target, status_code=303)

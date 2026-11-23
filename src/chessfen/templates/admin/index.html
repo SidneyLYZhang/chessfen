@@ -2,59 +2,137 @@
 
 {% block title %}ChessFEN · {% trans %}Admin{% endtrans %}{% endblock %}
 
+{% block description %}{% trans %}Manage the API keys that grant access to the ChessFEN API.{% endtrans %}{% endblock %}
+
 {% block content %}
-<section class="panel">
-  <div class="panel-head">
+<header class="admin-hero">
+  <div>
+    <p class="eyebrow" aria-hidden="true">CONTROL / API KEYS</p>
     <h1>{% trans %}API keys{% endtrans %}</h1>
-    <form method="post" action="/admin/logout"><button type="submit" class="ghost">{% trans %}Sign out{% endtrans %}</button></form>
   </div>
+  <div class="admin-hero-actions">
+    <span class="admin-badge">{% trans %}Admin{% endtrans %}</span>
+    <form method="post" action="/admin/logout">
+      <button class="ghost-button small-button" type="submit">{% trans %}Sign out{% endtrans %}</button>
+    </form>
+  </div>
+</header>
 
-  {% if new_key %}
-  <p class="notice">{% trans %}Your new API key (shown once){% endtrans %}</p>
-  <p class="secret">{{ new_key }}</p>
-  {% endif %}
-  {% if error == "name_required" %}<p class="notice error">{% trans %}Name is required.{% endtrans %}</p>{% endif %}
+<div class="admin-stats">
+  <div class="admin-stat">
+    <span class="field-label">{% trans %}Total{% endtrans %}</span>
+    <strong id="stat-total">{{ stats.total }}</strong>
+  </div>
+  <div class="admin-stat">
+    <span class="field-label">{% trans %}Active{% endtrans %}</span>
+    <strong id="stat-active">{{ stats.active }}</strong>
+  </div>
+  <div class="admin-stat">
+    <span class="field-label">{% trans %}Revoked{% endtrans %}</span>
+    <strong id="stat-revoked">{{ stats.revoked }}</strong>
+  </div>
+</div>
 
-  <form method="post" action="/admin/keys" class="inline-form">
-    <label>{% trans %}Name{% endtrans %}
-      <input type="text" name="name" required maxlength="120">
-    </label>
-    <button type="submit">{% trans %}Create key{% endtrans %}</button>
+{% if new_key %}
+<section class="admin-new-key">
+  <p class="field-label">{% trans %}Your new API key (shown once){% endtrans %}</p>
+  <div class="code-block">
+    <div class="code-block-header">
+      <span class="code-block-label">{% trans %}API key{% endtrans %}</span>
+      <button class="ghost-button small-button" type="button" data-copy-target="new-key-text" data-copied-label="{% trans %}Copied{% endtrans %}">{% trans %}Copy{% endtrans %}</button>
+    </div>
+    <pre><code id="new-key-text">{{ new_key }}</code></pre>
+  </div>
+</section>
+{% endif %}
+
+{% if error == "name_required" %}<p class="form-error" role="alert">{% trans %}Name is required.{% endtrans %}</p>{% endif %}
+
+<section class="admin-create-panel">
+  <p class="eyebrow" aria-hidden="true">NEW / API KEY</p>
+  <form method="post" action="/admin/keys" class="admin-create">
+    <input type="hidden" name="q" value="{{ filters.q }}">
+    <input type="hidden" name="status" value="{{ filters.status }}">
+    <div class="field">
+      <label class="field-label" for="key-name">{% trans %}Name{% endtrans %}</label>
+      <input class="text-input" type="text" id="key-name" name="name" required maxlength="120">
+    </div>
+    <button class="primary-button" type="submit">{% trans %}Create key{% endtrans %}</button>
+  </form>
+</section>
+
+<section class="admin-keys">
+  <p class="eyebrow" aria-hidden="true">LIST / API KEYS</p>
+
+  <form method="get" action="/admin" class="admin-filters">
+    <div class="field">
+      <label class="field-label" for="q">{% trans %}Search{% endtrans %}</label>
+      <input class="text-input" type="search" id="q" name="q" value="{{ filters.q }}" placeholder="{% trans %}Name or prefix{% endtrans %}">
+    </div>
+    <div class="field">
+      <label class="field-label" for="status">{% trans %}Status{% endtrans %}</label>
+      <select class="select-input" id="status" name="status">
+        <option value="all"{% if filters.status == "all" %} selected{% endif %}>{% trans %}All{% endtrans %}</option>
+        <option value="active"{% if filters.status == "active" %} selected{% endif %}>{% trans %}Active{% endtrans %}</option>
+        <option value="revoked"{% if filters.status == "revoked" %} selected{% endif %}>{% trans %}Revoked{% endtrans %}</option>
+      </select>
+    </div>
+    <button class="secondary-button" type="submit">{% trans %}Filter{% endtrans %}</button>
+    {% if filters_active %}<a class="text-icon-button" href="/admin">{% trans %}Clear filters{% endtrans %}</a>{% endif %}
   </form>
 
   {% if keys %}
-  <table>
-    <thead>
-      <tr>
-        <th>{% trans %}Name{% endtrans %}</th>
-        <th>{% trans %}Prefix{% endtrans %}</th>
-        <th>{% trans %}Created{% endtrans %}</th>
-        <th>{% trans %}Last used{% endtrans %}</th>
-        <th>{% trans %}Calls{% endtrans %}</th>
-        <th>{% trans %}Status{% endtrans %}</th>
-        <th></th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for key in keys %}
-      <tr>
-        <td>{{ key.name }}</td>
-        <td><code>{{ key.prefix }}</code></td>
-        <td>{{ key.created_at.strftime("%Y-%m-%d %H:%M") }}</td>
-        <td>{% if key.last_used_at %}{{ key.last_used_at.strftime("%Y-%m-%d %H:%M") }}{% else %}{% trans %}Never{% endtrans %}{% endif %}</td>
-        <td>{{ key.call_count }}</td>
-        <td>{% if key.revoked_at %}{% trans %}Revoked{% endtrans %} {{ key.revoked_at.strftime("%Y-%m-%d %H:%M") }}{% else %}{% trans %}Active{% endtrans %}{% endif %}</td>
-        <td>
-          {% if not key.revoked_at %}
-          <form method="post" action="/admin/keys/{{ key.id }}/revoke"><button type="submit" class="danger">{% trans %}Revoke{% endtrans %}</button></form>
-          {% endif %}
-        </td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+  <div class="table-scroll">
+    <table class="admin-table" role="table">
+      <thead role="rowgroup">
+        <tr role="row">
+          <th scope="col" role="columnheader">{% trans %}Name{% endtrans %}</th>
+          <th scope="col" role="columnheader">{% trans %}Prefix{% endtrans %}</th>
+          <th scope="col" role="columnheader">{% trans %}Created{% endtrans %}</th>
+          <th scope="col" role="columnheader">{% trans %}Last used{% endtrans %}</th>
+          <th scope="col" role="columnheader">{% trans %}Calls{% endtrans %}</th>
+          <th scope="col" role="columnheader">{% trans %}Status{% endtrans %}</th>
+          <th scope="col" role="columnheader"><span class="visually-hidden">{% trans %}Actions{% endtrans %}</span></th>
+        </tr>
+      </thead>
+      <tbody role="rowgroup">
+        {% for key in keys %}
+        <tr role="row">
+          <td role="cell" data-label="{% trans %}Name{% endtrans %}">{{ key.name }}</td>
+          <td role="cell" data-label="{% trans %}Prefix{% endtrans %}"><code>{{ key.prefix }}</code></td>
+          <td role="cell" data-label="{% trans %}Created{% endtrans %}">{{ key.created_at.strftime("%Y-%m-%d %H:%M") }}</td>
+          <td role="cell" data-label="{% trans %}Last used{% endtrans %}">{% if key.last_used_at %}{{ key.last_used_at.strftime("%Y-%m-%d %H:%M") }}{% else %}{% trans %}Never{% endtrans %}{% endif %}</td>
+          <td role="cell" data-label="{% trans %}Calls{% endtrans %}">{{ key.call_count }}</td>
+          <td role="cell" data-label="{% trans %}Status{% endtrans %}">
+            {% if key.revoked_at %}
+            <span class="admin-status admin-status-revoked">{% trans %}Revoked{% endtrans %}</span>
+            <span class="admin-revoked-at">{{ key.revoked_at.strftime("%Y-%m-%d %H:%M") }}</span>
+            {% else %}
+            <span class="admin-status admin-status-active">{% trans %}Active{% endtrans %}</span>
+            {% endif %}
+          </td>
+          <td role="cell" data-label="{% trans %}Actions{% endtrans %}">
+            {% if not key.revoked_at %}
+            <details class="revoke-confirm">
+              <summary>{% trans %}Revoke{% endtrans %} <span class="visually-hidden">{{ key.name }}</span></summary>
+              <form method="post" action="/admin/keys/{{ key.id }}/revoke{% if filter_query %}?{{ filter_query }}{% endif %}">
+                <button class="danger-button small-button" type="submit">{% trans %}Confirm revoke{% endtrans %} <span class="visually-hidden">{{ key.name }}</span></button>
+              </form>
+            </details>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
   {% else %}
-  <p class="muted">{% trans %}No API keys yet.{% endtrans %}</p>
+  <div class="admin-empty">
+    <p class="empty-state-title">
+      {% if filters_active %}{% trans %}No keys match these filters.{% endtrans %}{% else %}{% trans %}No API keys yet.{% endtrans %}{% endif %}
+    </p>
+    {% if filters_active %}<a class="text-icon-button" href="/admin">{% trans %}Clear filters{% endtrans %}</a>{% endif %}
+  </div>
   {% endif %}
 </section>
 {% endblock %}

@@ -696,3 +696,48 @@ msgstr "GPL-3.0-or-later; Erkennungsmodell und Figurenset werden unten genannt."
 
 msgid "ChessFEN is an open-source, self-hostable chess encoding tool."
 msgstr "ChessFEN ist ein quelloffenes, selbst hostbares Werkzeug für Schachnotationen."
+
+msgid "Total"
+msgstr "Gesamt"
+
+msgid "Search"
+msgstr "Suchen"
+
+msgid "Name or prefix"
+msgstr "Name oder Präfix"
+
+msgid "All"
+msgstr "Alle"
+
+msgid "Filter"
+msgstr "Filtern"
+
+msgid "Clear filters"
+msgstr "Filter löschen"
+
+msgid "Confirm revoke"
+msgstr "Widerruf bestätigen"
+
+msgid "No keys match these filters."
+msgstr "Keine Schlüssel entsprechen diesen Filtern."
+
+msgid "Actions"
+msgstr "Aktionen"
+
+msgid "Page not found"
+msgstr "Seite nicht gefunden"
+
+msgid "The page you requested does not exist."
+msgstr "Die angeforderte Seite existiert nicht."
+
+msgid "Go home"
+msgstr "Zur Startseite"
+
+msgid "API key"
+msgstr "API-Schlüssel"
+
+msgid "Manage the API keys that grant access to the ChessFEN API."
+msgstr "Verwalte die API-Schlüssel, die Zugriff auf die ChessFEN-API gewähren."
+
+msgid "Sign in to manage ChessFEN API keys."
+msgstr "Melde dich an, um ChessFEN-API-Schlüssel zu verwalten."
