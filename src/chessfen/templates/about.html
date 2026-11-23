@@ -2,30 +2,92 @@
 
 {% block title %}ChessFEN · {% trans %}About ChessFEN{% endtrans %}{% endblock %}
 
+{% block description %}{% trans %}ChessFEN is an open-source, self-hostable chess encoding tool.{% endtrans %}{% endblock %}
+
 {% block content %}
-<section class="panel prose">
-  <h1>{% trans %}About ChessFEN{% endtrans %}</h1>
-  <p>{% trans %}ChessFEN is a small, self-hostable tool for chess encodings: recognize a position from a board image, browse PGN games and export Full FENs, and render any Placement or Full FEN as a board image. It runs on CPU, ships as one Docker image, and offers the same features through a web interface and an API.{% endtrans %}</p>
+<header class="about-hero">
+  <div class="about-hero-copy">
+    <p class="eyebrow" aria-hidden="true">ABOUT / CHESSFEN</p>
+    <h1>{% trans %}About ChessFEN{% endtrans %}</h1>
+    <p class="about-lead">{% trans %}ChessFEN is a small, self-hostable tool for chess encodings: recognize a position from a board image, browse PGN games and export Full FENs, and render any Placement or Full FEN as a board image. It runs on CPU, ships as one Docker image, and offers the same features through a web interface and an API.{% endtrans %}</p>
+    <div class="about-actions">
+      <a class="primary-button" href="https://github.com/SidneyLYZhang/chessfen">{% trans %}Star on GitHub{% endtrans %}</a>
+      <a class="secondary-button" href="/tools/render">{% trans %}Try the renderer{% endtrans %}</a>
+    </div>
+    <p class="about-note">{% trans %}If ChessFEN is useful to you, a star on GitHub helps others find it.{% endtrans %}</p>
+  </div>
+  <aside class="brand-panel" aria-hidden="true">
+    <img src="/static/brand/mark.svg" alt="" width="128" height="128">
+    <p class="brand-panel-code">FEN ↔ PGN ↔ IMAGE</p>
+    <p class="brand-panel-note">OPEN / SELF-HOSTED</p>
+  </aside>
+</header>
 
-  <h2>{% trans %}Star the project{% endtrans %}</h2>
-  <p>{% trans %}If ChessFEN is useful to you, a star on GitHub helps others find it.{% endtrans %}</p>
-  <p><a class="badge" href="https://github.com/SidneyLYZhang/chessfen">★ <span>{% trans %}Star on GitHub{% endtrans %}</span></a></p>
+<section class="about-principles">
+  <p class="eyebrow" aria-hidden="true">PRINCIPLES / 01–03</p>
+  <div class="principle-grid">
+    <div class="principle">
+      <p class="eyebrow" aria-hidden="true">01 / ENCODINGS</p>
+      <h2>{% trans %}Encodings first{% endtrans %}</h2>
+      <p>{% trans %}FEN, PGN, and board images are the interface; every tool speaks the same vocabulary.{% endtrans %}</p>
+    </div>
+    <div class="principle">
+      <p class="eyebrow" aria-hidden="true">02 / SELF-HOSTED</p>
+      <h2>{% trans %}One image, CPU-only{% endtrans %}</h2>
+      <p>{% trans %}Recognition and rendering run on CPU inside a single Docker image.{% endtrans %}</p>
+    </div>
+    <div class="principle">
+      <p class="eyebrow" aria-hidden="true">03 / OPEN SOURCE</p>
+      <h2>{% trans %}Open source{% endtrans %}</h2>
+      <p>{% trans %}GPL-3.0-or-later, with the recognition model and piece set credited below.{% endtrans %}</p>
+    </div>
+  </div>
+</section>
 
-  <h2>{% trans %}Self-deploy{% endtrans %}</h2>
+<section class="about-self-host">
+  <div class="about-self-head">
+    <img src="/static/brand/mark-reverse.svg" alt="" width="56" height="56">
+    <div>
+      <p class="eyebrow" aria-hidden="true">SELF-HOSTED / ONE IMAGE</p>
+      <h2>{% trans %}Self-deploy{% endtrans %}</h2>
+    </div>
+  </div>
+
   <p>{% trans %}Release images are published to GHCR (ghcr.io/sidneylyzhang/chessfen) and Docker Hub (sidneylyzhang/chessfen), with the recognition model baked in. If the GHCR package is private, run docker login ghcr.io first. Run one with Docker:{% endtrans %}</p>
-  <pre><code>docker run -d --name chessfen -p 127.0.0.1:8000:8000 \
+
+  <div class="code-block">
+    <div class="code-block-header">
+      <span class="code-block-label">Docker</span>
+      <button class="ghost-button small-button" type="button" data-copy-target="docker-run-code" data-copied-label="{% trans %}Copied{% endtrans %}">{% trans %}Copy{% endtrans %}</button>
+    </div>
+    <pre><code id="docker-run-code">docker run -d --name chessfen -p 127.0.0.1:8000:8000 \
   -e ADMIN_PASSWORD='replace-with-a-strong-password' \
   -e SECRET_KEY='replace-with-a-long-random-secret' \
   -v chessfen-data:/data \
   ghcr.io/sidneylyzhang/chessfen:latest</code></pre>
+  </div>
+
+  <div class="code-block">
+    <div class="code-block-header">
+      <span class="code-block-label">Docker Hub</span>
+      <button class="ghost-button small-button" type="button" data-copy-target="dockerhub-pull-code" data-copied-label="{% trans %}Copied{% endtrans %}">{% trans %}Copy{% endtrans %}</button>
+    </div>
+    <pre><code id="dockerhub-pull-code">docker pull sidneylyzhang/chessfen:latest</code></pre>
+  </div>
+
   <p>{% trans %}The repository also ships a docker-compose.yml for the published image: copy .env.example to .env, set ADMIN_PASSWORD and SECRET_KEY, then run docker compose up -d. Add docker-compose.build.yml to build from source instead.{% endtrans %}</p>
   <p>{% trans %}Then open http://localhost:8000 and create API keys on the admin page. The container serves plain HTTP: publish its port only to your reverse proxy, and set FORWARDED_ALLOW_IPS to the proxy address so rate limiting sees real client IPs. Set DATABASE_URL to use PostgreSQL instead of the SQLite volume.{% endtrans %}</p>
+  <p class="about-dsn"><code>DATABASE_URL=postgresql+psycopg://user:password@host:5432/chessfen</code></p>
+</section>
 
+<section class="about-credits">
+  <p class="eyebrow" aria-hidden="true">CREDITS / LICENSE</p>
   <h2>{% trans %}Credits{% endtrans %}</h2>
-  <ul>
+  <ul class="credit-list">
     <li>{% trans %}Board recognition:{% endtrans %} <a href="https://github.com/AndrewSpano/2d-chess-ocr">2d-chess-ocr</a> {% trans %}by Andrew Spano (YOLO26m fine-tuned detector).{% endtrans %}</li>
     <li>{% trans %}Piece images: the CBurnett chess set, rendered with python-chess (CC-BY-SA 3.0).{% endtrans %}</li>
     <li>{% trans %}Licensing: ChessFEN is released under the GPL-3.0-or-later license.{% endtrans %}</li>
   </ul>
+  <p class="about-credit-footer"><a href="https://github.com/SidneyLYZhang/chessfen">GitHub</a> · GPL-3.0-or-later</p>
 </section>
 {% endblock %}

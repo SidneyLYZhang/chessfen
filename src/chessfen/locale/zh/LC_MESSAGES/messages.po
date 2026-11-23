@@ -675,3 +675,24 @@ msgstr "如何选择特定的半步？"
 
 msgid "Pick a Game, then click a move in the grid or use the move number and side controls."
 msgstr "选择一个对局，然后在网格中点击着法，或使用回合数与走子方控件。"
+
+msgid "Encodings first"
+msgstr "编码优先"
+
+msgid "FEN, PGN, and board images are the interface; every tool speaks the same vocabulary."
+msgstr "FEN、PGN 与棋盘图片就是接口；所有工具使用同一套术语。"
+
+msgid "One image, CPU-only"
+msgstr "单镜像，纯 CPU"
+
+msgid "Recognition and rendering run on CPU inside a single Docker image."
+msgstr "识别与渲染在单个 Docker 镜像内以 CPU 运行。"
+
+msgid "Open source"
+msgstr "开源"
+
+msgid "GPL-3.0-or-later, with the recognition model and piece set credited below."
+msgstr "GPL-3.0-or-later，识别模型与棋子集在下方致谢。"
+
+msgid "ChessFEN is an open-source, self-hostable chess encoding tool."
+msgstr "ChessFEN 是一个开源、可自托管的国际象棋编码工具。"

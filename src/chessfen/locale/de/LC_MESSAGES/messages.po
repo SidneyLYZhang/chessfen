@@ -675,3 +675,24 @@ msgstr "Wie wähle ich einen bestimmten Halbzug?"
 
 msgid "Pick a Game, then click a move in the grid or use the move number and side controls."
 msgstr "Wähle eine Partie und klicke dann im Raster auf einen Zug oder nutze die Felder für Zugnummer und Seite."
+
+msgid "Encodings first"
+msgstr "Kodierungen zuerst"
+
+msgid "FEN, PGN, and board images are the interface; every tool speaks the same vocabulary."
+msgstr "FEN, PGN und Brettbilder sind die Schnittstelle; alle Werkzeuge sprechen dieselbe Sprache."
+
+msgid "One image, CPU-only"
+msgstr "Ein Image, nur CPU"
+
+msgid "Recognition and rendering run on CPU inside a single Docker image."
+msgstr "Erkennung und Rendering laufen auf der CPU in einem einzigen Docker-Image."
+
+msgid "Open source"
+msgstr "Open Source"
+
+msgid "GPL-3.0-or-later, with the recognition model and piece set credited below."
+msgstr "GPL-3.0-or-later; Erkennungsmodell und Figurenset werden unten genannt."
+
+msgid "ChessFEN is an open-source, self-hostable chess encoding tool."
+msgstr "ChessFEN ist ein quelloffenes, selbst hostbares Werkzeug für Schachnotationen."

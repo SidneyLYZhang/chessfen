@@ -56,17 +56,25 @@ def test_about_page_renders_in_three_languages(client: TestClient) -> None:
     assert "Veröffentlichte Release-Images stehen auf GHCR" in de.text
 
 
-def test_about_lists_star_badge_and_self_deploy(client: TestClient) -> None:
+def test_about_lists_star_cta_and_self_deploy(client: TestClient) -> None:
     page = client.get("/about", headers=_EN)
 
-    assert 'class="badge"' in page.text
+    assert 'class="primary-button"' in page.text
     assert "Star on GitHub" in page.text
     assert "https://github.com/SidneyLYZhang/chessfen" in page.text
+    assert "/static/brand/mark.svg" in page.text
+    assert "/static/brand/mark-reverse.svg" in page.text
+    assert 'data-copy-target="docker-run-code"' in page.text
+    assert 'id="docker-run-code"' in page.text
     assert "ghcr.io/sidneylyzhang/chessfen" in page.text
     assert "sidneylyzhang/chessfen" in page.text
     assert "docker run" in page.text
     assert "docker compose up -d" in page.text
+    assert "docker pull sidneylyzhang/chessfen:latest" in page.text
     assert "ADMIN_PASSWORD=" in page.text
+    assert "SECRET_KEY=" in page.text
+    assert "-v chessfen-data:/data" in page.text
+    assert "127.0.0.1:8000:8000" in page.text
     assert "2d-chess-ocr" in page.text
     assert "CBurnett" in page.text
     assert "GPL-3.0" in page.text
@@ -77,6 +85,43 @@ def test_about_explains_tls_and_postgres_options(client: TestClient) -> None:
 
     assert "reverse proxy" in page.text
     assert "DATABASE_URL" in page.text
+
+
+def test_about_has_brand_hero_and_principles(client: TestClient) -> None:
+    page = client.get("/about", headers=_EN)
+
+    assert 'class="about-hero"' in page.text
+    assert 'class="brand-panel"' in page.text
+    assert "FEN ↔ PGN ↔ IMAGE" in page.text
+    assert page.text.count('class="principle"') == 3
+    assert "Encodings first" in page.text
+    assert "One image, CPU-only" in page.text
+    assert "Open source" in page.text
+    assert 'class="about-self-host"' in page.text
+
+    hero = page.text.split('class="about-hero"', 1)[1].split(
+        "</header>", 1
+    )[0]
+    assert "/static/brand/mark.svg" in hero
+    assert 'class="brand-panel"' in hero
+
+    dark = page.text.split('class="about-self-host"', 1)[1]
+    assert "/static/brand/mark-reverse.svg" in dark
+    assert "docker pull sidneylyzhang/chessfen:latest" in dark
+    assert 'data-copy-target="dockerhub-pull-code"' in dark
+    assert "postgresql+psycopg" in dark
+
+
+def test_about_principles_are_localized(client: TestClient) -> None:
+    zh = client.get("/about", headers=_ZH)
+    de = client.get("/about", headers=_DE)
+
+    assert "编码优先" in zh.text
+    assert "单镜像，纯 CPU" in zh.text
+    assert "开源" in zh.text
+    assert "Kodierungen zuerst" in de.text
+    assert "Ein Image, nur CPU" in de.text
+    assert "Erkennungsmodell" in de.text
 
 
 def test_footer_states_the_license(client: TestClient) -> None:
