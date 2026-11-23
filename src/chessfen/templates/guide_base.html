@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block content %}
+<header class="guide-hero">
+  <p class="eyebrow" aria-hidden="true">{% block guide_code %}FIELD GUIDE{% endblock %}</p>
+  <h1>{% block guide_title %}{% endblock %}</h1>
+  <p class="guide-lead">{% block guide_lead %}{% endblock %}</p>
+</header>
+
+<div class="guide-layout">
+  <nav class="guide-toc" aria-label="{% trans %}On this page{% endtrans %}">
+    <p class="field-label">{% trans %}On this page{% endtrans %}</p>
+    {% block toc %}{% endblock %}
+  </nav>
+
+  <details class="guide-toc-mobile">
+    <summary>{% trans %}On this page{% endtrans %}</summary>
+    <nav aria-label="{% trans %}On this page{% endtrans %}">
+      {% block toc_mobile %}{% endblock %}
+    </nav>
+  </details>
+
+  <article class="guide-article">
+    {% block guide_content %}{% endblock %}
+  </article>
+</div>
+{% endblock %}

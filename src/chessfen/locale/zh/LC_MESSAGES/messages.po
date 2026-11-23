@@ -573,3 +573,105 @@ msgstr "识别结果将在这里出现。"
 
 msgid "Upload a board image to start recognition."
 msgstr "上传棋盘图片即可开始识别。"
+
+msgid "On this page"
+msgstr "本页内容"
+
+msgid "Frequently asked questions"
+msgstr "常见问题"
+
+msgid "Copy"
+msgstr "复制"
+
+msgid "Term"
+msgstr "术语"
+
+msgid "Example"
+msgstr "示例"
+
+msgid "Meaning"
+msgstr "含义"
+
+msgid "Continue with the PGN guide"
+msgstr "继续阅读 PGN 指南"
+
+msgid "Continue with the FEN guide"
+msgstr "继续阅读 FEN 指南"
+
+msgid "Where the pieces stand; eight ranks from rank 8 down to rank 1, joined by /."
+msgstr "棋子所在位置；从第 8 横排到第 1 横排共 8 段，用 / 分隔。"
+
+msgid "w for White; b for Black."
+msgstr "w 表示白方，b 表示黑方。"
+
+msgid "Castling availability: K and Q for White, k and q for Black; - when none."
+msgstr "易位权：白方 K、Q，黑方 k、q；无则 -。"
+
+msgid "The target square after a double pawn push, or -."
+msgstr "兵双步后的可吃过路兵目标格，无则 -。"
+
+msgid "Half-moves since the last capture or pawn move."
+msgstr "距上次吃子或兵移动以来的半步数。"
+
+msgid "The number of the current full move, starting at 1."
+msgstr "当前回合编号，从 1 开始。"
+
+msgid "Is a Placement a Full FEN?"
+msgstr "棋子摆放段就是完整 FEN 吗？"
+
+msgid "No. A Placement only says where the pieces stand; a Full FEN adds the five metadata fields."
+msgstr "不是。棋子摆放段只说明棋子位置；完整 FEN 还会加上五个元数据字段。"
+
+msgid "Why is the side to move not recognized?"
+msgstr "为什么不识别走子方？"
+
+msgid "A Board image cannot show whose turn it is, so Recognition lets you choose White or Black."
+msgstr "棋盘图片无法显示轮到哪一方，因此识别允许你选择白方或黑方。"
+
+msgid "Can I render illegal positions?"
+msgstr "可以渲染不合法的局面吗？"
+
+msgid "Yes. A syntactically valid FEN is rendered even when the position is illegal, with warnings."
+msgstr "可以。只要 FEN 语法合法，即使局面不合法也会渲染，并附带警告。"
+
+msgid "Tag pair"
+msgstr "标签对"
+
+msgid "Metadata about the Game."
+msgstr "描述对局的元数据。"
+
+msgid "Starts a full move; Black's reply follows."
+msgstr "开始一个回合；随后是黑方应着。"
+
+msgid "One half-move; White's Nth move ends at ply 2N-1 and Black's at 2N."
+msgstr "一个半步；白方第 N 步结束于半步 2N-1，黑方结束于 2N。"
+
+msgid "Variation"
+msgstr "变例"
+
+msgid "An alternative line; ChessFEN ignores variations."
+msgstr "替代线路；ChessFEN 会忽略变例。"
+
+msgid "Result"
+msgstr "结果"
+
+msgid "The Game outcome: 1-0, 0-1, 1/2-1/2, or *."
+msgstr "对局结果：1-0、0-1、1/2-1/2 或 *。"
+
+msgid "Are variations included?"
+msgstr "会包含变例吗？"
+
+msgid "No. Only the Mainline is followed; parenthesized variations are ignored."
+msgstr "不会。只沿主线导航，括号中的变例会被忽略。"
+
+msgid "What happens to a malformed PGN?"
+msgstr "PGN 格式有误时会怎样？"
+
+msgid "The whole document is rejected so that no wrong Position is served."
+msgstr "整份文档都会被拒绝，以免返回错误局面。"
+
+msgid "How do I choose a specific half-move?"
+msgstr "如何选择特定的半步？"
+
+msgid "Pick a Game, then click a move in the grid or use the move number and side controls."
+msgstr "选择一个对局，然后在网格中点击着法，或使用回合数与走子方控件。"

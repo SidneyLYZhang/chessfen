@@ -573,3 +573,105 @@ msgstr "Die Ergebnisse erscheinen hier."
 
 msgid "Upload a board image to start recognition."
 msgstr "Lade ein Brettbild hoch, um die Erkennung zu starten."
+
+msgid "On this page"
+msgstr "Auf dieser Seite"
+
+msgid "Frequently asked questions"
+msgstr "Häufige Fragen"
+
+msgid "Copy"
+msgstr "Kopieren"
+
+msgid "Term"
+msgstr "Begriff"
+
+msgid "Example"
+msgstr "Beispiel"
+
+msgid "Meaning"
+msgstr "Bedeutung"
+
+msgid "Continue with the PGN guide"
+msgstr "Weiter zum PGN-Leitfaden"
+
+msgid "Continue with the FEN guide"
+msgstr "Weiter zum FEN-Leitfaden"
+
+msgid "Where the pieces stand; eight ranks from rank 8 down to rank 1, joined by /."
+msgstr "Wo die Figuren stehen; acht Reihen von Reihe 8 bis Reihe 1, getrennt durch /."
+
+msgid "w for White; b for Black."
+msgstr "w für Weiß, b für Schwarz."
+
+msgid "Castling availability: K and Q for White, k and q for Black; - when none."
+msgstr "Rochaderechte: K und Q für Weiß, k und q für Schwarz; - für keine."
+
+msgid "The target square after a double pawn push, or -."
+msgstr "Das Zielfeld nach einem Doppelschritt eines Bauern oder -."
+
+msgid "Half-moves since the last capture or pawn move."
+msgstr "Halbzüge seit dem letzten Schlag oder Bauernzug."
+
+msgid "The number of the current full move, starting at 1."
+msgstr "Die Nummer des aktuellen vollen Zuges, beginnend bei 1."
+
+msgid "Is a Placement a Full FEN?"
+msgstr "Ist eine Figurenstellung eine vollständige FEN?"
+
+msgid "No. A Placement only says where the pieces stand; a Full FEN adds the five metadata fields."
+msgstr "Nein. Eine Figurenstellung sagt nur, wo die Figuren stehen; eine vollständige FEN ergänzt die fünf Metadatenfelder."
+
+msgid "Why is the side to move not recognized?"
+msgstr "Warum wird die Seite am Zug nicht erkannt?"
+
+msgid "A Board image cannot show whose turn it is, so Recognition lets you choose White or Black."
+msgstr "Ein Brettbild zeigt nicht, wer am Zug ist; die Erkennung lässt dich daher Weiß oder Schwarz wählen."
+
+msgid "Can I render illegal positions?"
+msgstr "Kann ich illegale Stellungen rendern?"
+
+msgid "Yes. A syntactically valid FEN is rendered even when the position is illegal, with warnings."
+msgstr "Ja. Eine syntaktisch gültige FEN wird auch bei einer illegalen Stellung gerendert, mit Warnungen."
+
+msgid "Tag pair"
+msgstr "Tag-Paar"
+
+msgid "Metadata about the Game."
+msgstr "Metadaten zur Partie."
+
+msgid "Starts a full move; Black's reply follows."
+msgstr "Beginnt einen vollen Zug; Schwarz antwortet."
+
+msgid "One half-move; White's Nth move ends at ply 2N-1 and Black's at 2N."
+msgstr "Ein Halbzug; der N-te Zug von Weiß endet bei Ply 2N-1, der von Schwarz bei 2N."
+
+msgid "Variation"
+msgstr "Variante"
+
+msgid "An alternative line; ChessFEN ignores variations."
+msgstr "Eine Alternativlinie; ChessFEN ignoriert Varianten."
+
+msgid "Result"
+msgstr "Ergebnis"
+
+msgid "The Game outcome: 1-0, 0-1, 1/2-1/2, or *."
+msgstr "Das Partieergebnis: 1-0, 0-1, 1/2-1/2 oder *."
+
+msgid "Are variations included?"
+msgstr "Werden Varianten einbezogen?"
+
+msgid "No. Only the Mainline is followed; parenthesized variations are ignored."
+msgstr "Nein. Es wird nur der Hauptvariante gefolgt; Varianten in Klammern werden ignoriert."
+
+msgid "What happens to a malformed PGN?"
+msgstr "Was passiert mit einem fehlerhaften PGN?"
+
+msgid "The whole document is rejected so that no wrong Position is served."
+msgstr "Das gesamte Dokument wird abgelehnt, damit keine falsche Stellung ausgeliefert wird."
+
+msgid "How do I choose a specific half-move?"
+msgstr "Wie wähle ich einen bestimmten Halbzug?"
+
+msgid "Pick a Game, then click a move in the grid or use the move number and side controls."
+msgstr "Wähle eine Partie und klicke dann im Raster auf einen Zug oder nutze die Felder für Zugnummer und Seite."

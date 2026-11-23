@@ -1,29 +1,104 @@
-{% extends "base.html" %}
+{% extends "guide_base.html" %}
 
 {% block title %}ChessFEN · {% trans %}Understanding FEN{% endtrans %}{% endblock %}
 
-{% block content %}
-<section class="panel prose">
-  <h1>{% trans %}Understanding FEN{% endtrans %}</h1>
-  <p>{% trans %}FEN (Forsyth–Edwards Notation) is the standard text format for a chess position. ChessFEN uses it to pass positions between board images, PGN games, and rendered boards.{% endtrans %}</p>
+{% block description %}{% trans %}FEN (Forsyth–Edwards Notation) is the standard text format for a chess position. ChessFEN uses it to pass positions between board images, PGN games, and rendered boards.{% endtrans %}{% endblock %}
 
+{% macro toc_list() %}
+<ul class="guide-toc-list">
+  <li><a href="#piece-placement">{% trans %}Piece placement{% endtrans %}</a></li>
+  <li><a href="#five-fields">{% trans %}The other five fields{% endtrans %}</a></li>
+  <li><a href="#usage">{% trans %}Where ChessFEN uses FEN{% endtrans %}</a></li>
+  <li><a href="#faq">{% trans %}Frequently asked questions{% endtrans %}</a></li>
+</ul>
+{% endmacro %}
+
+{% block guide_code %}FIELD GUIDE / FEN{% endblock %}
+
+{% block guide_title %}{% trans %}Understanding FEN{% endtrans %}{% endblock %}
+
+{% block guide_lead %}{% trans %}FEN (Forsyth–Edwards Notation) is the standard text format for a chess position. ChessFEN uses it to pass positions between board images, PGN games, and rendered boards.{% endtrans %}{% endblock %}
+
+{% block toc %}{{ toc_list() }}{% endblock %}
+{% block toc_mobile %}{{ toc_list() }}{% endblock %}
+
+{% block guide_content %}
+<section class="guide-section" id="piece-placement">
   <h2>{% trans %}Piece placement{% endtrans %}</h2>
   <p>{% trans %}A FEN string starts with the piece placement: eight ranks from rank 8 down to rank 1, separated by /.{% endtrans %}</p>
   <p>{% trans %}Uppercase letters stand for White pieces (K, Q, R, B, N, P) and lowercase letters for Black pieces. Digits encode runs of empty squares.{% endtrans %}</p>
-  <pre><code>rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR</code></pre>
-  <p>{% trans %}That is the starting position.{% endtrans %}</p>
 
+  <div class="code-block">
+    <div class="code-block-header">
+      <span class="code-block-label">{% trans %}Placement{% endtrans %}</span>
+      <button class="ghost-button small-button" type="button" data-copy-target="fen-placement-code" data-copied-label="{% trans %}Copied{% endtrans %}">{% trans %}Copy{% endtrans %}</button>
+    </div>
+    <pre><code id="fen-placement-code">rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR</code></pre>
+  </div>
+
+  <p>{% trans %}That is the starting position.{% endtrans %}</p>
+</section>
+
+<section class="guide-section" id="five-fields">
   <h2>{% trans %}The other five fields{% endtrans %}</h2>
   <p>{% trans %}A complete FEN adds five space-separated fields: the side to move (w or b), castling rights (KQkq, or - for none), an en passant target square (or -), the halfmove clock, and the fullmove number.{% endtrans %}</p>
-  <pre><code>rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1</code></pre>
-  <p>{% trans %}ChessFEN distinguishes the first field as a Placement from the six-field Full FEN. A picture can only reveal where the pieces stand, so recognition returns a Placement; the side to move is chosen by the caller and the remaining fields default to - - 0 1.{% endtrans %}</p>
 
+  <div class="code-block">
+    <div class="code-block-header">
+      <span class="code-block-label">{% trans %}Full FEN{% endtrans %}</span>
+      <button class="ghost-button small-button" type="button" data-copy-target="fen-full-code" data-copied-label="{% trans %}Copied{% endtrans %}">{% trans %}Copy{% endtrans %}</button>
+    </div>
+    <pre><code id="fen-full-code">rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1</code></pre>
+  </div>
+
+  <div class="table-scroll">
+    <table class="definition-table">
+      <thead>
+        <tr><th scope="col">{% trans %}Term{% endtrans %}</th><th scope="col">{% trans %}Example{% endtrans %}</th><th scope="col">{% trans %}Meaning{% endtrans %}</th></tr>
+      </thead>
+      <tbody>
+        <tr><th scope="row">{% trans %}Placement{% endtrans %}</th><td><code>rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR</code></td><td>{% trans %}Where the pieces stand; eight ranks from rank 8 down to rank 1, joined by /.{% endtrans %}</td></tr>
+        <tr><th scope="row">{% trans %}Side to move{% endtrans %}</th><td><code>w</code></td><td>{% trans %}w for White; b for Black.{% endtrans %}</td></tr>
+        <tr><th scope="row">{% trans %}Castling rights{% endtrans %}</th><td><code>KQkq</code></td><td>{% trans %}Castling availability: K and Q for White, k and q for Black; - when none.{% endtrans %}</td></tr>
+        <tr><th scope="row">{% trans %}En passant{% endtrans %}</th><td><code>-</code></td><td>{% trans %}The target square after a double pawn push, or -.{% endtrans %}</td></tr>
+        <tr><th scope="row">{% trans %}Halfmove clock{% endtrans %}</th><td><code>0</code></td><td>{% trans %}Half-moves since the last capture or pawn move.{% endtrans %}</td></tr>
+        <tr><th scope="row">{% trans %}Fullmove number{% endtrans %}</th><td><code>1</code></td><td>{% trans %}The number of the current full move, starting at 1.{% endtrans %}</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>{% trans %}ChessFEN distinguishes the first field as a Placement from the six-field Full FEN. A picture can only reveal where the pieces stand, so recognition returns a Placement; the side to move is chosen by the caller and the remaining fields default to - - 0 1.{% endtrans %}</p>
+</section>
+
+<section class="guide-section" id="usage">
   <h2>{% trans %}Where ChessFEN uses FEN{% endtrans %}</h2>
   <ul>
     <li>{% trans %}Recognition reads a board image and returns its Placement, with a per-square breakdown.{% endtrans %}</li>
     <li>{% trans %}PGN navigation exports the Full FEN after any half-move.{% endtrans %}</li>
     <li>{% trans %}Rendering turns any syntactically valid FEN into a board image.{% endtrans %}</li>
   </ul>
-  <p><a href="/tools/render">{% trans %}Try the renderer{% endtrans %}</a></p>
+
+  <div class="guide-links">
+    <a class="primary-button" href="/tools/render">{% trans %}Try the renderer{% endtrans %}</a>
+    <a class="text-icon-button" href="/learn/pgn">{% trans %}Continue with the PGN guide{% endtrans %} <span aria-hidden="true">→</span></a>
+  </div>
+</section>
+
+<section class="guide-section" id="faq">
+  <h2>{% trans %}Frequently asked questions{% endtrans %}</h2>
+  <div class="guide-faq">
+    <details>
+      <summary>{% trans %}Is a Placement a Full FEN?{% endtrans %}</summary>
+      <p>{% trans %}No. A Placement only says where the pieces stand; a Full FEN adds the five metadata fields.{% endtrans %}</p>
+    </details>
+    <details>
+      <summary>{% trans %}Why is the side to move not recognized?{% endtrans %}</summary>
+      <p>{% trans %}A Board image cannot show whose turn it is, so Recognition lets you choose White or Black.{% endtrans %}</p>
+    </details>
+    <details>
+      <summary>{% trans %}Can I render illegal positions?{% endtrans %}</summary>
+      <p>{% trans %}Yes. A syntactically valid FEN is rendered even when the position is illegal, with warnings.{% endtrans %}</p>
+    </details>
+  </div>
 </section>
 {% endblock %}

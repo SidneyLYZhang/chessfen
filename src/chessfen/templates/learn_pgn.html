@@ -1,29 +1,105 @@
-{% extends "base.html" %}
+{% extends "guide_base.html" %}
 
 {% block title %}ChessFEN · {% trans %}Understanding PGN{% endtrans %}{% endblock %}
 
-{% block content %}
-<section class="panel prose">
-  <h1>{% trans %}Understanding PGN{% endtrans %}</h1>
-  <p>{% trans %}PGN (Portable Game Notation) records chess games as text: tag pairs describe the game, and the moves are written in Standard Algebraic Notation.{% endtrans %}</p>
+{% block description %}{% trans %}PGN (Portable Game Notation) records chess games as text: tag pairs describe the game, and the moves are written in Standard Algebraic Notation.{% endtrans %}{% endblock %}
 
+{% macro toc_list() %}
+<ul class="guide-toc-list">
+  <li><a href="#tags-and-moves">{% trans %}Tags and moves{% endtrans %}</a></li>
+  <li><a href="#plies">{% trans %}Moves, half-moves and plies{% endtrans %}</a></li>
+  <li><a href="#mainline">{% trans %}Mainline and variations{% endtrans %}</a></li>
+  <li><a href="#games">{% trans %}Several games in one file{% endtrans %}</a></li>
+  <li><a href="#faq">{% trans %}Frequently asked questions{% endtrans %}</a></li>
+</ul>
+{% endmacro %}
+
+{% block guide_code %}FIELD GUIDE / PGN{% endblock %}
+
+{% block guide_title %}{% trans %}Understanding PGN{% endtrans %}{% endblock %}
+
+{% block guide_lead %}{% trans %}PGN (Portable Game Notation) records chess games as text: tag pairs describe the game, and the moves are written in Standard Algebraic Notation.{% endtrans %}{% endblock %}
+
+{% block toc %}{{ toc_list() }}{% endblock %}
+{% block toc_mobile %}{{ toc_list() }}{% endblock %}
+
+{% block guide_content %}
+<section class="guide-section" id="tags-and-moves">
   <h2>{% trans %}Tags and moves{% endtrans %}</h2>
   <p>{% trans %}A game begins with tag pairs in square brackets, followed by the moves in numbered pairs — White's move, then Black's.{% endtrans %}</p>
-  <pre><code>[White "Alice"]
+
+  <div class="code-block">
+    <div class="code-block-header">
+      <span class="code-block-label">PGN</span>
+      <button class="ghost-button small-button" type="button" data-copy-target="pgn-sample-code" data-copied-label="{% trans %}Copied{% endtrans %}">{% trans %}Copy{% endtrans %}</button>
+    </div>
+    <pre><code id="pgn-sample-code">[White "Alice"]
 [Black "Bob"]
 [Result "1-0"]
 
 1. e4 e5 2. Nf3 Nc6 3. Bb5 a6 1-0</code></pre>
+  </div>
+</section>
 
+<section class="guide-section" id="plies">
   <h2>{% trans %}Moves, half-moves and plies{% endtrans %}</h2>
   <p>{% trans %}Each numbered move contains up to two half-moves, or plies. White's Nth move ends at ply 2N-1 and Black's Nth move at ply 2N; ply 0 is the initial position.{% endtrans %}</p>
   <p>{% trans %}ChessFEN lets you pick exactly that half-move and exports the resulting Full FEN.{% endtrans %}</p>
 
+  <div class="table-scroll">
+    <table class="definition-table">
+      <thead>
+        <tr><th scope="col">{% trans %}Term{% endtrans %}</th><th scope="col">{% trans %}Example{% endtrans %}</th><th scope="col">{% trans %}Meaning{% endtrans %}</th></tr>
+      </thead>
+      <tbody>
+        <tr><th scope="row">{% trans %}Tag pair{% endtrans %}</th><td><code>[White "Alice"]</code></td><td>{% trans %}Metadata about the Game.{% endtrans %}</td></tr>
+        <tr><th scope="row">{% trans %}Move number{% endtrans %}</th><td><code>1.</code></td><td>{% trans %}Starts a full move; Black's reply follows.{% endtrans %}</td></tr>
+        <tr><th scope="row">{% trans %}Ply{% endtrans %}</th><td><code>2N-1</code></td><td>{% trans %}One half-move; White's Nth move ends at ply 2N-1 and Black's at 2N.{% endtrans %}</td></tr>
+        <tr><th scope="row">{% trans %}Variation{% endtrans %}</th><td><code>(1. d4 d5)</code></td><td>{% trans %}An alternative line; ChessFEN ignores variations.{% endtrans %}</td></tr>
+        <tr><th scope="row">{% trans %}Result{% endtrans %}</th><td><code>1-0</code></td><td>{% trans %}The Game outcome: 1-0, 0-1, 1/2-1/2, or *.{% endtrans %}</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="guide-section" id="mainline">
   <h2>{% trans %}Mainline and variations{% endtrans %}</h2>
   <p>{% trans %}Parentheses contain variations — alternative lines that were considered but not played. ChessFEN follows only the mainline and ignores variations; a PGN document with unparseable games is rejected so that no wrong position is served.{% endtrans %}</p>
 
+  <div class="code-block">
+    <div class="code-block-header">
+      <span class="code-block-label">PGN</span>
+      <button class="ghost-button small-button" type="button" data-copy-target="pgn-variation-code" data-copied-label="{% trans %}Copied{% endtrans %}">{% trans %}Copy{% endtrans %}</button>
+    </div>
+    <pre><code id="pgn-variation-code">1. e4 (1. d4 d5) e5 2. Nf3 *</code></pre>
+  </div>
+</section>
+
+<section class="guide-section" id="games">
   <h2>{% trans %}Several games in one file{% endtrans %}</h2>
   <p>{% trans %}A PGN document may contain many games. ChessFEN lists them all so you can choose one, then jump to any half-move.{% endtrans %}</p>
-  <p><a href="/tools/pgn">{% trans %}Try PGN navigation{% endtrans %}</a></p>
+
+  <div class="guide-links">
+    <a class="primary-button" href="/tools/pgn">{% trans %}Try PGN navigation{% endtrans %}</a>
+    <a class="text-icon-button" href="/learn/fen">{% trans %}Continue with the FEN guide{% endtrans %} <span aria-hidden="true">→</span></a>
+  </div>
+</section>
+
+<section class="guide-section" id="faq">
+  <h2>{% trans %}Frequently asked questions{% endtrans %}</h2>
+  <div class="guide-faq">
+    <details>
+      <summary>{% trans %}Are variations included?{% endtrans %}</summary>
+      <p>{% trans %}No. Only the Mainline is followed; parenthesized variations are ignored.{% endtrans %}</p>
+    </details>
+    <details>
+      <summary>{% trans %}What happens to a malformed PGN?{% endtrans %}</summary>
+      <p>{% trans %}The whole document is rejected so that no wrong Position is served.{% endtrans %}</p>
+    </details>
+    <details>
+      <summary>{% trans %}How do I choose a specific half-move?{% endtrans %}</summary>
+      <p>{% trans %}Pick a Game, then click a move in the grid or use the move number and side controls.{% endtrans %}</p>
+    </details>
+  </div>
 </section>
 {% endblock %}
