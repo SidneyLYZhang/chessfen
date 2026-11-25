@@ -14,6 +14,11 @@ _CHECKMATE_FEN = "rnb1kbnr/pppp1ppp/8/4p3/6Pq/5P2/PPPPP2P/RNBQKBNR w KQkq - 1 3"
 _STALEMATE_FEN = "7k/5Q2/6K1/8/8/8/8/8 b - - 0 1"
 _INSUFFICIENT_FEN = "8/8/8/8/8/8/3k4/7K w - - 0 1"
 _SEVENTYFIVE_MOVE_FEN = "8/8/8/8/8/2k5/4P3/4K3 w - - 150 200"
+_AFTER_E4_FEN = "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1"
+_CASTLE_FEN = "r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1"
+_PROMOTION_FEN = "8/P6k/8/8/8/8/8/7K w - - 0 1"
+_CHECK_FEN = "7k/8/8/8/8/8/8/R6K w - - 0 1"
+_FORCED_CAPTURE_FEN = "7k/8/8/8/8/8/1q6/K7 w - - 0 1"
 
 
 def _analysis_post(
@@ -70,6 +75,14 @@ def test_analysis_workbench_is_localized_and_uses_scoped_assets(
     assert "Verwende eine Full FEN mit sechs Feldern." in de.text
     assert 'aria-label="引擎详情"' in zh.text
     assert 'aria-label="Engine-Details"' in de.text
+    assert "Actual move" in page.text
+    assert "Move assessment" in page.text
+    assert "实际走法" in zh.text
+    assert "该走法在此局面中不合法。" in zh.text
+    assert "将杀损失" in zh.text
+    assert "Zugbewertung" in de.text
+    assert "Dieser Zug ist in dieser Stellung nicht legal." in de.text
+    assert "Mattverlust" in de.text
 
 
 def test_existing_fen_and_pgn_tools_link_to_analysis(
@@ -162,6 +175,164 @@ def test_analysis_position_returns_a_legal_full_fen(client: TestClient) -> None:
     assert payload["board_uri"].startswith("data:image/svg+xml;base64,")
 
 
+@pytest.mark.parametrize("move", ["e4", "e2e4"])
+def test_analysis_position_accepts_an_actual_san_or_uci_move(
+    client: TestClient, move: str
+) -> None:
+    response = _analysis_post(
+        client,
+        "/tools/analysis/position",
+        {"fen": _START_FEN, "move": move},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    actual = payload["actual_move"]
+    assert actual["uci"] == "e2e4"
+    assert actual["san"] == "e4"
+    assert actual["before_fen"] == _START_FEN
+    assert actual["after_fen"] == _AFTER_E4_FEN
+    assert actual["piece"] == "pawn"
+    assert actual["captured_piece"] is None
+    assert actual["captured_color"] is None
+    assert actual["promotion"] is None
+    assert actual["is_capture"] is False
+    assert actual["is_check"] is False
+    assert actual["is_checkmate"] is False
+    assert actual["is_castling"] is False
+    assert actual["before"]["side_to_move"] == "white"
+    assert actual["before"]["legal_move_count"] == 20
+    assert actual["before"]["material"] == {
+        "white_points": 39,
+        "black_points": 39,
+        "white_pieces": 15,
+        "black_pieces": 15,
+    }
+    assert actual["after"]["side_to_move"] == "black"
+    assert actual["after"]["legal_move_count"] == 20
+    assert actual["terminal"] is None
+    assert actual["material_change"] == {
+        "white_points": 0,
+        "black_points": 0,
+        "white_pieces": 0,
+        "black_pieces": 0,
+    }
+
+
+def test_analysis_position_reports_capture_forced_and_terminal_facts(
+    client: TestClient,
+) -> None:
+    response = _analysis_post(
+        client,
+        "/tools/analysis/position",
+        {"fen": _FORCED_CAPTURE_FEN, "move": "Kxb2"},
+    )
+
+    assert response.status_code == 200
+    actual = response.json()["actual_move"]
+    assert actual["san"] == "Kxb2"
+    assert actual["uci"] == "a1b2"
+    assert actual["captured_piece"] == "queen"
+    assert actual["captured_color"] == "black"
+    assert actual["is_capture"] is True
+    assert actual["before"]["legal_move_count"] == 1
+    assert actual["material_change"] == {
+        "white_points": 0,
+        "black_points": -9,
+        "white_pieces": 0,
+        "black_pieces": -1,
+    }
+    assert actual["terminal"] == {
+        "kind": "insufficient_material",
+        "winner": None,
+    }
+
+
+def test_analysis_position_reports_castling_promotion_and_check(
+    client: TestClient,
+) -> None:
+    castling = _analysis_post(
+        client,
+        "/tools/analysis/position",
+        {"fen": _CASTLE_FEN, "move": "O-O"},
+    ).json()["actual_move"]
+    promotion = _analysis_post(
+        client,
+        "/tools/analysis/position",
+        {"fen": _PROMOTION_FEN, "move": "a7a8q"},
+    ).json()["actual_move"]
+    check = _analysis_post(
+        client,
+        "/tools/analysis/position",
+        {"fen": _CHECK_FEN, "move": "Ra8+"},
+    ).json()["actual_move"]
+
+    assert castling["is_castling"] is True
+    assert castling["before"]["castling_rights"] == "KQkq"
+    assert castling["after"]["castling_rights"] == "kq"
+    assert promotion["promotion"] == "queen"
+    assert promotion["after"]["material"]["white_points"] == 9
+    assert promotion["after"]["material"]["white_pieces"] == 1
+    assert promotion["material_change"] == {
+        "white_points": 8,
+        "black_points": 0,
+        "white_pieces": 0,
+        "black_pieces": 0,
+    }
+    assert check["is_check"] is True
+    assert check["after"]["check"] is True
+
+
+@pytest.mark.parametrize(
+    "move",
+    ["e5", "e2e5", "not-a-move", "0000", "--", "Z0", "Nf3#", "Nf3+"],
+)
+def test_analysis_position_rejects_an_invalid_actual_move(
+    client: TestClient, move: str
+) -> None:
+    response = _analysis_post(
+        client,
+        "/tools/analysis/position",
+        {"fen": _START_FEN, "move": move},
+    )
+
+    assert response.status_code == 400
+    assert response.json()["error"]["code"] == "invalid_move"
+
+
+def test_analysis_position_reports_an_en_passant_capture(
+    client: TestClient,
+) -> None:
+    en_passant_fen = (
+        "rnbqkbnr/ppp1pppp/8/3pP3/8/8/PPPP1PPP/RNBQKBNR w KQkq d6 0 3"
+    )
+    response = _analysis_post(
+        client,
+        "/tools/analysis/position",
+        {"fen": en_passant_fen, "move": "exd6"},
+    )
+
+    assert response.status_code == 200
+    actual = response.json()["actual_move"]
+    assert actual["is_capture"] is True
+    assert actual["captured_piece"] == "pawn"
+    assert actual["captured_color"] == "black"
+    assert actual["after"]["material"]["black_points"] == 38
+
+
+def test_analysis_position_accepts_san_with_an_omitted_check_marker(
+    client: TestClient,
+) -> None:
+    response = _analysis_post(
+        client,
+        "/tools/analysis/position",
+        {"fen": _CHECK_FEN, "move": "Ra8"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["actual_move"]["san"] == "Ra8+"
+
+
 def test_analysis_position_preserves_the_side_to_move(client: TestClient) -> None:
     response = _analysis_post(
         client, "/tools/analysis/position", {"fen": _BLACK_TO_MOVE_FEN}
@@ -249,6 +420,11 @@ def test_analysis_lines_are_ranked_san_from_white_perspective(
         "e2e4",
         "e7e5",
         "g1f3",
+    ]
+    assert [move["fen"] for move in lines[0]["moves"]] == [
+        _AFTER_E4_FEN,
+        "rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2",
+        "rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2",
     ]
     assert lines[1]["evaluation"]["text"] == "-0.20"
     assert [move["san"] for move in lines[1]["moves"]] == ["d4", "d5"]
@@ -358,6 +534,292 @@ def test_analysis_engine_assets_are_self_hosted_with_provenance(
     assert provenance.status_code == 200
     assert "stockfish.js 19.0.1" in provenance.text
     assert "https://github.com/nmrugg/stockfish.js" in provenance.text
+
+
+@pytest.mark.parametrize(
+    ("after_value", "expected_cpl", "expected_quality"),
+    [
+        (-90, 10, "best"),
+        (-89, 11, "excellent"),
+        (-70, 30, "excellent"),
+        (-49, 51, "good"),
+        (-29, 71, "inaccuracy"),
+        (50, 150, "inaccuracy"),
+        (200, 300, "mistake"),
+        (201, 301, "blunder"),
+    ],
+)
+def test_analysis_assessment_uses_the_specified_cpl_bands(
+    client: TestClient,
+    after_value: int,
+    expected_cpl: int,
+    expected_quality: str,
+) -> None:
+    response = _analysis_post(
+        client,
+        "/tools/analysis/assess",
+        {
+            "fen": _START_FEN,
+            "move": "e2e4",
+            "lines": [
+                {
+                    "multipv": 1,
+                    "depth": 18,
+                    "score": {"kind": "cp", "value": 100},
+                    "pv": ["d2d4", "d7d5"],
+                }
+            ],
+            "after_lines": [
+                {
+                    "multipv": 1,
+                    "depth": 18,
+                    "score": {"kind": "cp", "value": after_value},
+                    "pv": ["e7e5"],
+                }
+            ],
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assessment = payload["assessment"]
+    assert assessment["cpl"] == expected_cpl
+    assert assessment["mate_loss"] is False
+    assert assessment["quality"] == expected_quality
+    assert assessment["best_move"]["san"] == "d4"
+    assert assessment["actual_move"]["san"] == "e4"
+    assert assessment["best_evaluation"] == {
+        "kind": "cp",
+        "value": 100,
+        "text": "+1.00",
+    }
+    assert assessment["actual_evaluation"]["value"] == -after_value
+    assert assessment["actual_move"]["fen"] == _AFTER_E4_FEN
+    assert assessment["terminal"] is None
+    assert assessment["is_forced"] is False
+
+
+def test_analysis_assessment_uses_the_black_movers_perspective(
+    client: TestClient,
+) -> None:
+    response = _analysis_post(
+        client,
+        "/tools/analysis/assess",
+        {
+            "fen": _BLACK_TO_MOVE_FEN,
+            "move": "e7e5",
+            "lines": [
+                {
+                    "multipv": 1,
+                    "depth": 18,
+                    "score": {"kind": "cp", "value": 100},
+                    "pv": ["e7e5", "g1f3"],
+                }
+            ],
+            "after_lines": [
+                {
+                    "multipv": 1,
+                    "depth": 18,
+                    "score": {"kind": "cp", "value": 150},
+                    "pv": ["g1f3"],
+                }
+            ],
+        },
+    )
+
+    assert response.status_code == 200
+    assessment = response.json()["assessment"]
+    assert assessment["cpl"] == 250
+    assert assessment["quality"] == "mistake"
+
+
+def test_analysis_assessment_requires_after_lines_for_a_nonterminal_move(
+    client: TestClient,
+) -> None:
+    response = _analysis_post(
+        client,
+        "/tools/analysis/assess",
+        {
+            "fen": _START_FEN,
+            "move": "e2e4",
+            "lines": [
+                {
+                    "multipv": 1,
+                    "depth": 18,
+                    "score": {"kind": "cp", "value": 100},
+                    "pv": ["e2e4"],
+                }
+            ],
+            "after_lines": [],
+        },
+    )
+
+    assert response.status_code == 400
+    assert response.json()["error"]["code"] == "invalid_candidate_line"
+
+
+def test_analysis_assessment_marks_a_forced_move_and_draw(
+    client: TestClient,
+) -> None:
+    response = _analysis_post(
+        client,
+        "/tools/analysis/assess",
+        {
+            "fen": _FORCED_CAPTURE_FEN,
+            "move": "a1b2",
+            "lines": [
+                {
+                    "multipv": 1,
+                    "depth": 18,
+                    "score": {"kind": "cp", "value": 0},
+                    "pv": ["a1b2"],
+                }
+            ],
+            "after_lines": [],
+        },
+    )
+
+    assert response.status_code == 200
+    assessment = response.json()["assessment"]
+    assert assessment["quality"] == "forced"
+    assert assessment["is_forced"] is True
+    assert assessment["cpl"] == 0
+    assert assessment["mate_loss"] is False
+    assert assessment["actual_evaluation"] == {
+        "kind": "cp",
+        "value": 0,
+        "text": "0.00",
+    }
+    assert assessment["terminal"] == {
+        "kind": "insufficient_material",
+        "winner": None,
+    }
+
+
+def test_analysis_assessment_is_mate_aware(
+    client: TestClient,
+) -> None:
+    lost_mate = _analysis_post(
+        client,
+        "/tools/analysis/assess",
+        {
+            "fen": _START_FEN,
+            "move": "e2e4",
+            "lines": [
+                {
+                    "multipv": 1,
+                    "depth": 20,
+                    "score": {"kind": "cp", "value": 0},
+                    "pv": ["d2d4"],
+                }
+            ],
+            "after_lines": [
+                {
+                    "multipv": 1,
+                    "depth": 20,
+                    "score": {"kind": "mate", "value": 2},
+                    "pv": ["e7e5"],
+                }
+            ],
+        },
+    )
+    missed_mate = _analysis_post(
+        client,
+        "/tools/analysis/assess",
+        {
+            "fen": _START_FEN,
+            "move": "e2e4",
+            "lines": [
+                {
+                    "multipv": 1,
+                    "depth": 20,
+                    "score": {"kind": "mate", "value": 3},
+                    "pv": ["d2d4"],
+                }
+            ],
+            "after_lines": [
+                {
+                    "multipv": 1,
+                    "depth": 20,
+                    "score": {"kind": "cp", "value": 0},
+                    "pv": ["e7e5"],
+                }
+            ],
+        },
+    )
+
+    assert lost_mate.status_code == 200
+    lost = lost_mate.json()["assessment"]
+    assert lost["actual_evaluation"]["text"] == "-M2"
+    assert lost["quality"] == "blunder"
+    assert lost["cpl"] is None
+    assert lost["mate_loss"] is True
+
+    assert missed_mate.status_code == 200
+    missed = missed_mate.json()["assessment"]
+    assert missed["best_evaluation"]["text"] == "+M3"
+    assert missed["quality"] == "blunder"
+    assert missed["cpl"] is None
+    assert missed["mate_loss"] is True
+
+
+def test_analysis_assessment_recognizes_a_checkmating_move(
+    client: TestClient,
+) -> None:
+    fen = "rnbqkbnr/pppp1ppp/8/4p3/6P1/5P2/PPPPP2P/RNBQKBNR b KQkq g3 0 2"
+    response = _analysis_post(
+        client,
+        "/tools/analysis/assess",
+        {
+            "fen": fen,
+            "move": "d8h4",
+            "lines": [
+                {
+                    "multipv": 1,
+                    "depth": 18,
+                    "score": {"kind": "cp", "value": 500},
+                    "pv": ["d8h4"],
+                }
+            ],
+            "after_lines": [],
+        },
+    )
+
+    assert response.status_code == 200
+    assessment = response.json()["assessment"]
+    assert assessment["quality"] == "best"
+    assert assessment["cpl"] == 0
+    assert assessment["mate_loss"] is False
+    assert assessment["actual_evaluation"] is None
+    assert assessment["terminal"] == {
+        "kind": "checkmate",
+        "winner": "black",
+    }
+
+
+def test_analysis_assessment_rejects_an_illegal_move(
+    client: TestClient,
+) -> None:
+    response = _analysis_post(
+        client,
+        "/tools/analysis/assess",
+        {
+            "fen": _START_FEN,
+            "move": "e2e5",
+            "lines": [
+                {
+                    "multipv": 1,
+                    "depth": 18,
+                    "score": {"kind": "cp", "value": 0},
+                    "pv": ["e2e4"],
+                }
+            ],
+            "after_lines": [],
+        },
+    )
+
+    assert response.status_code == 400
+    assert response.json()["error"]["code"] == "invalid_move"
 
 
 def test_analysis_lines_reject_unbounded_scores(client: TestClient) -> None:

@@ -10,8 +10,10 @@ from pydantic import BaseModel, Field
 from chessfen.analysis import (
     AnalysisInputError,
     CandidateInput,
+    CandidateLine,
     ScoreKind,
     analyze_position,
+    assess_position,
     candidate_lines,
 )
 from chessfen.templating import render_response
@@ -19,8 +21,12 @@ from chessfen.templating import render_response
 router = APIRouter(prefix="/tools")
 
 
-class PositionRequest(BaseModel):
+class FenRequest(BaseModel):
     fen: str = Field(max_length=200)
+
+
+class PositionRequest(FenRequest):
+    move: str | None = Field(default=None, max_length=30)
 
 
 class ScoreRequest(BaseModel):
@@ -35,8 +41,38 @@ class LineRequest(BaseModel):
     pv: list[str] = Field(min_length=1, max_length=64)
 
 
-class LinesRequest(PositionRequest):
+class LinesRequest(FenRequest):
     lines: list[LineRequest] = Field(min_length=1, max_length=5)
+
+
+class AssessmentRequest(LinesRequest):
+    move: str = Field(min_length=1, max_length=30)
+    after_lines: list[LineRequest] = Field(default_factory=list, max_length=5)
+
+
+def _candidate_inputs(lines: list[LineRequest]) -> list[CandidateInput]:
+    return [
+        CandidateInput(
+            multipv=line.multipv,
+            depth=line.depth,
+            score_kind=line.score.kind,
+            score_value=line.score.value,
+            pv=tuple(line.pv),
+        )
+        for line in lines
+    ]
+
+
+def _lines_payload(lines: tuple[CandidateLine, ...]) -> list[dict[str, object]]:
+    return [
+        {
+            "rank": line.rank,
+            "depth": line.depth,
+            "evaluation": asdict(line.evaluation),
+            "moves": [asdict(move) for move in line.moves],
+        }
+        for line in lines
+    ]
 
 ANALYSIS_CSP = (
     "default-src 'self'; "
@@ -106,7 +142,7 @@ def analysis_position(
     if not _is_same_origin(request):
         return analysis_error("invalid_origin", status_code=403)
     try:
-        position = analyze_position(payload.fen)
+        position = analyze_position(payload.fen, payload.move)
     except AnalysisInputError as exc:
         return analysis_error(exc.code)
     return _json_response(
@@ -117,6 +153,11 @@ def analysis_position(
             "terminal": (
                 asdict(position.terminal) if position.terminal is not None else None
             ),
+            "actual_move": (
+                asdict(position.actual_move)
+                if position.actual_move is not None
+                else None
+            ),
             "candidate_lines": [],
         }
     )
@@ -126,30 +167,33 @@ def analysis_position(
 def analysis_lines(request: Request, payload: LinesRequest) -> JSONResponse:
     if not _is_same_origin(request):
         return analysis_error("invalid_origin", status_code=403)
-    candidates = [
-        CandidateInput(
-            multipv=line.multipv,
-            depth=line.depth,
-            score_kind=line.score.kind,
-            score_value=line.score.value,
-            pv=tuple(line.pv),
-        )
-        for line in payload.lines
-    ]
     try:
-        lines = candidate_lines(payload.fen, candidates)
+        lines = candidate_lines(
+            payload.fen, _candidate_inputs(payload.lines)
+        )
+    except AnalysisInputError as exc:
+        return analysis_error(exc.code)
+    return _json_response({"lines": _lines_payload(lines)})
+
+
+@router.post("/analysis/assess")
+def analysis_assess(
+    request: Request, payload: AssessmentRequest
+) -> JSONResponse:
+    if not _is_same_origin(request):
+        return analysis_error("invalid_origin", status_code=403)
+    try:
+        lines, assessment = assess_position(
+            payload.fen,
+            payload.move,
+            _candidate_inputs(payload.lines),
+            _candidate_inputs(payload.after_lines),
+        )
     except AnalysisInputError as exc:
         return analysis_error(exc.code)
     return _json_response(
         {
-            "lines": [
-                {
-                    "rank": line.rank,
-                    "depth": line.depth,
-                    "evaluation": asdict(line.evaluation),
-                    "moves": [asdict(move) for move in line.moves],
-                }
-                for line in lines
-            ]
+            "lines": _lines_payload(lines),
+            "assessment": asdict(assessment),
         }
     )

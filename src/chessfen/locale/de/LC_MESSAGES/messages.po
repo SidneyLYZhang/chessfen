@@ -823,6 +823,75 @@ msgstr "Eine positive Bewertung begünstigt Weiß, eine negative Schwarz."
 msgid "Engine details"
 msgstr "Engine-Details"
 
+msgid "Actual move"
+msgstr "Tatsächlicher Zug"
+
+msgid "Best move"
+msgstr "Bester Zug"
+
+msgid "Move quality"
+msgstr "Zugqualität"
+
+msgid "Centipawn loss"
+msgstr "Centipawn-Verlust"
+
+msgid "Mate loss"
+msgstr "Mattverlust"
+
+msgid "Yes"
+msgstr "Ja"
+
+msgid "After Position"
+msgstr "Stellung nach dem Zug"
+
+msgid "Move assessment"
+msgstr "Zugbewertung"
+
+msgid "Candidate Line playback"
+msgstr "Kandidatenlinien-Wiedergabe"
+
+msgid "Previous"
+msgstr "Zurück"
+
+msgid "Next"
+msgstr "Weiter"
+
+msgid "Return to original Position"
+msgstr "Zur ursprünglichen Stellung"
+
+msgid "That move is not legal in this Position."
+msgstr "Dieser Zug ist in dieser Stellung nicht legal."
+
+msgid "Optional SAN or UCI, for example Nf3 or g1f3"
+msgstr "Optional SAN oder UCI, zum Beispiel Nf3 oder g1f3"
+
+msgid "Optional. Supply the move played from this Position to assess it."
+msgstr "Optional. Gib den in dieser Stellung gespielten Zug ein, um ihn zu bewerten."
+
+msgid "Analyzing the actual move…"
+msgstr "Der tatsächliche Zug wird analysiert…"
+
+msgid "Best"
+msgstr "Bester Zug"
+
+msgid "Excellent"
+msgstr "Ausgezeichnet"
+
+msgid "Good"
+msgstr "Gut"
+
+msgid "Inaccuracy"
+msgstr "Ungenauigkeit"
+
+msgid "Mistake"
+msgstr "Fehler"
+
+msgid "Blunder"
+msgstr "Patzer"
+
+msgid "Forced"
+msgstr "Erzwungen"
+
 msgid "Use a Full FEN with six fields. Placement only is not enough for analysis."
 msgstr "Verwende eine Full FEN mit sechs Feldern. Nur die Brettaufstellung reicht für eine Analyse nicht aus."
 

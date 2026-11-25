@@ -23,11 +23,13 @@
   data-analysis-root
   data-position-endpoint="/tools/analysis/position"
   data-lines-endpoint="/tools/analysis/lines"
+  data-assess-endpoint="/tools/analysis/assess"
   data-engine-url="/static/vendor/stockfish/stockfish-19-lite-single.js"
   data-label-ready="{% trans %}Enter a Full FEN to begin.{% endtrans %}"
   data-label-validating="{% trans %}Validating Position…{% endtrans %}"
   data-label-preparing="{% trans %}Preparing Stockfish…{% endtrans %}"
   data-label-analyzing="{% trans %}Analyzing…{% endtrans %}"
+  data-label-analyzing-move="{% trans %}Analyzing the actual move…{% endtrans %}"
   data-label-stopping="{% trans %}Stopping…{% endtrans %}"
   data-label-restarting="{% trans %}Restarting…{% endtrans %}"
   data-label-complete="{% trans %}Analysis complete.{% endtrans %}"
@@ -37,6 +39,7 @@
   data-error-invalid-fen="{% trans %}Invalid FEN.{% endtrans %}"
   data-error-illegal-position="{% trans %}The FEN does not describe a legal Position.{% endtrans %}"
   data-error-invalid-origin="{% trans %}This analysis request was rejected. Reload the page and try again.{% endtrans %}"
+  data-error-invalid-move="{% trans %}That move is not legal in this Position.{% endtrans %}"
   data-error-invalid-request="{% trans %}The analysis request was invalid. Check the Full FEN and try again.{% endtrans %}"
   data-error-request-too-large="{% trans %}The analysis request is too large.{% endtrans %}"
   data-error-invalid-candidate-line="{% trans %}Stockfish returned a Candidate Line that does not match this Position. Restart the analysis.{% endtrans %}"
@@ -51,6 +54,16 @@
   data-terminal-stalemate="{% trans %}Draw by stalemate.{% endtrans %}"
   data-terminal-insufficient-material="{% trans %}Draw by insufficient material.{% endtrans %}"
   data-terminal-seventyfive-moves="{% trans %}Draw by the seventy-five-move rule.{% endtrans %}"
+  data-quality-best="{% trans %}Best{% endtrans %}"
+  data-quality-excellent="{% trans %}Excellent{% endtrans %}"
+  data-quality-good="{% trans %}Good{% endtrans %}"
+  data-quality-inaccuracy="{% trans %}Inaccuracy{% endtrans %}"
+  data-quality-mistake="{% trans %}Mistake{% endtrans %}"
+  data-quality-blunder="{% trans %}Blunder{% endtrans %}"
+  data-quality-forced="{% trans %}Forced{% endtrans %}"
+  data-label-centipawn-loss="{% trans %}Centipawn loss{% endtrans %}"
+  data-label-mate-loss="{% trans %}Mate loss{% endtrans %}"
+  data-label-yes="{% trans %}Yes{% endtrans %}"
 >
   <section class="tool-panel">
     <p class="eyebrow" aria-hidden="true">01 / SOURCE</p>
@@ -61,6 +74,13 @@
         <label class="field-label" for="analysis-fen">{% trans %}Full FEN{% endtrans %}</label>
         <textarea class="text-area code-input fen-input" id="analysis-fen" name="fen" required spellcheck="false" autocomplete="off"></textarea>
         <p class="field-hint">{% trans %}Placement only is not enough for analysis.{% endtrans %}</p>
+      </div>
+
+      <div class="field">
+        <label class="field-label" for="analysis-move">{% trans %}Actual move{% endtrans %}</label>
+        <input class="text-input code-input" id="analysis-move" data-analysis-move-input autocomplete="off" spellcheck="false" placeholder="{% trans %}Optional SAN or UCI, for example Nf3 or g1f3{% endtrans %}">
+        <p class="field-hint">{% trans %}Optional. Supply the move played from this Position to assess it.{% endtrans %}</p>
+        <p class="form-error" data-analysis-move-error role="alert" hidden></p>
       </div>
 
       <p class="form-error" data-analysis-error role="alert" hidden></p>
@@ -109,9 +129,31 @@
         <div><dt>{% trans %}Current root move{% endtrans %}</dt><dd data-analysis-root-move></dd></div>
       </dl>
 
+      <section class="analysis-assessment" data-analysis-assessment hidden aria-labelledby="assessment-title">
+        <h3 id="assessment-title">{% trans %}Move assessment{% endtrans %}</h3>
+        <dl class="analysis-assessment-facts">
+          <div><dt>{% trans %}Actual move{% endtrans %}</dt><dd data-assessment-actual></dd></div>
+          <div><dt>{% trans %}Best move{% endtrans %}</dt><dd data-assessment-best></dd></div>
+          <div><dt>{% trans %}Move quality{% endtrans %}</dt><dd data-assessment-quality></dd></div>
+          <div><dt data-assessment-loss-label>{% trans %}Centipawn loss{% endtrans %}</dt><dd data-assessment-cpl></dd></div>
+        </dl>
+        <p class="analysis-terminal" data-assessment-outcome hidden></p>
+        <p class="field-label">{% trans %}After Position{% endtrans %}</p>
+        <pre class="analysis-after-fen" data-assessment-after-fen></pre>
+      </section>
+
       <section class="analysis-lines" data-analysis-lines-section hidden aria-labelledby="candidate-lines-title">
         <h3 id="candidate-lines-title">{% trans %}Candidate Lines{% endtrans %}</h3>
         <ol class="candidate-lines" data-analysis-lines></ol>
+        <div class="analysis-playback" data-analysis-playback hidden>
+          <p class="field-label">{% trans %}Candidate Line playback{% endtrans %}</p>
+          <p class="analysis-playback-status" data-playback-status role="status" aria-live="polite"></p>
+          <div class="form-actions">
+            <button class="ghost-button small-button" type="button" data-playback-prev>{% trans %}Previous{% endtrans %}</button>
+            <button class="ghost-button small-button" type="button" data-playback-next>{% trans %}Next{% endtrans %}</button>
+            <button class="ghost-button small-button" type="button" data-playback-reset>{% trans %}Return to original Position{% endtrans %}</button>
+          </div>
+        </div>
       </section>
     </div>
   </section>

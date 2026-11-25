@@ -823,6 +823,75 @@ msgstr "正数表示白方优势，负数表示黑方优势。"
 msgid "Engine details"
 msgstr "引擎详情"
 
+msgid "Actual move"
+msgstr "实际走法"
+
+msgid "Best move"
+msgstr "最佳走法"
+
+msgid "Move quality"
+msgstr "走法质量"
+
+msgid "Centipawn loss"
+msgstr "厘兵损失"
+
+msgid "Mate loss"
+msgstr "将杀损失"
+
+msgid "Yes"
+msgstr "是"
+
+msgid "After Position"
+msgstr "走法后的局面"
+
+msgid "Move assessment"
+msgstr "走法评估"
+
+msgid "Candidate Line playback"
+msgstr "候选变化回放"
+
+msgid "Previous"
+msgstr "上一步"
+
+msgid "Next"
+msgstr "下一步"
+
+msgid "Return to original Position"
+msgstr "返回原局面"
+
+msgid "That move is not legal in this Position."
+msgstr "该走法在此局面中不合法。"
+
+msgid "Optional SAN or UCI, for example Nf3 or g1f3"
+msgstr "可选 SAN 或 UCI，例如 Nf3 或 g1f3"
+
+msgid "Optional. Supply the move played from this Position to assess it."
+msgstr "可选。输入在此局面实际走的棋以进行评估。"
+
+msgid "Analyzing the actual move…"
+msgstr "正在分析实际走法…"
+
+msgid "Best"
+msgstr "最佳"
+
+msgid "Excellent"
+msgstr "优秀"
+
+msgid "Good"
+msgstr "良好"
+
+msgid "Inaccuracy"
+msgstr "不精确"
+
+msgid "Mistake"
+msgstr "错误"
+
+msgid "Blunder"
+msgstr "严重失误"
+
+msgid "Forced"
+msgstr "唯一着法"
+
 msgid "Use a Full FEN with six fields. Placement only is not enough for analysis."
 msgstr "请使用包含六个字段的 Full FEN。仅棋盘布局不足以进行分析。"
 

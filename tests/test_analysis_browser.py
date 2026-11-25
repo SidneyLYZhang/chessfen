@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 import socket
 import threading
 import time
@@ -16,7 +17,12 @@ from chessfen.app import create_app
 from chessfen.settings import Settings
 
 _START_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+_AFTER_E4_FEN = "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1"
 _CHECKMATE_FEN = "rnb1kbnr/pppp1ppp/8/4p3/6Pq/5P2/PPPPP2P/RNBQKBNR w KQkq - 1 3"
+_FOOLS_MATE_SETUP_FEN = (
+    "rnbqkbnr/pppp1ppp/8/4p3/6P1/5P2/PPPPP2P/RNBQKBNR b KQkq g3 0 2"
+)
+_FORCED_CAPTURE_FEN = "7k/8/8/8/8/8/1q6/K7 w - - 0 1"
 
 
 @pytest.fixture(scope="module")
@@ -159,6 +165,72 @@ def test_browser_names_the_mating_side_for_a_mate_evaluation(
         page.unroute("**/tools/analysis/lines", mate_lines)
 
 
+def test_browser_labels_a_mate_loss_without_a_fake_centipawn_value(
+    browser_page: Page, live_analysis_url: str
+) -> None:
+    page = browser_page
+    page.goto(f"{live_analysis_url}/tools/analysis")
+
+    def mate_loss_assessment(route) -> None:
+        line = {
+            "rank": 1,
+            "depth": 18,
+            "evaluation": {"kind": "cp", "value": 0, "text": "0.00"},
+            "moves": [{"uci": "e2e4", "san": "e4", "fen": _AFTER_E4_FEN}],
+        }
+        route.fulfill(
+            status=200,
+            content_type="application/json",
+            body=json.dumps(
+                {
+                    "lines": [line],
+                    "assessment": {
+                        "quality": "blunder",
+                        "cpl": None,
+                        "mate_loss": True,
+                        "best_move": {
+                            "uci": "d2d4",
+                            "san": "d4",
+                            "fen": _AFTER_E4_FEN,
+                        },
+                        "actual_move": {
+                            "uci": "e2e4",
+                            "san": "e4",
+                            "fen": _AFTER_E4_FEN,
+                        },
+                        "best_evaluation": {
+                            "kind": "cp",
+                            "value": 0,
+                            "text": "0.00",
+                        },
+                        "actual_evaluation": {
+                            "kind": "mate",
+                            "value": -2,
+                            "text": "-M2",
+                        },
+                        "is_forced": False,
+                        "terminal": None,
+                    },
+                }
+            ),
+        )
+
+    page.route("**/tools/analysis/assess", mate_loss_assessment)
+    try:
+        page.locator("#analysis-fen").fill(_START_FEN)
+        page.locator("#analysis-move").fill("e4")
+        page.get_by_role("button", name="Start analysis").click()
+        expect(page.locator("[data-analysis-status]")).to_contain_text(
+            "Analysis complete", timeout=30_000
+        )
+        expect(page.locator("[data-assessment-loss-label]")).to_have_text(
+            "Mate loss"
+        )
+        expect(page.locator("[data-assessment-cpl]")).to_have_text("Yes")
+    finally:
+        page.unroute("**/tools/analysis/assess", mate_loss_assessment)
+
+
 def test_browser_reports_an_engine_start_failure(
     browser_page: Page, live_analysis_url: str
 ) -> None:
@@ -181,6 +253,148 @@ def test_browser_reports_an_engine_start_failure(
         )
     finally:
         page.unroute("**/stockfish-19-lite-single.js", fail_engine)
+
+
+def test_browser_assesses_an_actual_move_and_shows_its_facts(
+    browser_page: Page, live_analysis_url: str
+) -> None:
+    page = browser_page
+    page.goto(f"{live_analysis_url}/tools/analysis")
+    page.locator("#analysis-fen").fill(_START_FEN)
+    page.locator("#analysis-move").fill("e4")
+    page.get_by_role("button", name="Start analysis").click()
+
+    expect(page.locator("[data-analysis-status]")).to_contain_text(
+        "Analysis complete", timeout=30_000
+    )
+    assessment = page.locator("[data-analysis-assessment]")
+    expect(assessment).to_be_visible()
+    expect(page.locator("[data-assessment-actual]")).to_have_text("e4 (e2e4)")
+    expect(page.locator("[data-assessment-best]")).not_to_be_empty()
+    expect(page.locator("[data-assessment-quality]")).not_to_be_empty()
+    expect(page.locator("[data-assessment-cpl]")).to_have_text(re.compile(r"^\d+$"))
+    expect(page.locator("[data-assessment-after-fen]")).to_have_text(
+        _AFTER_E4_FEN
+    )
+    expect(page.locator("[data-candidate-line]")).to_have_count(3)
+    expect(page.locator("[data-analysis-root-move]")).to_have_text("e2e4")
+    assert page.locator("#analysis-fen").input_value() == _START_FEN
+    assert page.locator("#analysis-move").input_value() == "e4"
+
+
+def test_browser_shows_terminal_outcome_for_an_actual_move(
+    browser_page: Page, live_analysis_url: str
+) -> None:
+    page = browser_page
+    page.goto(f"{live_analysis_url}/tools/analysis")
+    page.locator("#analysis-fen").fill(_FOOLS_MATE_SETUP_FEN)
+    page.locator("#analysis-move").fill("Qh4#")
+    page.get_by_role("button", name="Start analysis").click()
+
+    expect(page.locator("[data-analysis-status]")).to_contain_text(
+        "Analysis complete", timeout=30_000
+    )
+    expect(page.locator("[data-assessment-actual]")).to_have_text(
+        "Qh4# (d8h4)"
+    )
+    expect(page.locator("[data-assessment-quality]")).to_have_text("Best")
+    expect(page.locator("[data-assessment-outcome]")).to_have_text(
+        "Checkmate — Black wins."
+    )
+    expect(page.locator("[data-assessment-outcome]")).to_be_visible()
+
+
+def test_browser_marks_a_forced_actual_move(
+    browser_page: Page, live_analysis_url: str
+) -> None:
+    page = browser_page
+    page.goto(f"{live_analysis_url}/tools/analysis")
+    page.locator("#analysis-fen").fill(_FORCED_CAPTURE_FEN)
+    page.locator("#analysis-move").fill("Kxb2")
+    page.get_by_role("button", name="Start analysis").click()
+
+    expect(page.locator("[data-analysis-status]")).to_contain_text(
+        "Analysis complete", timeout=30_000
+    )
+    expect(page.locator("[data-assessment-quality]")).to_have_text("Forced")
+    expect(page.locator("[data-assessment-cpl]")).to_have_text("0")
+    expect(page.locator("[data-assessment-outcome]")).to_have_text(
+        "Draw by insufficient material."
+    )
+
+
+def test_browser_reports_an_illegal_actual_move_as_a_field_error(
+    browser_page: Page, live_analysis_url: str
+) -> None:
+    page = browser_page
+    page.goto(f"{live_analysis_url}/tools/analysis")
+    page.locator("#analysis-fen").fill(_START_FEN)
+    page.locator("#analysis-move").fill("e5")
+    page.get_by_role("button", name="Start analysis").click()
+
+    expect(page.locator("[data-analysis-move-error]")).to_have_text(
+        "That move is not legal in this Position."
+    )
+    expect(page.locator("[data-analysis-status]")).to_have_text(
+        "Enter a Full FEN to begin."
+    )
+    expect(page.locator("[data-analysis-result]")).to_be_hidden()
+
+
+def test_browser_steps_through_candidate_lines_without_mutating_input(
+    browser_page: Page, live_analysis_url: str
+) -> None:
+    page = browser_page
+    page.goto(f"{live_analysis_url}/tools/analysis")
+    page.locator("#analysis-fen").fill(_START_FEN)
+    page.get_by_role("button", name="Start analysis").click()
+    expect(page.locator("[data-analysis-status]")).to_contain_text(
+        "Analysis complete", timeout=30_000
+    )
+
+    board = page.locator("[data-analysis-board]")
+    original_board = board.get_attribute("src")
+    assert original_board is not None
+
+    page.locator("[data-candidate-line-button]").first.click()
+    playback = page.locator("[data-analysis-playback]")
+    expect(playback).to_be_visible()
+    expect(page.locator("[data-playback-status]")).to_contain_text("#1 · 1/")
+    expect(board).not_to_have_attribute("src", original_board)
+    first_board = board.get_attribute("src")
+
+    page.get_by_role("button", name="Next").click()
+    expect(page.locator("[data-playback-status]")).to_contain_text("#1 · 2/")
+    expect(board).not_to_have_attribute("src", first_board)
+
+    page.get_by_role("button", name="Previous").click()
+    expect(page.locator("[data-playback-status]")).to_contain_text("#1 · 1/")
+    expect(board).to_have_attribute("src", first_board)
+
+    expect(page.locator("[data-analysis-telemetry]")).to_be_hidden()
+    expect(page.locator(".analysis-summary")).to_be_hidden()
+
+    page.get_by_role("button", name="Return to original Position").click()
+    expect(page.locator("[data-playback-status]")).to_contain_text("#1 · 0/")
+    expect(board).to_have_attribute("src", original_board)
+    expect(page.locator("[data-analysis-telemetry]")).to_be_visible()
+    expect(page.locator(".analysis-summary")).to_be_visible()
+    assert page.locator("#analysis-fen").input_value() == _START_FEN
+
+    second_line = page.locator("[data-candidate-line-button]").nth(1)
+    second_line.click()
+    expect(second_line).to_have_attribute("aria-pressed", "true")
+    playback_status = page.locator("[data-playback-status]")
+    expect(playback_status).to_contain_text("#2 · 1/")
+    status_text = playback_status.inner_text()
+    steps_match = re.search(r"1/(\d+)", status_text)
+    assert steps_match is not None
+    total_steps = int(steps_match.group(1))
+    for step in range(2, total_steps + 1):
+        page.get_by_role("button", name="Next").click()
+        expect(playback_status).to_contain_text(f"#2 · {step}/{total_steps}")
+    expect(page.get_by_role("button", name="Next")).to_be_disabled()
+    expect(page.get_by_role("button", name="Return to original Position")).to_be_enabled()
 
 
 def test_browser_restart_during_search_does_not_reuse_the_old_job(

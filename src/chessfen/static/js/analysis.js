@@ -348,11 +348,13 @@ function initializeAnalysis() {
 
   const form = root.querySelector("[data-analysis-form]");
   const fenInput = root.querySelector("#analysis-fen");
+  const moveInput = root.querySelector("[data-analysis-move-input]");
   const startButton = root.querySelector("[data-analysis-start]");
   const cancelButton = root.querySelector("[data-analysis-cancel]");
   const restartButton = root.querySelector("[data-analysis-restart]");
   const statusElement = root.querySelector("[data-analysis-status]");
   const errorElement = root.querySelector("[data-analysis-error]");
+  const moveErrorElement = root.querySelector("[data-analysis-move-error]");
   const emptyState = root.querySelector("[data-analysis-empty]");
   const resultElement = root.querySelector("[data-analysis-result]");
   const boardImage = root.querySelector("[data-analysis-board]");
@@ -363,13 +365,35 @@ function initializeAnalysis() {
   const depthElement = root.querySelector("[data-analysis-depth]");
   const npsElement = root.querySelector("[data-analysis-nps]");
   const rootMoveElement = root.querySelector("[data-analysis-root-move]");
+  const assessmentSection = root.querySelector(
+    "[data-analysis-assessment]"
+  );
+  const assessmentActual = root.querySelector("[data-assessment-actual]");
+  const assessmentBest = root.querySelector("[data-assessment-best]");
+  const assessmentQuality = root.querySelector("[data-assessment-quality]");
+  const assessmentLossLabel = root.querySelector(
+    "[data-assessment-loss-label]"
+  );
+  const assessmentCpl = root.querySelector("[data-assessment-cpl]");
+  const assessmentOutcome = root.querySelector(
+    "[data-assessment-outcome]"
+  );
+  const assessmentAfterFen = root.querySelector(
+    "[data-assessment-after-fen]"
+  );
   const linesSection = root.querySelector("[data-analysis-lines-section]");
   const linesElement = root.querySelector("[data-analysis-lines]");
+  const playbackSection = root.querySelector("[data-analysis-playback]");
+  const playbackStatus = root.querySelector("[data-playback-status]");
+  const playbackPrevious = root.querySelector("[data-playback-prev]");
+  const playbackNext = root.querySelector("[data-playback-next]");
+  const playbackReset = root.querySelector("[data-playback-reset]");
 
   const messages = {
     validating: root.dataset.labelValidating,
     preparing: root.dataset.labelPreparing,
     analyzing: root.dataset.labelAnalyzing,
+    analyzingMove: root.dataset.labelAnalyzingMove,
     stopping: root.dataset.labelStopping,
     restarting: root.dataset.labelRestarting,
     complete: root.dataset.labelComplete,
@@ -380,6 +404,7 @@ function initializeAnalysis() {
       placement_only: root.dataset.errorPlacementOnly,
       invalid_fen: root.dataset.errorInvalidFen,
       illegal_position: root.dataset.errorIllegalPosition,
+      invalid_move: root.dataset.errorInvalidMove,
       invalid_origin: root.dataset.errorInvalidOrigin,
       invalid_request: root.dataset.errorInvalidRequest,
       request_too_large: root.dataset.errorRequestTooLarge,
@@ -402,12 +427,27 @@ function initializeAnalysis() {
       insufficient_material: root.dataset.terminalInsufficientMaterial,
       seventyfive_moves: root.dataset.terminalSeventyfiveMoves,
     },
+    qualities: {
+      best: root.dataset.qualityBest,
+      excellent: root.dataset.qualityExcellent,
+      good: root.dataset.qualityGood,
+      inaccuracy: root.dataset.qualityInaccuracy,
+      mistake: root.dataset.qualityMistake,
+      blunder: root.dataset.qualityBlunder,
+      forced: root.dataset.qualityForced,
+    },
+    centipawnLoss: root.dataset.labelCentipawnLoss,
+    mateLoss: root.dataset.labelMateLoss,
+    yes: root.dataset.labelYes,
   };
 
   const numberFormat = new Intl.NumberFormat(document.documentElement.lang);
   const engine = new EngineSupervisor(root.dataset.engineUrl, (info) => {
     if (root.dataset.analysisState === "preparing") {
       setStatus("analyzing");
+    }
+    if (root.dataset.analysisState !== "analyzing") {
+      return;
     }
     updateTelemetry(info);
   });
@@ -416,6 +456,13 @@ function initializeAnalysis() {
   let activeAbort = null;
   let activePosition = null;
   let busy = false;
+  let cancellationRequested = false;
+  let originalBoardUri = null;
+  let currentLines = [];
+  let selectedLineIndex = null;
+  let playbackStep = 0;
+  let playbackToken = 0;
+  const boardCache = new Map();
 
   function setStatus(kind) {
     statusElement.textContent = messages[kind] || "";
@@ -445,6 +492,21 @@ function initializeAnalysis() {
     errorElement.hidden = false;
   }
 
+  function clearMoveError() {
+    moveErrorElement.textContent = "";
+    moveErrorElement.hidden = true;
+  }
+
+  function showMoveError(text) {
+    moveErrorElement.textContent = text;
+    moveErrorElement.hidden = false;
+  }
+
+  function clearErrors() {
+    clearError();
+    clearMoveError();
+  }
+
   function setBusy(value) {
     busy = value;
     startButton.disabled = value;
@@ -455,6 +517,24 @@ function initializeAnalysis() {
     root.dataset.busy = value ? "true" : "false";
   }
 
+  function resetPlayback() {
+    playbackToken += 1;
+    currentLines = [];
+    selectedLineIndex = null;
+    playbackStep = 0;
+    playbackSection.hidden = true;
+    playbackStatus.textContent = "";
+    playbackPrevious.disabled = true;
+    playbackNext.disabled = true;
+    playbackReset.disabled = true;
+    delete resultElement.dataset.playback;
+    for (const button of linesElement.querySelectorAll(
+      "[data-candidate-line-button]"
+    )) {
+      button.setAttribute("aria-pressed", "false");
+    }
+  }
+
   function resetEngineDisplay() {
     evaluationElement.textContent = "";
     terminalElement.textContent = "";
@@ -463,26 +543,66 @@ function initializeAnalysis() {
     depthElement.textContent = "";
     npsElement.textContent = "";
     rootMoveElement.textContent = "";
+    assessmentSection.hidden = true;
+    assessmentActual.textContent = "";
+    assessmentBest.textContent = "";
+    assessmentQuality.textContent = "";
+    assessmentLossLabel.textContent = messages.centipawnLoss;
+    assessmentCpl.textContent = "";
+    assessmentOutcome.textContent = "";
+    assessmentOutcome.hidden = true;
+    assessmentAfterFen.textContent = "";
     linesElement.replaceChildren();
     linesSection.hidden = true;
+    resetPlayback();
+  }
+
+  function terminalText(terminal) {
+    if (!terminal) {
+      return "";
+    }
+    const terminalKey =
+      terminal.kind === "checkmate"
+        ? `checkmate:${terminal.winner}`
+        : terminal.kind;
+    return messages.terminals[terminalKey] || "";
   }
 
   function showPosition(position) {
     activePosition = position;
+    originalBoardUri = position.board_uri;
+    boardCache.clear();
+    boardCache.set(position.fen, position.board_uri);
     emptyState.hidden = true;
     resultElement.hidden = false;
     boardImage.src = position.board_uri;
     sideElement.textContent = messages.sides[position.side_to_move] || "";
     resetEngineDisplay();
     if (position.terminal) {
-      const terminalKey =
-        position.terminal.kind === "checkmate"
-          ? `checkmate:${position.terminal.winner}`
-          : position.terminal.kind;
-      terminalElement.textContent = messages.terminals[terminalKey] || "";
+      terminalElement.textContent = terminalText(position.terminal);
       terminalElement.hidden = false;
       setStatus("complete");
     }
+  }
+
+  function renderAssessment(assessment) {
+    assessmentSection.hidden = false;
+    assessmentActual.textContent =
+      `${assessment.actual_move.san} (${assessment.actual_move.uci})`;
+    assessmentBest.textContent =
+      `${assessment.best_move.san} (${assessment.best_move.uci})`;
+    assessmentQuality.textContent =
+      messages.qualities[assessment.quality] || assessment.quality;
+    if (assessment.mate_loss) {
+      assessmentLossLabel.textContent = messages.mateLoss;
+      assessmentCpl.textContent = messages.yes;
+    } else {
+      assessmentLossLabel.textContent = messages.centipawnLoss;
+      assessmentCpl.textContent = String(assessment.cpl);
+    }
+    assessmentAfterFen.textContent = assessment.actual_move.fen;
+    assessmentOutcome.textContent = terminalText(assessment.terminal);
+    assessmentOutcome.hidden = !assessment.terminal;
   }
 
   function evaluationText(evaluation) {
@@ -497,13 +617,22 @@ function initializeAnalysis() {
     if (lines.length === 0) {
       throw new EngineError("No Candidate Lines were returned.");
     }
+    resetPlayback();
+    currentLines = lines;
     evaluationElement.textContent = evaluationText(lines[0].evaluation);
-    for (const line of lines) {
+    for (const [index, line] of lines.entries()) {
       const item = document.createElement("li");
       item.className = "candidate-line";
       item.dataset.candidateLine = "";
 
-      const header = document.createElement("div");
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "candidate-line-button";
+      button.dataset.candidateLineButton = "";
+      button.dataset.lineIndex = String(index);
+      button.setAttribute("aria-pressed", "false");
+
+      const header = document.createElement("span");
       header.className = "candidate-line-header";
 
       const rank = document.createElement("span");
@@ -514,12 +643,13 @@ function initializeAnalysis() {
       evaluation.className = "candidate-line-evaluation";
       evaluation.textContent = line.evaluation.text;
 
-      const moves = document.createElement("p");
+      const moves = document.createElement("span");
       moves.className = "candidate-line-moves";
       moves.textContent = line.moves.map((move) => move.san).join(" ");
 
       header.append(rank, evaluation);
-      item.append(header, moves);
+      button.append(header, moves);
+      item.append(button);
       linesElement.append(item);
     }
     linesSection.hidden = false;
@@ -532,7 +662,78 @@ function initializeAnalysis() {
     telemetryElement.hidden = false;
   }
 
-  async function postJson(url, body, signal) {
+  async function showPlaybackBoard() {
+    const token = (playbackToken += 1);
+    if (selectedLineIndex === null) {
+      return;
+    }
+    if (playbackStep === 0) {
+      boardImage.src = originalBoardUri;
+      return;
+    }
+    const line = currentLines[selectedLineIndex];
+    const move = line.moves[playbackStep - 1];
+    const cached = boardCache.get(move.fen);
+    if (cached) {
+      boardImage.src = cached;
+      return;
+    }
+    try {
+      const position = await postJson(
+        root.dataset.positionEndpoint,
+        { fen: move.fen }
+      );
+      boardCache.set(move.fen, position.board_uri);
+      if (token === playbackToken) {
+        boardImage.src = position.board_uri;
+      }
+    } catch (error) {
+      if (token === playbackToken) {
+        showError(messages.network);
+      }
+    }
+  }
+
+  async function updatePlayback() {
+    if (selectedLineIndex === null) {
+      return;
+    }
+    const line = currentLines[selectedLineIndex];
+    const currentMove =
+      playbackStep > 0 ? line.moves[playbackStep - 1] : null;
+    playbackSection.hidden = false;
+    if (playbackStep > 0) {
+      resultElement.dataset.playback = "true";
+    } else {
+      delete resultElement.dataset.playback;
+    }
+    playbackStatus.textContent =
+      `#${line.rank} · ${playbackStep}/${line.moves.length}` +
+      (currentMove ? ` · ${currentMove.san}` : "");
+    playbackPrevious.disabled = playbackStep === 0;
+    playbackNext.disabled = playbackStep >= line.moves.length;
+    playbackReset.disabled = playbackStep === 0;
+    await showPlaybackBoard();
+  }
+
+  function selectLine(index) {
+    if (index < 0 || index >= currentLines.length) {
+      return;
+    }
+    selectedLineIndex = index;
+    playbackStep = 1;
+    for (const button of linesElement.querySelectorAll(
+      "[data-candidate-line-button]"
+    )) {
+      button.setAttribute(
+        "aria-pressed",
+        button.dataset.lineIndex === String(index) ? "true" : "false"
+      );
+    }
+    void updatePlayback();
+  }
+
+  async function postJson(url, body, signal = null) {
     let response;
     try {
       response = await fetch(url, {
@@ -562,24 +763,40 @@ function initializeAnalysis() {
     return payload;
   }
 
-  async function startRun(fen) {
+  function stopIfStale(runId) {
+    if (runId !== runSequence) {
+      return true;
+    }
+    if (cancellationRequested) {
+      setStatus("cancelled");
+      return true;
+    }
+    return false;
+  }
+
+  async function startRun(fen, actualMove) {
     const runId = (runSequence += 1);
+    cancellationRequested = false;
     if (activeAbort) {
       activeAbort.abort();
     }
     const controller = new AbortController();
     activeAbort = controller;
-    clearError();
+    clearErrors();
     setBusy(true);
     setStatus("validating");
 
     try {
+      const request = { fen };
+      if (actualMove) {
+        request.move = actualMove;
+      }
       const position = await postJson(
         root.dataset.positionEndpoint,
-        { fen },
+        request,
         controller.signal
       );
-      if (runId !== runSequence) {
+      if (stopIfStale(runId)) {
         return;
       }
       showPosition(position);
@@ -588,32 +805,72 @@ function initializeAnalysis() {
       }
 
       setStatus("preparing");
-      const result = await engine.analyze(position.fen);
-      if (runId !== runSequence) {
+      const beforeResult = await engine.analyze(position.fen);
+      if (stopIfStale(runId)) {
         return;
       }
-      if (result.cancelled) {
+      if (beforeResult.cancelled) {
         setStatus("cancelled");
         return;
       }
-      updateTelemetry(result);
+      updateTelemetry(beforeResult);
 
-      const normalized = await postJson(
-        root.dataset.linesEndpoint,
-        { fen: position.fen, lines: result.lines },
-        controller.signal
-      );
-      if (runId !== runSequence) {
-        return;
+      if (position.actual_move) {
+        let afterResult = null;
+        if (!position.actual_move.terminal) {
+          setStatus("analyzing-move");
+          afterResult = await engine.analyze(
+            position.actual_move.after_fen
+          );
+          if (stopIfStale(runId)) {
+            return;
+          }
+          if (afterResult.cancelled) {
+            setStatus("cancelled");
+            return;
+          }
+        }
+        const assessed = await postJson(
+          root.dataset.assessEndpoint,
+          {
+            fen: position.fen,
+            move: position.actual_move.uci,
+            lines: beforeResult.lines,
+            after_lines: afterResult ? afterResult.lines : [],
+          },
+          controller.signal
+        );
+        if (stopIfStale(runId)) {
+          return;
+        }
+        renderLines(assessed.lines);
+        renderAssessment(assessed.assessment);
+      } else {
+        const normalized = await postJson(
+          root.dataset.linesEndpoint,
+          { fen: position.fen, lines: beforeResult.lines },
+          controller.signal
+        );
+        if (stopIfStale(runId)) {
+          return;
+        }
+        renderLines(normalized.lines);
       }
-      renderLines(normalized.lines);
       setStatus("complete");
     } catch (error) {
       if (runId !== runSequence) {
         return;
       }
-      if (error.name === "AbortError") {
+      if (error.name === "AbortError" || cancellationRequested) {
         setStatus("cancelled");
+        return;
+      }
+      if (
+        error instanceof AnalysisRequestError &&
+        error.code === "invalid_move"
+      ) {
+        showMoveError(messages.errors.invalid_move);
+        setStatus("ready");
         return;
       }
       if (error instanceof AnalysisRequestError) {
@@ -635,6 +892,7 @@ function initializeAnalysis() {
     if (!busy) {
       return;
     }
+    cancellationRequested = true;
     setStatus("stopping");
     if (activeAbort) {
       activeAbort.abort();
@@ -653,6 +911,9 @@ function initializeAnalysis() {
       return;
     }
     const fen = activePosition.fen;
+    const actualMove = activePosition.actual_move
+      ? activePosition.actual_move.uci
+      : null;
     runSequence += 1;
     if (activeAbort) {
       activeAbort.abort();
@@ -665,7 +926,7 @@ function initializeAnalysis() {
         /* A failed old Worker is rebuilt by the new run. */
       }
     }
-    await startRun(fen);
+    await startRun(fen, actualMove);
   }
 
   form.addEventListener("submit", (event) => {
@@ -675,7 +936,7 @@ function initializeAnalysis() {
       fenInput.reportValidity();
       return;
     }
-    startRun(fen);
+    startRun(fen, moveInput.value.trim());
   });
 
   cancelButton.addEventListener("click", () => {
@@ -684,6 +945,42 @@ function initializeAnalysis() {
 
   restartButton.addEventListener("click", () => {
     restartCurrentRun();
+  });
+
+  linesElement.addEventListener("click", (event) => {
+    if (!(event.target instanceof Element)) {
+      return;
+    }
+    const button = event.target.closest("[data-candidate-line-button]");
+    if (!button) {
+      return;
+    }
+    selectLine(Number.parseInt(button.dataset.lineIndex || "", 10));
+  });
+
+  playbackPrevious.addEventListener("click", () => {
+    if (selectedLineIndex === null || playbackStep <= 0) {
+      return;
+    }
+    playbackStep -= 1;
+    void updatePlayback();
+  });
+
+  playbackNext.addEventListener("click", () => {
+    if (selectedLineIndex === null) {
+      return;
+    }
+    const line = currentLines[selectedLineIndex];
+    playbackStep = Math.min(playbackStep + 1, line.moves.length);
+    void updatePlayback();
+  });
+
+  playbackReset.addEventListener("click", () => {
+    if (selectedLineIndex === null) {
+      return;
+    }
+    playbackStep = 0;
+    void updatePlayback();
   });
 }
 
