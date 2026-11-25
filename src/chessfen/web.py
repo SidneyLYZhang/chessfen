@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import base64
 from urllib.parse import urlencode
 
 import chess
@@ -29,6 +28,8 @@ from chessfen.render import (
     RenderOptions,
     RenderOptionsError,
     RenderResult,
+    data_uri,
+    image_data_uri,
     parse_fen,
     parse_output_format,
     render_fen,
@@ -86,17 +87,6 @@ def _consume_request_quota(request: Request) -> bool:
 def _rate_limited_response(response: HTMLResponse) -> HTMLResponse:
     response.headers["Retry-After"] = "60"
     return response
-
-
-def _data_uri(media_type: str, payload: bytes) -> str:
-    return (
-        f"data:{media_type};base64,"
-        + base64.b64encode(payload).decode("ascii")
-    )
-
-
-def _image_data_uri(result: RenderResult) -> str:
-    return _data_uri(result.media_type, result.image_bytes)
 
 
 def _board_preview(fen: str) -> RenderResult:
@@ -205,11 +195,11 @@ def _render_action(
         return _render_page(request, form=form, error="invalid_fen", status_code=400)
     except RenderOptionsError as exc:
         return _render_page(request, form=form, error=exc.code, status_code=400)
-    data_uri = _image_data_uri(result)
+    image_uri = image_data_uri(result)
     return _render_page(
         request,
         form=form,
-        image_uri=data_uri,
+        image_uri=image_uri,
         warnings=_warning_labels(request, result.warnings),
         summary=_fen_summary(str(form["fen"])),
         result_meta={
@@ -432,7 +422,7 @@ def pgn_submit(
         form=form,
         games=summaries,
         result_fen=board.fen(),
-        board_uri=_image_data_uri(board_result),
+        board_uri=image_data_uri(board_result),
         move_rows=move_rows,
         selected_game=summaries[index],
         selected_ply=selected_ply,
@@ -519,7 +509,7 @@ def recognize_submit(
         if image.content_type and image.content_type.startswith("image/")
         else "image/png"
     )
-    preview_uri = _data_uri(media_type, raw)
+    preview_uri = data_uri(media_type, raw)
     try:
         result = request.app.state.recognizer.recognize(
             raw, side_to_move=side
@@ -536,7 +526,7 @@ def recognize_submit(
     board_uri: str | None = None
     try:
         board_result = _board_preview(result.placement)
-        board_uri = _image_data_uri(board_result)
+        board_uri = image_data_uri(board_result)
     except FenSyntaxError:
         board_uri = None
     return _recognize_page(

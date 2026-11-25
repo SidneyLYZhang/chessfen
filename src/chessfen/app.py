@@ -14,12 +14,18 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from chessfen.admin import AdminRequired
 from chessfen.admin import router as admin_router
+from chessfen.analysis_web import analysis_error
+from chessfen.analysis_web import router as analysis_router
 from chessfen.api import API_NAMESPACE, api_error, build_api_key_middleware
 from chessfen.api import router as api_router
 from chessfen.db import build_engine
 from chessfen.detector import OnnxDetector
 from chessfen.i18n import LOCALE_COOKIE, SUPPORTED_LOCALES
-from chessfen.limits import IMAGE_MAX_BYTES, PGN_MAX_BYTES
+from chessfen.limits import (
+    ANALYSIS_REQUEST_MAX_BYTES,
+    IMAGE_MAX_BYTES,
+    PGN_MAX_BYTES,
+)
 from chessfen.pages import router as pages_router
 from chessfen.ratelimit import LoginRateLimiter, RequestRateLimiter
 from chessfen.recognition import Recognizer
@@ -32,6 +38,7 @@ _ONE_YEAR_SECONDS = 60 * 60 * 24 * 365
 _STATIC_DIR = Path(__file__).parent / "static"
 mimetypes.add_type("font/woff2", ".woff2")
 mimetypes.add_type("image/vnd.microsoft.icon", ".ico")
+mimetypes.add_type("application/wasm", ".wasm")
 _UPLOAD_OVERHEAD = 64 * 1024
 _UPLOAD_LIMITS: dict[str, tuple[int, str]] = {
     "/tools/recognize": (IMAGE_MAX_BYTES + _UPLOAD_OVERHEAD, "image_too_large"),
@@ -63,6 +70,21 @@ async def upload_size_guard(request: Request, call_next):
     return await call_next(request)
 
 
+async def analysis_body_guard(request: Request, call_next):
+    if request.method == "POST" and request.url.path.startswith(
+        "/tools/analysis/"
+    ):
+        chunks: list[bytes] = []
+        total = 0
+        async for chunk in request.stream():
+            total += len(chunk)
+            if total > ANALYSIS_REQUEST_MAX_BYTES:
+                return analysis_error("request_too_large", status_code=413)
+            chunks.append(chunk)
+        request._body = b"".join(chunks)
+    return await call_next(request)
+
+
 def create_app(settings: Settings | None = None) -> FastAPI:
     resolved = settings or get_settings()
     if resolved.admin_password is not None and resolved.secret_key is None:
@@ -88,11 +110,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
     app.mount("/static", StaticFiles(directory=_STATIC_DIR), name="static")
     app.include_router(admin_router)
+    app.include_router(analysis_router)
     app.include_router(api_router)
     app.include_router(tools_router)
     app.include_router(pages_router)
     app.middleware("http")(build_api_key_middleware(app.state.session_factory))
     app.middleware("http")(upload_size_guard)
+    app.middleware("http")(analysis_body_guard)
 
     @app.exception_handler(AdminRequired)
     async def _admin_required(
@@ -106,6 +130,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     ) -> JSONResponse:
         if request.url.path.startswith(API_NAMESPACE):
             return api_error("invalid_request")
+        if request.url.path.startswith("/tools/analysis/"):
+            return analysis_error("invalid_request", status_code=422)
         return JSONResponse({"detail": "Invalid request."}, status_code=422)
 
     @app.exception_handler(StarletteHTTPException)

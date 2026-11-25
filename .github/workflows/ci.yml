@@ -38,6 +38,8 @@ jobs:
           echo "a8e78afa8e00cd7ee39a941f888327bd85a12c3cf5c2140a4fa882ea3f7abff7  models/yolo26m-finetuned.onnx" | sha256sum -c -
       - name: Install dependencies
         run: uv sync --locked
+      - name: Install browser test runtime
+        run: uv run playwright install --with-deps chromium
       - name: Run tests
         run: uv run pytest -q
       - name: Typecheck
@@ -79,16 +81,28 @@ jobs:
           set -euo pipefail
           test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8000/)" = "200"
           test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8000/admin/login)" = "200"
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8000/tools/analysis)" = "200"
+          curl -sI http://127.0.0.1:8000/tools/analysis \
+            | tr -d '\r' \
+            | grep -qi "content-security-policy:.*worker-src 'self'"
           test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8000/api/v1/me)" = "401"
           for asset in \
             /static/css/app.css \
             /static/js/app.js \
+            /static/js/analysis.js \
             /static/brand/mark.svg \
             /static/brand/favicon.svg \
             /static/brand/icon-512.png \
-            /static/fonts/space-grotesk-latin-variable.woff2; do
+            /static/fonts/space-grotesk-latin-variable.woff2 \
+            /static/vendor/stockfish/stockfish-19-lite-single.js \
+            /static/vendor/stockfish/stockfish-19-lite-single.wasm \
+            /static/vendor/stockfish/Copying.txt \
+            /static/vendor/stockfish/PROVENANCE.txt; do
             test "$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:8000$asset")" = "200"
           done
+          curl -sI http://127.0.0.1:8000/static/vendor/stockfish/stockfish-19-lite-single.wasm \
+            | tr -d '\r' \
+            | grep -qi '^content-type: application/wasm$'
           test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8000/static/css/legacy.css)" = "404"
           docker exec chessfen-ci test -s /app/models/yolo26m-finetuned.onnx
 

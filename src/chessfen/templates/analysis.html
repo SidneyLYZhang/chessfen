@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+
+{% block title %}ChessFEN · {% trans %}Position analysis{% endtrans %}{% endblock %}
+
+{% block description %}{% trans %}Analyze a legal Full FEN with Stockfish running in your browser.{% endtrans %}{% endblock %}
+
+{% block content %}
+<header class="tool-header">
+  <div>
+    <p class="eyebrow" aria-hidden="true">WORKSPACE / POSITION ANALYSIS</p>
+    <h1>{% trans %}Position analysis{% endtrans %}</h1>
+    <p class="tool-lead">{% trans %}Analyze a legal Full FEN locally in your browser. Stockfish runs on your device; no chess engine runs on the server.{% endtrans %}</p>
+    <p class="field-hint">{% trans %}FEN alone does not identify a previous Ply.{% endtrans %}</p>
+  </div>
+</header>
+
+<noscript>
+  <p class="form-error">{% trans %}Position analysis needs JavaScript because Stockfish runs in your browser.{% endtrans %}</p>
+</noscript>
+
+<div
+  class="workspace-grid analysis-workspace"
+  data-analysis-root
+  data-position-endpoint="/tools/analysis/position"
+  data-lines-endpoint="/tools/analysis/lines"
+  data-engine-url="/static/vendor/stockfish/stockfish-19-lite-single.js"
+  data-label-ready="{% trans %}Enter a Full FEN to begin.{% endtrans %}"
+  data-label-validating="{% trans %}Validating Position…{% endtrans %}"
+  data-label-preparing="{% trans %}Preparing Stockfish…{% endtrans %}"
+  data-label-analyzing="{% trans %}Analyzing…{% endtrans %}"
+  data-label-stopping="{% trans %}Stopping…{% endtrans %}"
+  data-label-restarting="{% trans %}Restarting…{% endtrans %}"
+  data-label-complete="{% trans %}Analysis complete.{% endtrans %}"
+  data-label-cancelled="{% trans %}Analysis cancelled.{% endtrans %}"
+  data-label-stopped="{% trans %}Analysis stopped.{% endtrans %}"
+  data-error-placement-only="{% trans %}Use a Full FEN with six fields. Placement only is not enough for analysis.{% endtrans %}"
+  data-error-invalid-fen="{% trans %}Invalid FEN.{% endtrans %}"
+  data-error-illegal-position="{% trans %}The FEN does not describe a legal Position.{% endtrans %}"
+  data-error-invalid-origin="{% trans %}This analysis request was rejected. Reload the page and try again.{% endtrans %}"
+  data-error-invalid-request="{% trans %}The analysis request was invalid. Check the Full FEN and try again.{% endtrans %}"
+  data-error-request-too-large="{% trans %}The analysis request is too large.{% endtrans %}"
+  data-error-invalid-candidate-line="{% trans %}Stockfish returned a Candidate Line that does not match this Position. Restart the analysis.{% endtrans %}"
+  data-error-network="{% trans %}Could not reach the local analysis service. Try again.{% endtrans %}"
+  data-error-engine="{% trans %}Stockfish could not start or stopped unexpectedly.{% endtrans %}"
+  data-side-white="{% trans %}White{% endtrans %}"
+  data-side-black="{% trans %}Black{% endtrans %}"
+  data-mate-white="{% trans %}White has a forced mate.{% endtrans %}"
+  data-mate-black="{% trans %}Black has a forced mate.{% endtrans %}"
+  data-terminal-checkmate-white="{% trans %}Checkmate — White wins.{% endtrans %}"
+  data-terminal-checkmate-black="{% trans %}Checkmate — Black wins.{% endtrans %}"
+  data-terminal-stalemate="{% trans %}Draw by stalemate.{% endtrans %}"
+  data-terminal-insufficient-material="{% trans %}Draw by insufficient material.{% endtrans %}"
+  data-terminal-seventyfive-moves="{% trans %}Draw by the seventy-five-move rule.{% endtrans %}"
+>
+  <section class="tool-panel">
+    <p class="eyebrow" aria-hidden="true">01 / SOURCE</p>
+    <h2>{% trans %}Full FEN{% endtrans %}</h2>
+
+    <form class="analysis-form" data-analysis-form>
+      <div class="field">
+        <label class="field-label" for="analysis-fen">{% trans %}Full FEN{% endtrans %}</label>
+        <textarea class="text-area code-input fen-input" id="analysis-fen" name="fen" required spellcheck="false" autocomplete="off"></textarea>
+        <p class="field-hint">{% trans %}Placement only is not enough for analysis.{% endtrans %}</p>
+      </div>
+
+      <p class="form-error" data-analysis-error role="alert" hidden></p>
+
+      <div class="form-actions">
+        <button class="primary-button" type="submit" data-analysis-start>{% trans %}Start analysis{% endtrans %}</button>
+        <button class="secondary-button" type="button" data-analysis-cancel disabled>{% trans %}Cancel{% endtrans %}</button>
+        <button class="ghost-button" type="button" data-analysis-restart disabled>{% trans %}Restart{% endtrans %}</button>
+      </div>
+
+      <p class="analysis-status" data-analysis-status role="status" aria-live="polite">{% trans %}Enter a Full FEN to begin.{% endtrans %}</p>
+    </form>
+  </section>
+
+  <section class="result-panel">
+    <div class="empty-state" data-analysis-empty>
+      <img src="/static/brand/mark-mono.svg" alt="" width="48" height="48">
+      <p class="empty-state-title">{% trans %}The board appears here.{% endtrans %}</p>
+      <p>{% trans %}Submit a Full FEN to analyze its Position.{% endtrans %}</p>
+    </div>
+
+    <div class="analysis-result" data-analysis-result hidden>
+      <div class="result-board analysis-board">
+        <img data-analysis-board alt="{% trans %}Analyzed Position{% endtrans %}" width="560" height="560">
+      </div>
+      <p class="eyebrow" aria-hidden="true">RESULT / POSITION</p>
+      <h2>{% trans %}Position analysis{% endtrans %}</h2>
+
+      <dl class="result-meta analysis-summary" aria-label="{% trans %}Analysis details{% endtrans %}">
+        <div>
+          <dt>{% trans %}Side to move{% endtrans %}</dt>
+          <dd data-analysis-side></dd>
+        </div>
+        <div>
+          <dt>{% trans %}Evaluation{% endtrans %}</dt>
+          <dd><span data-analysis-evaluation></span></dd>
+        </div>
+      </dl>
+      <p class="field-hint">{% trans %}Positive Evaluation favors White; negative favors Black.{% endtrans %}</p>
+
+      <p class="analysis-terminal" data-analysis-terminal hidden></p>
+
+      <dl class="analysis-telemetry" data-analysis-telemetry hidden aria-label="{% trans %}Engine details{% endtrans %}">
+        <div><dt>{% trans %}Depth{% endtrans %}</dt><dd data-analysis-depth></dd></div>
+        <div><dt>NPS</dt><dd data-analysis-nps></dd></div>
+        <div><dt>{% trans %}Current root move{% endtrans %}</dt><dd data-analysis-root-move></dd></div>
+      </dl>
+
+      <section class="analysis-lines" data-analysis-lines-section hidden aria-labelledby="candidate-lines-title">
+        <h3 id="candidate-lines-title">{% trans %}Candidate Lines{% endtrans %}</h3>
+        <ol class="candidate-lines" data-analysis-lines></ol>
+      </section>
+    </div>
+  </section>
+</div>
+{% endblock %}
+
+{% block body_scripts %}
+<script type="module" src="/static/js/analysis.js"></script>
+{% endblock %}

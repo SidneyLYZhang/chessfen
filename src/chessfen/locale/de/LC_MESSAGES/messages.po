@@ -741,3 +741,135 @@ msgstr "Verwalte die API-Schlüssel, die Zugriff auf die ChessFEN-API gewähren.
 
 msgid "Sign in to manage ChessFEN API keys."
 msgstr "Melde dich an, um ChessFEN-API-Schlüssel zu verwalten."
+
+msgid "Position analysis"
+msgstr "Stellungsanalyse"
+
+msgid "Analyze a legal Full FEN with Stockfish running in your browser."
+msgstr "Analysiere eine gültige Full FEN mit Stockfish im Browser."
+
+msgid "Analyze a legal Full FEN locally in your browser. Stockfish runs on your device; no chess engine runs on the server."
+msgstr "Analysiere eine gültige Full FEN lokal im Browser. Stockfish läuft auf deinem Gerät; auf dem Server läuft keine Schach-Engine."
+
+msgid "FEN alone does not identify a previous Ply."
+msgstr "Eine FEN allein bestimmt keinen vorherigen Ply."
+
+msgid "Placement only is not enough for analysis."
+msgstr "Nur die Brettaufstellung reicht für eine Analyse nicht aus."
+
+msgid "Position analysis needs JavaScript because Stockfish runs in your browser."
+msgstr "Die Stellungsanalyse benötigt JavaScript, weil Stockfish im Browser läuft."
+
+msgid "Start analysis"
+msgstr "Analyse starten"
+
+msgid "Cancel"
+msgstr "Abbrechen"
+
+msgid "Restart"
+msgstr "Neu starten"
+
+msgid "Enter a Full FEN to begin."
+msgstr "Gib eine Full FEN ein, um zu beginnen."
+
+msgid "Submit a Full FEN to analyze its Position."
+msgstr "Sende eine Full FEN, um die Stellung zu analysieren."
+
+msgid "Validating Position…"
+msgstr "Stellung wird geprüft…"
+
+msgid "Preparing Stockfish…"
+msgstr "Stockfish wird vorbereitet…"
+
+msgid "Analyzing…"
+msgstr "Analyse läuft…"
+
+msgid "Stopping…"
+msgstr "Wird gestoppt…"
+
+msgid "Restarting…"
+msgstr "Wird neu gestartet…"
+
+msgid "Analysis complete."
+msgstr "Analyse abgeschlossen."
+
+msgid "Analysis cancelled."
+msgstr "Analyse abgebrochen."
+
+msgid "Analysis stopped."
+msgstr "Analyse gestoppt."
+
+msgid "Open Analysis"
+msgstr "Analyse öffnen"
+
+msgid "The analysis request was invalid. Check the Full FEN and try again."
+msgstr "Die Analysenanfrage war ungültig. Prüfe die Full FEN und versuche es erneut."
+
+msgid "The analysis request is too large."
+msgstr "Die Analysenanfrage ist zu groß."
+
+msgid "White has a forced mate."
+msgstr "Weiß hat ein erzwungenes Matt."
+
+msgid "Black has a forced mate."
+msgstr "Schwarz hat ein erzwungenes Matt."
+
+msgid "Draw by the seventy-five-move rule."
+msgstr "Remis durch die 75-Züge-Regel."
+
+msgid "Positive Evaluation favors White; negative favors Black."
+msgstr "Eine positive Bewertung begünstigt Weiß, eine negative Schwarz."
+
+msgid "Engine details"
+msgstr "Engine-Details"
+
+msgid "Use a Full FEN with six fields. Placement only is not enough for analysis."
+msgstr "Verwende eine Full FEN mit sechs Feldern. Nur die Brettaufstellung reicht für eine Analyse nicht aus."
+
+msgid "Invalid FEN."
+msgstr "Ungültige FEN."
+
+msgid "The FEN does not describe a legal Position."
+msgstr "Die FEN beschreibt keine gültige Stellung."
+
+msgid "This analysis request was rejected. Reload the page and try again."
+msgstr "Die Analysenanfrage wurde abgelehnt. Lade die Seite neu und versuche es erneut."
+
+msgid "Stockfish returned a Candidate Line that does not match this Position. Restart the analysis."
+msgstr "Stockfish hat eine Candidate Line zurückgegeben, die nicht zu dieser Stellung passt. Starte die Analyse neu."
+
+msgid "Could not reach the local analysis service. Try again."
+msgstr "Der lokale Analysedienst ist nicht erreichbar. Versuche es erneut."
+
+msgid "Stockfish could not start or stopped unexpectedly."
+msgstr "Stockfish konnte nicht starten oder wurde unerwartet beendet."
+
+msgid "Checkmate — White wins."
+msgstr "Schachmatt — Weiß gewinnt."
+
+msgid "Checkmate — Black wins."
+msgstr "Schachmatt — Schwarz gewinnt."
+
+msgid "Draw by stalemate."
+msgstr "Remis durch Patt."
+
+msgid "Draw by insufficient material."
+msgstr "Remis durch unzureichendes Material."
+
+msgid "Analyzed Position"
+msgstr "Analysierte Stellung"
+
+msgid "Analysis details"
+msgstr "Analysedetails"
+
+msgid "Evaluation"
+msgstr "Bewertung"
+
+msgid "Depth"
+msgstr "Tiefe"
+
+msgid "Current root move"
+msgstr "Aktueller Wurzelzug"
+
+msgid "Candidate Lines"
+msgstr "Kandidatenlinien"

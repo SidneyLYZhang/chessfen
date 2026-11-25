@@ -73,6 +73,7 @@ _PUBLIC_PAGES = [
     "/",
     "/tools/render",
     "/tools/pgn",
+    "/tools/analysis",
     "/tools/recognize",
     "/learn/fen",
     "/learn/pgn",

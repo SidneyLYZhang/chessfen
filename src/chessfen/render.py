@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 from dataclasses import dataclass
 from typing import Literal
 
@@ -48,6 +49,15 @@ class RenderResult:
     image_bytes: bytes
     media_type: str
     warnings: tuple[str, ...]
+
+
+def data_uri(media_type: str, payload: bytes) -> str:
+    encoded = base64.b64encode(payload).decode("ascii")
+    return f"data:{media_type};base64,{encoded}"
+
+
+def image_data_uri(result: RenderResult) -> str:
+    return data_uri(result.media_type, result.image_bytes)
 
 
 def parse_output_format(value: str) -> OutputFormat:

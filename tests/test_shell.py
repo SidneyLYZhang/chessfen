@@ -10,6 +10,7 @@ _PUBLIC_PAGES = [
     "/",
     "/tools/render",
     "/tools/pgn",
+    "/tools/analysis",
     "/tools/recognize",
     "/learn/fen",
     "/learn/pgn",
@@ -20,6 +21,7 @@ _PUBLIC_PAGES = [
 _NAV_LINKS = [
     "/tools/render",
     "/tools/pgn",
+    "/tools/analysis",
     "/tools/recognize",
     "/learn/fen",
     "/learn/pgn",
@@ -85,12 +87,19 @@ def test_shared_script_replaces_inline_handlers(client: TestClient) -> None:
     assert "<script>" not in page.text
 
 
-def test_every_page_loads_only_the_shared_script(client: TestClient) -> None:
+def test_pages_load_only_their_scoped_scripts(client: TestClient) -> None:
     for path in _PUBLIC_PAGES:
         page = client.get(path, headers=_EN)
 
-        assert page.text.count("<script") == 1, path
         assert '<script src="/static/js/app.js"></script>' in page.text, path
+        if path == "/tools/analysis":
+            assert page.text.count("<script") == 2, path
+            assert (
+                '<script type="module" src="/static/js/analysis.js"></script>'
+                in page.text
+            ), path
+        else:
+            assert page.text.count("<script") == 1, path
 
 
 def test_home_hero_cards_and_open_strip(client: TestClient) -> None:

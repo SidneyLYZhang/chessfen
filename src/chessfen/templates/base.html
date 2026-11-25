@@ -25,6 +25,7 @@
   {% set tool_nav = [
     ("/tools/render", gettext("FEN")),
     ("/tools/pgn", gettext("PGN")),
+    ("/tools/analysis", gettext("Position analysis")),
     ("/tools/recognize", gettext("Recognize")),
   ] %}
   {% set resource_nav = [
@@ -108,5 +109,6 @@
       <p class="app-footer-license">{% trans %}Open source under GPL-3.0-or-later{% endtrans %}</p>
     </div>
   </footer>
+  {% block body_scripts %}{% endblock %}
 </body>
 </html>
