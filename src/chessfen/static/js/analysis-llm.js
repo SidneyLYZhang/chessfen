@@ -99,7 +99,13 @@ export async function fetchModels(profile) {
     touchLock();
     return {
       ok: true,
-      models: (payload.data || []).map((model) => model.id).filter(Boolean),
+      models: (payload.data || [])
+        .filter((model) => model?.id)
+        .map((model) => ({
+          id: model.id,
+          model: model.id,
+          ...modelReasoningCapabilities(model),
+        })),
     };
   } catch (error) {
     return { ok: false, code: "provider_unreachable" };
@@ -125,66 +131,16 @@ function explanationPrompt(payload, profile) {
 }
 
 export async function requestExplanation(profile, payload) {
-  if (!unlockedKey || unlockedHost !== new URL(profile.baseUrl).host) {
-    lockLlm();
-    return { ok: false, code: "llm_locked" };
+  const result = await chatJson(
+    profile,
+    explanationPrompt(payload, profile)
+  );
+  if (!result.ok) return result;
+  const explanation = proseShape(result.parsed);
+  if (!explanation) {
+    return { ok: false, code: "invalid_llm_response" };
   }
-  if (!profileRequestReady(profile)) {
-    return { ok: false, code: "llm_profile_unconfirmed" };
-  }
-  const body = {
-    model: profile.model,
-    messages: explanationPrompt(payload, profile),
-    response_format: { type: "json_object" },
-    max_completion_tokens: profile.maxTokens,
-  };
-  if (profile.reasoningEnabled) {
-    body.reasoning_effort = profile.reasoningEffort;
-  }
-  try {
-    const response = await fetch(
-      `${profile.baseUrl.replace(/\/$/, "")}/chat/completions`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${unlockedKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(body),
-      }
-    );
-    if (!response.ok) {
-      return { ok: false, code: "provider_error", status: response.status };
-    }
-    const raw = await response.json();
-    touchLock();
-    const content = raw?.choices?.[0]?.message?.content;
-    if (typeof content !== "string") {
-      return { ok: false, code: "invalid_llm_response" };
-    }
-    let parsed;
-    try {
-      parsed = JSON.parse(content);
-    } catch (error) {
-      return { ok: false, code: "invalid_llm_response" };
-    }
-    const fields = ["summary", "why", "alternatives", "uncertainty"];
-    if (fields.some((field) => typeof parsed[field] !== "string")) {
-      return { ok: false, code: "invalid_llm_response" };
-    }
-    return {
-      ok: true,
-      explanation: {
-        summary: parsed.summary,
-        why: parsed.why,
-        alternatives: parsed.alternatives,
-        uncertainty: parsed.uncertainty,
-      },
-      usage: raw.usage || null,
-    };
-  } catch (error) {
-    return { ok: false, code: "provider_unreachable" };
-  }
+  return { ok: true, explanation, usage: result.usage };
 }
 
 function usageSummary(usage) {
@@ -201,6 +157,56 @@ function usageSummary(usage) {
   };
 }
 
+export function modelReasoningCapabilities(model) {
+  const efforts =
+    model?.reasoning?.supported_efforts ||
+    model?.capabilities?.reasoning?.supported_efforts ||
+    null;
+  const supportedParameters = model?.supported_parameters || [];
+  const supportsReasoning =
+    Boolean(model?.supports_reasoning) ||
+    (Array.isArray(efforts) && efforts.length > 0) ||
+    supportedParameters.includes("reasoning") ||
+    supportedParameters.includes("reasoning_effort");
+  return {
+    supportsReasoning,
+    supportedEfforts: Array.isArray(efforts) ? efforts : null,
+  };
+}
+
+function resolveReasoningForProfile(profile) {
+  if (profile.provider !== "openrouter") {
+    return { ok: true };
+  }
+  const capabilities = profile.reasoningCapabilities;
+  if (!profile.reasoningEnabled) {
+    return { ok: true, reasoning: { enabled: false } };
+  }
+  if (!capabilities || !capabilities.supportsReasoning) {
+    return { ok: false, code: "reasoning_capabilities_unknown" };
+  }
+  if (
+    Array.isArray(capabilities.supportedEfforts) &&
+    !capabilities.supportedEfforts.includes(profile.reasoningEffort)
+  ) {
+    return { ok: false, code: "reasoning_effort_unsupported" };
+  }
+  if (
+    !Array.isArray(capabilities.supportedEfforts) &&
+    profile.reasoningEffort !== "none"
+  ) {
+    return { ok: false, code: "reasoning_effort_unknown" };
+  }
+  return {
+    ok: true,
+    reasoning: {
+      enabled: true,
+      effort: profile.reasoningEffort,
+      exclude: true,
+    },
+  };
+}
+
 async function chatJson(profile, messages, signal = null) {
   if (!unlockedKey || unlockedHost !== new URL(profile.baseUrl).host) {
     lockLlm();
@@ -209,13 +215,24 @@ async function chatJson(profile, messages, signal = null) {
   if (!profileRequestReady(profile)) {
     return { ok: false, code: "llm_profile_unconfirmed" };
   }
+  const reasoning = resolveReasoningForProfile(profile);
+  if (!reasoning.ok) {
+    return { ok: false, code: reasoning.code, retryable: false };
+  }
   const body = {
     model: profile.model,
     messages,
     response_format: { type: "json_object" },
-    max_completion_tokens: profile.maxTokens,
+    ...(profile.provider === "openrouter"
+      ? { max_tokens: profile.maxTokens }
+      : { max_completion_tokens: profile.maxTokens }),
   };
-  if (profile.reasoningEnabled) body.reasoning_effort = profile.reasoningEffort;
+  if (profile.provider === "openrouter") {
+    body.reasoning = reasoning.reasoning;
+    body.provider = { require_parameters: true };
+  } else if (profile.reasoningEnabled) {
+    body.reasoning_effort = profile.reasoningEffort;
+  }
   let abortedByTimeout = false;
   let requestSignal = signal;
   if (window.AbortSignal?.any && window.AbortSignal?.timeout) {

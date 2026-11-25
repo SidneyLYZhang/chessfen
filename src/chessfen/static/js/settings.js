@@ -41,6 +41,10 @@ function initializeSettings() {
   const meta = document.querySelector("[data-llm-credential-meta]");
   const insecure = document.querySelector("[data-llm-insecure]");
   const stored = loadLlmProfile();
+  let capabilityModel = stored?.reasoningCapabilities?.model || null;
+  let capabilityMap = stored?.reasoningCapabilities
+    ? { [capabilityModel]: stored.reasoningCapabilities }
+    : {};
   const text = Object.fromEntries(
     [...document.querySelectorAll("[data-llm-message]")].map((node) => [
       node.dataset.llmMessage,
@@ -71,6 +75,10 @@ function initializeSettings() {
       reasoningEffort: effort.value,
       maxTokens: Number.parseInt(budget.value, 10),
       consentHost: consent.checked ? new URL(normalizedUrl).host : null,
+      reasoningCapabilities:
+        provider.value === "openrouter" && capabilityModel === model.value.trim()
+          ? capabilityMap[model.value.trim()] || null
+          : null,
     };
     candidate.confirmedFingerprint = confirm.checked
       ? requestFingerprint(candidate)
@@ -79,13 +87,25 @@ function initializeSettings() {
   }
 
   function paintPreview() {
+    const common = {
+      model: model.value.trim(),
+      response_format: { type: "json_object" },
+    };
     preview.textContent = JSON.stringify(
-      {
-        model: model.value.trim(),
-        reasoning_effort: reasoning.checked ? effort.value : null,
-        max_completion_tokens: Number.parseInt(budget.value, 10),
-        response_format: { type: "json_object" },
-      },
+      provider.value === "openrouter"
+        ? {
+            ...common,
+            reasoning: reasoning.checked
+              ? { enabled: true, effort: effort.value, exclude: true }
+              : { enabled: false },
+            provider: { require_parameters: true },
+            max_tokens: Number.parseInt(budget.value, 10),
+          }
+        : {
+            ...common,
+            reasoning_effort: reasoning.checked ? effort.value : null,
+            max_completion_tokens: Number.parseInt(budget.value, 10),
+          },
       null,
       2
     );
@@ -138,10 +158,27 @@ function initializeSettings() {
     consent.checked = false;
     confirm.checked = false;
   });
+  provider.addEventListener("change", () => {
+    baseUrl.value =
+      provider.value === "openrouter"
+        ? "https://openrouter.ai/api/v1"
+        : "https://api.openai.com/v1";
+    consent.checked = false;
+    confirm.checked = false;
+    capabilityModel = null;
+    capabilityMap = {};
+    paintPreview();
+  });
+  model.addEventListener("change", () => {
+    capabilityModel = capabilityMap[model.value.trim()]
+      ? model.value.trim()
+      : null;
+    confirm.checked = false;
+    paintPreview();
+  });
   for (const control of [
     provider,
     baseUrl,
-    model,
     language,
     audience,
     effort,
@@ -215,10 +252,16 @@ function initializeSettings() {
       return;
     }
     models.replaceChildren();
-    for (const id of result.models) {
+    capabilityMap = {};
+    for (const item of result.models) {
       const option = document.createElement("option");
-      option.value = id;
+      option.value = item.id;
       models.append(option);
+      capabilityMap[item.id] = item;
+    }
+    const selected = capabilityMap[model.value.trim()];
+    if (selected) {
+      capabilityModel = model.value.trim();
     }
     status.textContent = text.models_loaded.replace("{count}", String(result.models.length));
   });

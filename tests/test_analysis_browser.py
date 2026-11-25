@@ -1193,3 +1193,162 @@ def test_browser_generates_a_position_overall_summary(
         "total 7"
     )
     page.unroute("https://api.openai.test/**", provider)
+
+
+def test_browser_openrouter_requires_reasoning_capabilities_and_routes_directly(
+    browser_page: Page, live_analysis_url: str
+) -> None:
+    page = browser_page
+    chat_headers: list[dict[str, str]] = []
+    chat_bodies: list[dict[str, Any]] = []
+
+    def provider(route) -> None:
+        headers = {
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Headers": "authorization,content-type",
+            "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+        }
+        if route.request.method == "OPTIONS":
+            route.fulfill(status=204, headers=headers)
+            return
+        if route.request.url.endswith("/models"):
+            route.fulfill(
+                status=200,
+                headers={**headers, "Content-Type": "application/json"},
+                body=json.dumps(
+                    {
+                        "data": [
+                            {
+                                "id": "openrouter-model",
+                                "supported_parameters": [
+                                    "reasoning",
+                                    "reasoning_effort",
+                                ],
+                                "reasoning": {
+                                    "supported_efforts": ["max", "high"]
+                                },
+                            }
+                        ]
+                    }
+                ),
+            )
+            return
+        chat_headers.append(
+            {key.lower(): value for key, value in route.request.headers.items()}
+        )
+        chat_bodies.append(route.request.post_data_json)
+        route.fulfill(
+            status=200,
+            headers={**headers, "Content-Type": "application/json"},
+            body=json.dumps(
+                {
+                    "choices": [
+                        {
+                            "message": {
+                                "content": json.dumps(
+                                    {
+                                        "summary": "OpenRouter summary",
+                                        "why": "facts",
+                                        "alternatives": "lines",
+                                        "uncertainty": "none",
+                                    }
+                                )
+                            }
+                        }
+                    ],
+                    "usage": {
+                        "prompt_tokens": 3,
+                        "completion_tokens": 2,
+                        "completion_tokens_details": {"reasoning_tokens": 1},
+                        "total_tokens": 5,
+                    },
+                }
+            ),
+        )
+
+    page.route("https://openrouter.ai/**", provider)
+    page.goto(f"{live_analysis_url}/settings")
+    page.locator("[data-llm-provider]").select_option("openrouter")
+    page.locator("[data-llm-model]").fill("openrouter-model")
+    page.locator("[data-llm-api-key]").fill("sk-or-test")
+    page.locator("[data-llm-passphrase]").fill("correct horse battery")
+    page.locator("[data-llm-passphrase-confirm]").fill("correct horse battery")
+    page.locator("[data-llm-consent]").check()
+    page.locator("[data-llm-confirm]").check()
+    page.get_by_role("button", name="Save LLM Profile").click()
+    expect(page.locator("[data-llm-status]")).to_contain_text("saved locally")
+
+    page.locator("[data-llm-passphrase]").fill("correct horse battery")
+    page.get_by_role("button", name="Fetch Models").click()
+    expect(page.locator("[data-llm-status]")).to_contain_text("Loaded 1 Models")
+    page.get_by_role("button", name="Save LLM Profile").click()
+    expect(page.locator("[data-llm-status]")).to_contain_text("saved locally")
+
+    page.goto(f"{live_analysis_url}/tools/analysis")
+    page.locator("#analysis-fen").fill(_START_FEN)
+    page.get_by_role("button", name="Start analysis").click()
+    expect(page.locator("[data-analysis-status]")).to_contain_text(
+        "Analysis complete", timeout=30_000
+    )
+    page.locator("[data-explanation-passphrase]").fill("correct horse battery")
+    page.get_by_role("button", name="Generate Explanation").click()
+    expect(page.locator("[data-explanation-summary]")).to_have_text(
+        "OpenRouter summary"
+    )
+    body = chat_bodies[-1]
+    assert body["reasoning"] == {
+        "enabled": True,
+        "effort": "max",
+        "exclude": True,
+    }
+    assert body["provider"] == {"require_parameters": True}
+    assert body["max_tokens"] == 16384
+    headers = chat_headers[-1]
+    assert "http-referer" not in headers
+    assert "x-openrouter-title" not in headers
+    assert "x-title" not in headers
+    page.unroute("https://openrouter.ai/**", provider)
+
+
+def test_browser_blocks_openrouter_without_confirmed_reasoning_capabilities(
+    browser_page: Page, live_analysis_url: str
+) -> None:
+    page = browser_page
+    chat_calls: list[str] = []
+
+    def provider(route) -> None:
+        chat_calls.append(route.request.url)
+        route.fulfill(
+            status=200,
+            headers={
+                "Access-Control-Allow-Origin": "*",
+                "Content-Type": "application/json",
+            },
+            body="{}",
+        )
+
+    page.route("https://openrouter.ai/**", provider)
+    page.goto(f"{live_analysis_url}/settings")
+    page.locator("[data-llm-provider]").select_option("openrouter")
+    page.locator("[data-llm-model]").fill("unknown-model")
+    page.locator("[data-llm-api-key]").fill("sk-or-test")
+    page.locator("[data-llm-passphrase]").fill("correct horse battery")
+    page.locator("[data-llm-passphrase-confirm]").fill("correct horse battery")
+    page.locator("[data-llm-consent]").check()
+    page.locator("[data-llm-confirm]").check()
+    page.get_by_role("button", name="Save LLM Profile").click()
+    expect(page.locator("[data-llm-status]")).to_contain_text("saved locally")
+
+    page.goto(f"{live_analysis_url}/tools/analysis")
+    page.locator("#analysis-fen").fill(_START_FEN)
+    page.get_by_role("button", name="Start analysis").click()
+    expect(page.locator("[data-analysis-status]")).to_contain_text(
+        "Analysis complete", timeout=30_000
+    )
+    page.locator("[data-explanation-passphrase]").fill("correct horse battery")
+    page.get_by_role("button", name="Generate Explanation").click()
+    expect(page.locator("[data-explanation-status]")).to_contain_text(
+        "could not be generated"
+    )
+    assert chat_calls == []
+    page.unroute("https://openrouter.ai/**", provider)
