@@ -53,8 +53,18 @@ function initializeGameAnalysis() {
     key: root.dataset.labelKey,
   };
   const boardCache = new Map();
+  const stored = (() => {
+    try { return JSON.parse(window.localStorage.getItem("chessfen.analysis.settings.v1") || "{}"); }
+    catch (error) { return {}; }
+  })();
+  const runtime = document.querySelector("[data-engine-runtime]");
+  if (runtime) {
+    runtime.textContent = `${stored.resource === "full" ? "Full" : "Lite"} · single-threaded · ${stored.preset || "standard"}`;
+  }
   const engine = new EngineSupervisor(
-    "/static/vendor/stockfish/stockfish-19-lite-single.js",
+    stored.resource === "full"
+      ? "/static/vendor/stockfish/stockfish-19-single.js"
+      : "/static/vendor/stockfish/stockfish-19-lite-single.js",
     (info) => {
       if (busy && info.depth !== null) {
         status.textContent =

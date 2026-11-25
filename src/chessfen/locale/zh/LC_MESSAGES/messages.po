@@ -993,3 +993,30 @@ msgstr "棋盘不可用。"
 
 msgid "Evaluation graph"
 msgstr "评估曲线"
+
+msgid "Search preset"
+msgstr "搜索档位"
+
+msgid "Fast"
+msgstr "快速"
+
+msgid "Standard"
+msgstr "标准"
+
+msgid "Deep"
+msgstr "深入"
+
+msgid "Engine resource"
+msgstr "引擎资源"
+
+msgid "Lite (recommended)"
+msgstr "精简版（推荐）"
+
+msgid "Full (large download)"
+msgstr "完整版（较大下载）"
+
+msgid "Full resources are about 99 MB and are downloaded only after this choice."
+msgstr "完整资源约 99 MB，只会在明确选择后下载。"
+
+msgid "Runtime is selected after checking browser support."
+msgstr "将在检查浏览器支持后选择运行模式。"

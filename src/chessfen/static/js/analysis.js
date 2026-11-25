@@ -1,8 +1,21 @@
 "use strict";
 
-const MULTIPV = 3;
-const SEARCH_DEPTH = 18;
-const SEARCH_MOVETIME_MS = 2000;
+const PRESETS = {
+  fast: { depth: 14, movetime: 1000 },
+  standard: { depth: 18, movetime: 2000 },
+  deep: { depth: 22, movetime: 4000 },
+};
+const STORED = (() => {
+  try {
+    return JSON.parse(
+      window.localStorage.getItem("chessfen.analysis.settings.v1") || "{}"
+    );
+  } catch (error) { return {}; }
+})();
+const MULTIPV = Number.isInteger(STORED.multipv) && STORED.multipv >= 1 && STORED.multipv <= 5 ? STORED.multipv : 3;
+const PRESET = Object.hasOwn(PRESETS, STORED.preset) ? PRESETS[STORED.preset] : PRESETS.standard;
+const SEARCH_DEPTH = PRESET.depth;
+const SEARCH_MOVETIME_MS = PRESET.movetime;
 const INIT_TIMEOUT_MS = 30000;
 const STOP_TIMEOUT_MS = 2000;
 
@@ -442,7 +455,15 @@ function initializeAnalysis() {
   };
 
   const numberFormat = new Intl.NumberFormat(document.documentElement.lang);
-  const engine = new EngineSupervisor(root.dataset.engineUrl, (info) => {
+  const runtimeElement = root.querySelector("[data-engine-runtime]");
+  const resource = STORED.resource === "full" ? "Full" : "Lite";
+  if (runtimeElement) {
+    runtimeElement.textContent = `${resource} · single-threaded · ${Object.hasOwn(PRESETS, STORED.preset) ? STORED.preset : "standard"}`;
+  }
+  const engineUrl = STORED.resource === "full"
+    ? "/static/vendor/stockfish/stockfish-19-single.js"
+    : root.dataset.engineUrl;
+  const engine = new EngineSupervisor(engineUrl, (info) => {
     if (root.dataset.analysisState === "preparing") {
       setStatus("analyzing");
     }

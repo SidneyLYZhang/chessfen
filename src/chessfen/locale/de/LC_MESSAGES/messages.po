@@ -993,3 +993,30 @@ msgstr "Brett nicht verfügbar."
 
 msgid "Evaluation graph"
 msgstr "Bewertungsdiagramm"
+
+msgid "Search preset"
+msgstr "Suchprofil"
+
+msgid "Fast"
+msgstr "Schnell"
+
+msgid "Standard"
+msgstr "Standard"
+
+msgid "Deep"
+msgstr "Tief"
+
+msgid "Engine resource"
+msgstr "Engine-Ressource"
+
+msgid "Lite (recommended)"
+msgstr "Lite (empfohlen)"
+
+msgid "Full (large download)"
+msgstr "Vollständig (großer Download)"
+
+msgid "Full resources are about 99 MB and are downloaded only after this choice."
+msgstr "Vollständige Ressourcen sind etwa 99 MB groß und werden nur nach dieser Auswahl geladen."
+
+msgid "Runtime is selected after checking browser support."
+msgstr "Der Laufzeitmodus wird nach Prüfung der Browserunterstützung gewählt."

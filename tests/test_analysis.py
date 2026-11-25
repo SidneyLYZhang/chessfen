@@ -56,7 +56,7 @@ def test_analysis_workbench_is_localized_and_uses_scoped_assets(
     page = client.get("/tools/analysis", headers=_EN)
     assert '<script src="/static/js/app.js"></script>' in page.text
     assert '<script type="module" src="/static/js/analysis.js"></script>' in page.text
-    assert page.text.count("<script") == 2
+    assert page.text.count("<script") == 3
     assert "<script>" not in page.text
     assert "Full FEN" in page.text
     assert "Placement only is not enough for analysis." in page.text
@@ -96,6 +96,18 @@ def test_existing_fen_and_pgn_tools_link_to_analysis(
         assert page.status_code == 200, path
         assert ">Open Analysis" in page.text, path
         assert 'href="/tools/analysis"' in page.text, path
+
+
+def test_analysis_workspaces_expose_local_engine_settings(
+    client: TestClient,
+) -> None:
+    for path in ("/tools/analysis", "/tools/analysis/pgn"):
+        page = client.get(path, headers=_EN)
+
+        assert 'data-setting-preset' in page.text, path
+        assert 'data-setting-multipv' in page.text, path
+        assert 'data-setting-resource' in page.text, path
+        assert "Stockfish 19 · Lite" in page.text, path
 
 
 def test_analysis_position_requires_same_origin(client: TestClient) -> None:
@@ -520,6 +532,12 @@ def test_analysis_engine_assets_are_self_hosted_with_provenance(
     provenance = client.get(
         "/static/vendor/stockfish/PROVENANCE.txt"
     )
+    full_js = client.get(
+        "/static/vendor/stockfish/stockfish-19-single.js"
+    )
+    full_wasm = client.head(
+        "/static/vendor/stockfish/stockfish-19-single.wasm"
+    )
 
     assert engine_js.status_code == 200
     assert engine_js.headers["content-type"].split(";")[0] in {
@@ -536,6 +554,14 @@ def test_analysis_engine_assets_are_self_hosted_with_provenance(
     assert provenance.status_code == 200
     assert "stockfish.js 19.0.1" in provenance.text
     assert "https://github.com/nmrugg/stockfish.js" in provenance.text
+    assert "stockfish-19-single.wasm" in provenance.text
+    assert full_js.status_code == 200
+    assert full_js.headers["content-type"].split(";")[0] in {
+        "text/javascript",
+        "application/javascript",
+    }
+    assert full_wasm.status_code == 200
+    assert full_wasm.headers["content-type"].split(";")[0] == "application/wasm"
 
 
 @pytest.mark.parametrize(

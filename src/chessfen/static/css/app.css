@@ -2663,3 +2663,25 @@ html:has(body.v2) {
   background: var(--ink-1);
   color: var(--paper-warm);
 }
+
+/* Analysis engine settings ---------------------------------------------------- */
+
+.v2 .analysis-settings {
+  display: grid;
+  gap: var(--space-3);
+  margin-top: var(--space-5);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--line-soft);
+}
+
+.v2 .analysis-settings-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+@media (max-width: 700px) {
+  .v2 .analysis-settings-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

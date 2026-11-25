@@ -96,6 +96,7 @@
 
       <p class="analysis-status" data-analysis-status role="status" aria-live="polite">{% trans %}Enter a Full FEN to begin.{% endtrans %}</p>
     </form>
+    {% include "analysis_settings.html" %}
   </section>
 
   <section class="result-panel">
@@ -164,5 +165,6 @@
 {% endblock %}
 
 {% block body_scripts %}
+<script type="module" src="/static/js/analysis-settings.js"></script>
 <script type="module" src="/static/js/analysis.js"></script>
 {% endblock %}

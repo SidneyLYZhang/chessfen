@@ -1,0 +1,33 @@
+<div class="analysis-settings" data-analysis-settings>
+  <p class="eyebrow" aria-hidden="true">ENGINE / LOCAL SETTINGS</p>
+  <div class="analysis-settings-grid">
+    <div class="field">
+      <label class="field-label" for="analysis-preset">{% trans %}Search preset{% endtrans %}</label>
+      <select class="select-input" id="analysis-preset" data-setting-preset>
+        <option value="fast">{% trans %}Fast{% endtrans %}</option>
+        <option value="standard">{% trans %}Standard{% endtrans %}</option>
+        <option value="deep">{% trans %}Deep{% endtrans %}</option>
+      </select>
+    </div>
+    <div class="field">
+      <label class="field-label" for="analysis-multipv">{% trans %}Candidate Lines{% endtrans %}</label>
+      <select class="select-input" id="analysis-multipv" data-setting-multipv>
+        <option value="1">1</option>
+        <option value="2">2</option>
+        <option value="3">3</option>
+        <option value="4">4</option>
+        <option value="5">5</option>
+      </select>
+    </div>
+    <div class="field">
+      <label class="field-label" for="analysis-resource">{% trans %}Engine resource{% endtrans %}</label>
+      <select class="select-input" id="analysis-resource" data-setting-resource>
+        <option value="lite">{% trans %}Lite (recommended){% endtrans %}</option>
+        <option value="full">{% trans %}Full (large download){% endtrans %}</option>
+      </select>
+    </div>
+  </div>
+  <p class="field-hint" data-setting-resource-warning hidden>{% trans %}Full resources are about 99 MB and are downloaded only after this choice.{% endtrans %}</p>
+  <p class="field-hint" data-engine-provenance>Stockfish 19 · Lite</p>
+  <p class="field-hint" data-engine-runtime>{% trans %}Runtime is selected after checking browser support.{% endtrans %}</p>
+</div>

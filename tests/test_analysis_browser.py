@@ -500,3 +500,37 @@ def test_browser_cancels_and_continues_a_game_queue(
     expect(page.locator("[data-game-moves] [data-ply]")).to_have_count(3)
     page.locator("[data-graph-ply='1']").click()
     expect(page.locator("[data-game-quality]")).not_to_be_empty()
+
+
+def test_browser_applies_local_multipv_preset_and_resource_settings(
+    browser_page: Page, live_analysis_url: str
+) -> None:
+    page = browser_page
+    page.goto(f"{live_analysis_url}/tools/analysis")
+    with page.expect_navigation():
+        page.locator("[data-setting-multipv]").select_option("1")
+    with page.expect_navigation():
+        page.locator("[data-setting-preset]").select_option("fast")
+    expect(page.locator("[data-engine-runtime]")).to_contain_text(
+        "single-threaded · fast"
+    )
+    page.locator("#analysis-fen").fill(_START_FEN)
+    page.get_by_role("button", name="Start analysis").click()
+    expect(page.locator("[data-analysis-status]")).to_contain_text(
+        "Analysis complete", timeout=30_000
+    )
+    expect(page.locator("[data-candidate-line]")).to_have_count(1)
+
+    with page.expect_navigation():
+        page.locator("[data-setting-resource]").select_option("full")
+    expect(page.locator("[data-setting-resource-warning]")).to_be_visible()
+    expect(page.locator("[data-engine-provenance]")).to_have_text(
+        "Stockfish 19 · Full"
+    )
+
+    with page.expect_navigation():
+        page.locator("[data-setting-resource]").select_option("lite")
+    with page.expect_navigation():
+        page.locator("[data-setting-multipv]").select_option("3")
+    with page.expect_navigation():
+        page.locator("[data-setting-preset]").select_option("standard")
