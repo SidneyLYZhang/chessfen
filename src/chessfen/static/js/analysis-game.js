@@ -1,5 +1,13 @@
 "use strict";
 
+import {
+  clearWorkspace,
+  engineSettingsCompatible,
+  engineSnapshot,
+  loadWorkspace,
+  saveWorkspace,
+  workspaceIsActive,
+} from "/static/js/analysis-workspace.js";
 import { EngineSupervisor } from "/static/js/analysis.js";
 
 function initializeGameAnalysis() {
@@ -57,6 +65,18 @@ function initializeGameAnalysis() {
     try { return JSON.parse(window.localStorage.getItem("chessfen.analysis.settings.v1") || "{}"); }
     catch (error) { return {}; }
   })();
+  const workspaceStatus = document.querySelector("[data-workspace-status]");
+  const workspaceRestore = document.querySelector("[data-workspace-restore]");
+  const analysisSettings = {
+    preset: ["fast", "standard", "deep"].includes(stored.preset)
+      ? stored.preset
+      : "standard",
+    multipv:
+      Number.isInteger(stored.multipv) && stored.multipv >= 1 && stored.multipv <= 5
+        ? stored.multipv
+        : 3,
+    resource: stored.resource === "full" ? "full" : "lite",
+  };
   const runtime = document.querySelector("[data-engine-runtime]");
   if (runtime) {
     runtime.textContent = `${stored.resource === "full" ? "Full" : "Lite"} · single-threaded · ${stored.preset || "standard"}`;
@@ -73,6 +93,51 @@ function initializeGameAnalysis() {
       }
     }
   );
+
+  function setWorkspaceStatus(text, isError = false) {
+    if (!workspaceStatus) return;
+    workspaceStatus.textContent = text;
+    workspaceStatus.hidden = !text;
+    workspaceStatus.dataset.error = isError ? "true" : "false";
+  }
+
+  function gameRecord(status, result = analysis) {
+    const form = document.querySelector(".pgn-form");
+    const pgn = form?.querySelector("#pgn")?.value || "";
+    const gameIndex = form?.querySelector("#game_index")?.value || "";
+    return {
+      kind: "game",
+      input: { pgn, gameIndex },
+      settings: { ...analysisSettings },
+      engine: {
+        ...engineSnapshot(analysisSettings),
+        completed,
+      },
+      presentation: {
+        language: document.documentElement.lang,
+        audience: "club",
+      },
+      status,
+      result,
+      gameData: game,
+    };
+  }
+
+  async function persistGame(status, result = analysis) {
+    const saved = await saveWorkspace(gameRecord(status, result));
+    if (!saved.ok) {
+      setWorkspaceStatus(
+        document.documentElement.lang === "de"
+          ? "Analyseergebnisse werden nicht lokal gespeichert."
+          : document.documentElement.lang === "zh"
+            ? "分析结果未能保存到本地。"
+            : "Analysis results are not being saved locally.",
+        true
+      );
+    } else if (workspaceStatus?.dataset.error === "true") {
+      setWorkspaceStatus("");
+    }
+  }
 
   function setBusy(value) {
     busy = value;
@@ -213,19 +278,27 @@ function initializeGameAnalysis() {
     }
   }
 
-  async function finish() {
-    analysis = await postJson(root.dataset.resultsEndpoint, {
-      start_fen: game.start_fen,
-      moves: game.moves.map((move) => move.uci),
-      positions: completed.map((entry) => ({ lines: entry.lines })),
-    });
+  async function renderGameAnalysis(payload, restored = false) {
+    analysis = payload;
     empty.hidden = true;
     result.hidden = false;
     ribbon.hidden = false;
     renderGraph();
     renderMoveList();
     await selectPly(0);
-    status.textContent = labels.complete;
+    status.textContent = restored
+      ? "Restored from the local Analysis Workspace."
+      : labels.complete;
+  }
+
+  async function finish() {
+    const payload = await postJson(root.dataset.resultsEndpoint, {
+      start_fen: game.start_fen,
+      moves: game.moves.map((move) => move.uci),
+      positions: completed.map((entry) => ({ lines: entry.lines })),
+    });
+    await persistGame("complete", payload);
+    await renderGameAnalysis(payload);
   }
 
   async function runQueue(reset) {
@@ -239,6 +312,9 @@ function initializeGameAnalysis() {
       linesElement.replaceChildren();
       graph.replaceChildren();
       moveList.replaceChildren();
+    }
+    if (reset) {
+      await persistGame("incomplete", null);
     }
     const token = (runToken += 1);
     cancelled = false;
@@ -266,6 +342,7 @@ function initializeGameAnalysis() {
           return;
         }
         completed[index] = { lines: result.lines };
+        await persistGame("incomplete", analysis);
       }
       await finish();
     } catch (exception) {
@@ -280,7 +357,15 @@ function initializeGameAnalysis() {
 
   startButton.addEventListener("click", () => runQueue(true));
   continueButton.addEventListener("click", () => runQueue(false));
-  restartButton.addEventListener("click", () => runQueue(true));
+  restartButton.addEventListener("click", async () => {
+    if (!window.confirm("Restart analysis and clear saved engine results?")) {
+      return;
+    }
+    completed.fill(null);
+    analysis = null;
+    await persistGame("incomplete", null);
+    await runQueue(true);
+  });
   cancelButton.addEventListener("click", async () => {
     cancelled = true;
     status.textContent = labels.stopping;
@@ -325,7 +410,65 @@ function initializeGameAnalysis() {
     });
   }
 
+  const pgnForm = document.querySelector(".pgn-form");
+  pgnForm?.addEventListener("submit", (event) => {
+    if (hasStarted && !window.confirm("Replace the saved Analysis Workspace?")) {
+      event.preventDefault();
+    }
+  });
+
+  async function restoreGameWorkspace() {
+    const loaded = await loadWorkspace();
+    if (!loaded.ok) {
+      setWorkspaceStatus("The saved Analysis Workspace could not be read.", true);
+      return;
+    }
+    const record = loaded.record;
+    if (!record || record.kind !== "game") {
+      workspaceRestore?.hide?.();
+      return;
+    }
+    const sameGame =
+      record.gameData?.start_fen === game.start_fen &&
+      record.gameData?.moves?.length === game.moves.length &&
+      record.gameData?.moves?.every(
+        (move, index) => move.uci === game.moves[index].uci
+      );
+    if (!sameGame) {
+      workspaceRestore.hidden = false;
+      return;
+    }
+    if (!engineSettingsCompatible(record.engine, analysisSettings)) {
+      if (!window.confirm(
+        "Engine settings changed. Discard saved engine results and keep the Game?"
+      )) {
+        return;
+      }
+      await clearWorkspace();
+      setWorkspaceStatus("Saved engine results were invalidated.", true);
+      return;
+    }
+    if (Array.isArray(record.engine?.completed)) {
+      record.engine.completed.forEach((entry, index) => {
+        if (index < completed.length && entry?.lines) {
+          completed[index] = entry;
+        }
+      });
+    }
+    hasStarted = completed.some(Boolean);
+    if (record.result) {
+      await renderGameAnalysis(record.result, true);
+      setBusy(false);
+    } else if (hasStarted) {
+      setBusy(false);
+      status.textContent =
+        `Restored ${completed.filter(Boolean).length}/${total} Positions. Continue to resume.`;
+    }
+    workspaceRestore.hidden = true;
+  }
+
   showBoard(game.start_fen).catch(() => showError(labels.board));
+  void restoreGameWorkspace();
 }
 
 if (document.readyState === "loading") {

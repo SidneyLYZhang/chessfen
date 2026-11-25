@@ -1,5 +1,13 @@
 "use strict";
 
+import {
+  clearWorkspace,
+  engineSettingsCompatible,
+  engineSnapshot,
+  loadWorkspace,
+  saveWorkspace,
+} from "/static/js/analysis-workspace.js";
+
 const PRESETS = {
   fast: { depth: 14, movetime: 1000 },
   standard: { depth: 18, movetime: 2000 },
@@ -401,6 +409,8 @@ function initializeAnalysis() {
   const playbackPrevious = root.querySelector("[data-playback-prev]");
   const playbackNext = root.querySelector("[data-playback-next]");
   const playbackReset = root.querySelector("[data-playback-reset]");
+  const workspaceStatus = root.querySelector("[data-workspace-status]");
+  const workspaceRestore = root.querySelector("[data-workspace-restore]");
 
   const messages = {
     validating: root.dataset.labelValidating,
@@ -413,6 +423,11 @@ function initializeAnalysis() {
     cancelled: root.dataset.labelCancelled,
     stopped: root.dataset.labelStopped,
     ready: root.dataset.labelReady,
+    restored: "Restored from the local Analysis Workspace.",
+    workspaceUnsaved: "Analysis results are not being saved locally.",
+    workspaceCorrupt: "The saved Analysis Workspace could not be read.",
+    workspaceInvalidated:
+      "Saved engine results were discarded because engine settings changed.",
     errors: {
       placement_only: root.dataset.errorPlacementOnly,
       invalid_fen: root.dataset.errorInvalidFen,
@@ -455,6 +470,11 @@ function initializeAnalysis() {
   };
 
   const numberFormat = new Intl.NumberFormat(document.documentElement.lang);
+  const analysisSettings = {
+    preset: Object.hasOwn(PRESETS, STORED.preset) ? STORED.preset : "standard",
+    multipv: MULTIPV,
+    resource: STORED.resource === "full" ? "full" : "lite",
+  };
   const runtimeElement = root.querySelector("[data-engine-runtime]");
   const resource = STORED.resource === "full" ? "Full" : "Lite";
   if (runtimeElement) {
@@ -477,6 +497,8 @@ function initializeAnalysis() {
   let activeAbort = null;
   let activePosition = null;
   let busy = false;
+  let activeAssessment = null;
+  let lastRunInput = null;
   let cancellationRequested = false;
   let originalBoardUri = null;
   let currentLines = [];
@@ -501,6 +523,102 @@ function initializeAnalysis() {
       rootMoveElement.textContent = info.rootMove;
     }
     telemetryElement.hidden = false;
+  }
+
+  function setWorkspaceStatus(text, isError = false) {
+    if (!workspaceStatus) {
+      return;
+    }
+    workspaceStatus.textContent = text;
+    workspaceStatus.hidden = !text;
+    workspaceStatus.dataset.error = isError ? "true" : "false";
+  }
+
+  function positionRecord(status, result = null) {
+    return {
+      kind: "position",
+      input: {
+        fen: lastRunInput?.fen || fenInput.value.trim(),
+        move: lastRunInput?.move || moveInput.value.trim(),
+      },
+      settings: { ...analysisSettings },
+      engine: engineSnapshot(analysisSettings),
+      presentation: {
+        language: document.documentElement.lang,
+        audience: "club",
+      },
+      status,
+      result,
+    };
+  }
+
+  async function persistPosition(status, result = null) {
+    if (!activePosition) {
+      return;
+    }
+    const saved = await saveWorkspace(positionRecord(status, result));
+    if (!saved.ok) {
+      setWorkspaceStatus(messages.workspaceUnsaved, true);
+    } else if (workspaceStatus?.dataset.error === "true") {
+      setWorkspaceStatus("");
+    }
+  }
+
+  function displaySavedResult(record) {
+    const result = record.result;
+    if (!result || !result.lines) {
+      return false;
+    }
+    showPosition(result.position);
+    if (result.position.terminal) {
+      return true;
+    }
+    updateTelemetry(result.telemetry || { depth: null, nps: null, rootMove: null });
+    renderLines(result.lines);
+    if (result.assessment) {
+      activeAssessment = result.assessment;
+      renderAssessment(result.assessment);
+    }
+    setStatus("restored");
+    return true;
+  }
+
+  async function restorePositionWorkspace() {
+    const loaded = await loadWorkspace();
+    if (!loaded.ok) {
+      setWorkspaceStatus(messages.workspaceCorrupt, true);
+      return;
+    }
+    const record = loaded.record;
+    if (!record || record.kind !== "position") {
+      return;
+    }
+    if (!engineSettingsCompatible(record.engine, analysisSettings)) {
+      const accepted = window.confirm(
+        "Engine settings changed. Discard saved engine results and keep the input?"
+      );
+      if (!accepted) {
+        return;
+      }
+      await clearWorkspace();
+      fenInput.value = record.input.fen || "";
+      moveInput.value = record.input.move || "";
+      setWorkspaceStatus(messages.workspaceInvalidated, true);
+      return;
+    }
+    fenInput.value = record.input.fen || "";
+    moveInput.value = record.input.move || "";
+    lastRunInput = {
+      fen: fenInput.value.trim(),
+      move: moveInput.value.trim(),
+    };
+    if (!displaySavedResult(record)) {
+      setStatus("restored");
+    }
+    setBusy(false);
+    if (workspaceRestore) {
+      workspaceRestore.hidden = true;
+    }
   }
 
   function clearError() {
@@ -531,6 +649,8 @@ function initializeAnalysis() {
   function setBusy(value) {
     busy = value;
     startButton.disabled = value;
+    fenInput.disabled = value;
+    moveInput.disabled = value;
     cancelButton.disabled = !value;
     restartButton.disabled = value
       ? false
@@ -591,6 +711,7 @@ function initializeAnalysis() {
 
   function showPosition(position) {
     activePosition = position;
+    activeAssessment = null;
     originalBoardUri = position.board_uri;
     boardCache.clear();
     boardCache.set(position.fen, position.board_uri);
@@ -821,9 +942,17 @@ function initializeAnalysis() {
         return;
       }
       showPosition(position);
+      lastRunInput = { fen: position.fen, move: actualMove || "" };
       if (position.terminal) {
+        await persistPosition("complete", {
+          position,
+          lines: [],
+          assessment: null,
+          telemetry: null,
+        });
         return;
       }
+      await persistPosition("incomplete");
 
       setStatus("preparing");
       const beforeResult = await engine.analyze(position.fen);
@@ -865,7 +994,18 @@ function initializeAnalysis() {
           return;
         }
         renderLines(assessed.lines);
+        activeAssessment = assessed.assessment;
         renderAssessment(assessed.assessment);
+        await persistPosition("complete", {
+          position,
+          lines: assessed.lines,
+          assessment: assessed.assessment,
+          telemetry: {
+            depth: beforeResult.depth,
+            nps: beforeResult.nps,
+            rootMove: beforeResult.rootMove,
+          },
+        });
       } else {
         const normalized = await postJson(
           root.dataset.linesEndpoint,
@@ -876,6 +1016,16 @@ function initializeAnalysis() {
           return;
         }
         renderLines(normalized.lines);
+        await persistPosition("complete", {
+          position,
+          lines: normalized.lines,
+          assessment: null,
+          telemetry: {
+            depth: beforeResult.depth,
+            nps: beforeResult.nps,
+            rootMove: beforeResult.rootMove,
+          },
+        });
       }
       setStatus("complete");
     } catch (error) {
@@ -931,6 +1081,9 @@ function initializeAnalysis() {
     if (!activePosition) {
       return;
     }
+    if (!window.confirm("Restart analysis and clear saved results?")) {
+      return;
+    }
     const fen = activePosition.fen;
     const actualMove = activePosition.actual_move
       ? activePosition.actual_move.uci
@@ -957,7 +1110,15 @@ function initializeAnalysis() {
       fenInput.reportValidity();
       return;
     }
-    startRun(fen, moveInput.value.trim());
+    const move = moveInput.value.trim();
+    if (
+      lastRunInput &&
+      (lastRunInput.fen !== fen || lastRunInput.move !== move) &&
+      !window.confirm("Replace the saved Analysis Workspace with this input?")
+    ) {
+      return;
+    }
+    startRun(fen, move);
   });
 
   cancelButton.addEventListener("click", () => {
@@ -1003,6 +1164,8 @@ function initializeAnalysis() {
     playbackStep = 0;
     void updatePlayback();
   });
+
+  void restorePositionWorkspace();
 }
 
 if (document.readyState === "loading") {

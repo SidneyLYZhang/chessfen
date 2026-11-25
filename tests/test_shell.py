@@ -104,7 +104,7 @@ def test_pages_load_only_their_scoped_scripts(client: TestClient) -> None:
                 in page.text
             ), path
         elif path == "/tools/analysis/pgn":
-            assert page.text.count("<script") == 3, path
+            assert page.text.count("<script") == 4, path
             assert (
                 '<script type="module" src="/static/js/analysis-game.js"></script>'
                 in page.text

@@ -1,5 +1,7 @@
 "use strict";
 
+import { workspaceIsActive } from "/static/js/analysis-workspace.js";
+
 const STORAGE_KEY = "chessfen.analysis.settings.v1";
 const PRESETS = {
   fast: { depth: 14, movetime: 1000 },
@@ -50,7 +52,7 @@ export function searchOptions(settings) {
   };
 }
 
-export function bindAnalysisSettings(root, onChange) {
+export function bindAnalysisSettings(root, onChange, beforeChange = null) {
   if (!root) {
     return null;
   }
@@ -71,11 +73,16 @@ export function bindAnalysisSettings(root, onChange) {
   }
 
   function changed() {
-    settings = {
+    const next = {
       preset: preset.value,
       multipv: Number.parseInt(multipv.value, 10),
       resource: resource.value === "full" ? "full" : "lite",
     };
+    if (beforeChange && !beforeChange(next)) {
+      paint();
+      return;
+    }
+    settings = next;
     saveSettings(settings);
     paint();
     onChange?.(settings);
@@ -94,16 +101,24 @@ function initializeAnalysisSettings() {
   const root = document.querySelector("[data-analysis-settings]");
   if (!root) return;
   const isPositionPage = Boolean(document.querySelector("[data-analysis-root]"));
-  bindAnalysisSettings(root, () => {
-    if (isPositionPage) {
-      window.location.reload();
-    } else {
-      const runtime = document.querySelector("[data-engine-runtime]");
-      if (runtime) {
-        runtime.textContent = "Settings saved. Reopen the Game to apply.";
+  bindAnalysisSettings(
+    root,
+    () => {
+      if (isPositionPage) {
+        window.location.reload();
+      } else {
+        const runtime = document.querySelector("[data-engine-runtime]");
+        if (runtime) {
+          runtime.textContent = "Settings saved. Reopen the Game to apply.";
+        }
       }
-    }
-  });
+    },
+    () =>
+      !workspaceIsActive() ||
+      window.confirm(
+        "Changing engine settings will invalidate saved engine results. Continue?"
+      )
+  );
 }
 if (document.readyState === "loading") {
   document.addEventListener("DOMContentLoaded", initializeAnalysisSettings);

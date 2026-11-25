@@ -50,6 +50,7 @@
       {% endif %}
     </form>
     {% include "analysis_settings.html" %}
+    {% include "analysis_workspace.html" %}
 
     {% if game_data %}
     <div
@@ -125,5 +126,6 @@
 {% endblock %}
 {% block body_scripts %}
 <script type="module" src="/static/js/analysis-settings.js"></script>
+<script type="module" src="/static/js/analysis-workspace-restore.js"></script>
 <script type="module" src="/static/js/analysis-game.js"></script>
 {% endblock %}

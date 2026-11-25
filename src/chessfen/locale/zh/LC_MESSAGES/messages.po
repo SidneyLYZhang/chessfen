@@ -1020,3 +1020,18 @@ msgstr "完整资源约 99 MB，只会在明确选择后下载。"
 
 msgid "Runtime is selected after checking browser support."
 msgstr "将在检查浏览器支持后选择运行模式。"
+
+msgid "A locally saved Analysis Workspace is available."
+msgstr "检测到本地保存的分析工作区。"
+
+msgid "Restore Analysis Workspace"
+msgstr "恢复分析工作区"
+
+msgid "Discard Analysis Workspace"
+msgstr "丢弃分析工作区"
+
+msgid "Restored from the local Analysis Workspace."
+msgstr "已从本地分析工作区恢复。"
+
+msgid "Analysis results are not being saved locally."
+msgstr "分析结果未能保存到本地。"

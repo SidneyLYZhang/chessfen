@@ -67,15 +67,21 @@ def live_analysis_url(tmp_path_factory: pytest.TempPathFactory) -> Iterator[str]
 
 
 @pytest.fixture(scope="module")
-def browser_page(live_analysis_url: str) -> Iterator[Page]:
+def browser():
     with sync_playwright() as playwright:
-        browser = playwright.chromium.launch()
-        context = browser.new_context(locale="en-US")
-        page = context.new_page()
-        page.set_default_timeout(30_000)
-        yield page
-        context.close()
-        browser.close()
+        instance = playwright.chromium.launch()
+        yield instance
+        instance.close()
+
+
+@pytest.fixture
+def browser_page(browser) -> Iterator[Page]:
+    context = browser.new_context(locale="en-US")
+    page = context.new_page()
+    page.set_default_timeout(30_000)
+    page.on("dialog", lambda dialog: dialog.accept())
+    yield page
+    context.close()
 
 
 def test_real_browser_engine_analyzes_cancels_and_restarts(
@@ -534,3 +540,184 @@ def test_browser_applies_local_multipv_preset_and_resource_settings(
         page.locator("[data-setting-multipv]").select_option("3")
     with page.expect_navigation():
         page.locator("[data-setting-preset]").select_option("standard")
+
+
+def test_browser_restores_a_position_workspace_after_reload_and_new_page(
+    browser_page: Page, live_analysis_url: str
+) -> None:
+    page = browser_page
+    page.goto(f"{live_analysis_url}/tools/analysis")
+    page.locator("#analysis-fen").fill(_START_FEN)
+    page.locator("#analysis-move").fill("e4")
+    page.get_by_role("button", name="Start analysis").click()
+    expect(page.locator("[data-analysis-status]")).to_contain_text(
+        "Analysis complete", timeout=30_000
+    )
+
+    page.reload()
+    expect(page.locator("[data-analysis-status]")).to_contain_text(
+        "Restored from the local Analysis Workspace."
+    )
+    expect(page.locator("[data-candidate-line]")).to_have_count(3)
+    assert page.locator("#analysis-fen").input_value() == _START_FEN
+    assert page.locator("#analysis-move").input_value() == "e4"
+
+    second_page = page.context.new_page()
+    second_page.set_default_timeout(30_000)
+    second_page.goto(f"{live_analysis_url}/tools/analysis")
+    expect(second_page.locator("[data-analysis-status]")).to_contain_text(
+        "Restored from the local Analysis Workspace."
+    )
+    expect(second_page.locator("[data-candidate-line]")).to_have_count(3)
+    second_page.close()
+
+
+def test_browser_restores_a_game_workspace_from_the_get_page(
+    browser_page: Page, live_analysis_url: str
+) -> None:
+    page = browser_page
+    page.goto(f"{live_analysis_url}/tools/analysis/pgn")
+    page.locator("#pgn").fill(
+        '[Event "Restore"]\n[White "Alice"]\n[Black "Bob"]\n[Result "*"]\n\n1. e4 *\n'
+    )
+    page.get_by_role("button", name="Parse PGN").click()
+    page.get_by_role("button", name="Open Game").click()
+    page.get_by_role("button", name="Start Game Analysis").click()
+    expect(page.locator("[data-game-status]")).to_contain_text(
+        "Analysis complete", timeout=30_000
+    )
+
+    page.goto(f"{live_analysis_url}/tools/analysis/pgn")
+    restore = page.locator("[data-workspace-restore]")
+    expect(restore).to_be_visible()
+    with page.expect_navigation():
+        page.locator("[data-workspace-restore-button]").click()
+    expect(page.locator("[data-game-status]")).to_contain_text(
+        "Restored from the local Analysis Workspace."
+    )
+    expect(page.locator("[data-game-moves] [data-ply='1']")).to_be_visible()
+
+
+def test_browser_reports_workspace_storage_failure_without_losing_results(
+    browser_page: Page, live_analysis_url: str
+) -> None:
+    page = browser_page
+    page.goto(f"{live_analysis_url}/tools/analysis")
+    page.evaluate(
+        """() => {
+          IDBObjectStore.prototype.put = function () {
+            throw new DOMException("quota", "QuotaExceededError");
+          };
+        }"""
+    )
+    page.locator("#analysis-fen").fill(_START_FEN)
+    page.get_by_role("button", name="Start analysis").click()
+    expect(page.locator("[data-analysis-status]")).to_contain_text(
+        "Analysis complete", timeout=30_000
+    )
+    expect(page.locator("[data-workspace-status]")).to_contain_text(
+        "not being saved locally"
+    )
+    expect(page.locator("[data-candidate-line]")).to_have_count(3)
+
+
+def test_browser_reports_a_corrupt_workspace_without_breaking_analysis(
+    browser_page: Page, live_analysis_url: str
+) -> None:
+    page = browser_page
+    page.goto(f"{live_analysis_url}/tools/analysis")
+    page.evaluate(
+        """async () => {
+          const open = indexedDB.open("chessfen-analysis", 1);
+          const db = await new Promise((resolve, reject) => {
+            open.onsuccess = () => resolve(open.result);
+            open.onerror = () => reject(open.error);
+          });
+          await new Promise((resolve, reject) => {
+            const tx = db.transaction("workspaces", "readwrite");
+            tx.objectStore("workspaces").put({ id: "current", version: 99 });
+            tx.oncomplete = resolve;
+            tx.onerror = () => reject(tx.error);
+          });
+          db.close();
+        }"""
+    )
+    page.reload()
+    expect(page.locator("[data-workspace-status]")).to_contain_text(
+        "could not be read"
+    )
+    page.locator("#analysis-fen").fill(_START_FEN)
+    page.get_by_role("button", name="Start analysis").click()
+    expect(page.locator("[data-analysis-status]")).to_contain_text(
+        "Analysis complete", timeout=30_000
+    )
+
+
+def test_browser_invalidates_engine_results_after_settings_change(
+    browser_page: Page, live_analysis_url: str
+) -> None:
+    page = browser_page
+    page.goto(f"{live_analysis_url}/tools/analysis")
+    page.locator("#analysis-fen").fill(_START_FEN)
+    page.get_by_role("button", name="Start analysis").click()
+    expect(page.locator("[data-analysis-status]")).to_contain_text(
+        "Analysis complete", timeout=30_000
+    )
+    with page.expect_navigation():
+        page.locator("[data-setting-multipv]").select_option("2")
+    expect(page.locator("[data-workspace-status]")).to_contain_text(
+        "discarded because engine settings changed"
+    )
+    expect(page.locator("[data-candidate-line]")).to_have_count(0)
+    assert page.locator("#analysis-fen").input_value() == _START_FEN
+
+
+def test_browser_resumes_the_first_incomplete_game_position(
+    browser_page: Page, live_analysis_url: str
+) -> None:
+    page = browser_page
+    page.goto(f"{live_analysis_url}/tools/analysis/pgn")
+    page.locator("#pgn").fill(
+        '[Event "Resume"]\n[White "Alice"]\n[Black "Bob"]\n[Result "*"]\n\n1. e4 e5 *\n'
+    )
+    page.get_by_role("button", name="Parse PGN").click()
+    page.get_by_role("button", name="Open Game").click()
+    page.get_by_role("button", name="Start Game Analysis").click()
+    expect(page.locator("[data-game-status]")).to_contain_text(
+        "Analyzing Position 2/", timeout=30_000
+    )
+    page.get_by_role("button", name="Cancel").click()
+    expect(page.locator("[data-game-status]")).to_contain_text("cancelled")
+
+    page.goto(f"{live_analysis_url}/tools/analysis/pgn")
+    expect(page.locator("[data-workspace-restore]")).to_be_visible()
+    with page.expect_navigation():
+        page.locator("[data-workspace-restore-button]").click()
+    expect(page.locator("[data-game-status]")).to_contain_text(
+        "Restored 1/3 Positions"
+    )
+    continue_button = page.get_by_role("button", name="Continue")
+    expect(continue_button).to_be_enabled()
+    continue_button.click()
+    expect(page.locator("[data-game-status]")).to_contain_text(
+        "Analysis complete", timeout=30_000
+    )
+
+
+def test_browser_requires_confirmation_before_restart(
+    browser_page: Page, live_analysis_url: str
+) -> None:
+    page = browser_page
+    dialogs: list[str] = []
+    page.on("dialog", lambda dialog: dialogs.append(dialog.message))
+    page.goto(f"{live_analysis_url}/tools/analysis")
+    page.locator("#analysis-fen").fill(_START_FEN)
+    page.get_by_role("button", name="Start analysis").click()
+    expect(page.locator("[data-analysis-status]")).to_contain_text(
+        "Analysis complete", timeout=30_000
+    )
+    page.get_by_role("button", name="Restart").click()
+    expect(page.locator("[data-analysis-status]")).to_contain_text(
+        "Analysis complete", timeout=30_000
+    )
+    assert any("Restart analysis" in message for message in dialogs)

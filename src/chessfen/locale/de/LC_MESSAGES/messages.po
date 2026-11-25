@@ -1020,3 +1020,18 @@ msgstr "Vollständige Ressourcen sind etwa 99 MB groß und werden nur nach diese
 
 msgid "Runtime is selected after checking browser support."
 msgstr "Der Laufzeitmodus wird nach Prüfung der Browserunterstützung gewählt."
+
+msgid "A locally saved Analysis Workspace is available."
+msgstr "Ein lokal gespeicherter Analyse-Arbeitsbereich ist verfügbar."
+
+msgid "Restore Analysis Workspace"
+msgstr "Analyse-Arbeitsbereich wiederherstellen"
+
+msgid "Discard Analysis Workspace"
+msgstr "Analyse-Arbeitsbereich verwerfen"
+
+msgid "Restored from the local Analysis Workspace."
+msgstr "Aus dem lokalen Analyse-Arbeitsbereich wiederhergestellt."
+
+msgid "Analysis results are not being saved locally."
+msgstr "Analyseergebnisse werden nicht lokal gespeichert."
