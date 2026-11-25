@@ -168,6 +168,25 @@
           <button class="ghost-button" type="button" data-explanation-lock>{% trans %}Lock LLM{% endtrans %}</button>
         </div>
         <p class="analysis-status" data-explanation-status role="status" aria-live="polite"></p>
+        <div class="analysis-playback" data-position-summary>
+          <p class="field-label">{% trans %}Overall Position summary{% endtrans %}</p>
+          <p class="field-hint" data-position-summary-plan></p>
+          <div class="form-actions">
+            <button class="secondary-button" type="button" data-position-summary-preview>{% trans %}Preview Position Summary{% endtrans %}</button>
+            <button class="primary-button" type="button" data-position-summary-confirm hidden>{% trans %}Confirm Summary Request{% endtrans %}</button>
+            <button class="danger-button" type="button" data-position-summary-cancel hidden>{% trans %}Cancel summary request{% endtrans %}</button>
+          </div>
+          <p class="field-hint" data-position-summary-warning hidden>{% trans %}Already submitted requests may still finish and incur Provider charges.{% endtrans %}</p>
+          <p class="analysis-status" data-position-summary-status role="status" aria-live="polite"></p>
+          <p class="field-hint" data-position-summary-usage></p>
+        </div>
+      </section>
+      <section class="analysis-assessment" data-position-summary-result hidden>
+        <h3>{% trans %}Overall summary{% endtrans %}</h3>
+        <p data-position-summary-text></p>
+        <p class="field-hint" data-position-summary-uncertainty></p>
+        <p class="form-error" data-position-summary-stale hidden>{% trans %}Explanation language or audience changed; regenerate to refresh it.{% endtrans %}</p>
+        <button class="ghost-button small-button" type="button" data-position-summary-retry hidden>{% trans %}Retry summary{% endtrans %}</button>
       </section>
       <section class="analysis-lines" data-analysis-lines-section hidden aria-labelledby="candidate-lines-title">
         <h3 id="candidate-lines-title">{% trans %}Candidate Lines{% endtrans %}</h3>

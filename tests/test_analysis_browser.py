@@ -989,6 +989,8 @@ def test_browser_batches_key_ply_explanations_and_summary(
     page = browser_page
     requests: list[dict[str, Any]] = []
     invalid_sent = False
+    second_batch_failed = False
+    summary_failed = False
 
     def provider(route) -> None:
         headers = {
@@ -1001,13 +1003,17 @@ def test_browser_batches_key_ply_explanations_and_summary(
             return
         body = route.request.post_data_json
         requests.append(body)
-        nonlocal invalid_sent
+        nonlocal invalid_sent, second_batch_failed, summary_failed
         request_payload = json.loads(body["messages"][1]["content"])
         content: dict[str, Any]
         if "targets" in request_payload:
             if not invalid_sent:
                 invalid_sent = True
                 content = {"unexpected": True}
+            elif len(request_payload["targets"]) == 1 and not second_batch_failed:
+                second_batch_failed = True
+                route.fulfill(status=500, headers=headers)
+                return
             else:
                 explanations = [
                     {
@@ -1020,6 +1026,10 @@ def test_browser_batches_key_ply_explanations_and_summary(
                     for target in request_payload["targets"]
                 ]
                 content = {"explanations": explanations}
+        elif not summary_failed:
+            summary_failed = True
+            route.fulfill(status=500, headers=headers)
+            return
         else:
             content = {"summary": "Overall", "uncertainty": "limited"}
         route.fulfill(
@@ -1104,17 +1114,82 @@ def test_browser_batches_key_ply_explanations_and_summary(
     )
     page.get_by_role("button", name="Confirm and Generate").click()
     expect(page.locator("[data-game-batch-status]")).to_contain_text(
-        "complete", timeout=30_000
+        "batch failed", timeout=30_000
     )
+    expect(page.locator("[data-game-batch-retry]")).to_be_visible()
+    page.get_by_role("button", name="Retry failed batch").click()
+    expect(page.locator("[data-game-batch-status]")).to_contain_text(
+        "summary failed", timeout=30_000
+    )
+    expect(page.locator("[data-game-summary-retry]")).to_be_visible()
+    page.get_by_role("button", name="Retry summary").click()
     expect(page.locator("[data-game-overall-summary]")).to_be_visible()
     expect(page.locator("[data-game-summary-text]")).to_have_text("Overall")
     expect(page.locator("[data-game-token-usage]")).to_contain_text(
         "total 45"
     )
-    assert len(requests) == 4
-    first_payload = json.loads(requests[0]["messages"][1]["content"])
-    retry_payload = json.loads(requests[1]["messages"][1]["content"])
-    second_payload = json.loads(requests[2]["messages"][1]["content"])
-    assert len(first_payload["targets"]) == 5
-    assert len(retry_payload["targets"]) == 5
-    assert len(second_payload["targets"]) == 1
+    assert len(requests) == 6
+    payloads = [json.loads(item["messages"][1]["content"]) for item in requests]
+    assert [len(p.get("targets", [])) for p in payloads] == [5, 5, 1, 1, 0, 0]
+
+
+def test_browser_generates_a_position_overall_summary(
+    browser_page: Page, live_analysis_url: str
+) -> None:
+    page = browser_page
+
+    def provider(route) -> None:
+        headers = {
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Headers": "authorization,content-type",
+            "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+        }
+        if route.request.method == "OPTIONS":
+            route.fulfill(status=204, headers=headers)
+            return
+        route.fulfill(
+            status=200,
+            headers={**headers, "Content-Type": "application/json"},
+            body=json.dumps(
+                {
+                    "choices": [
+                        {
+                            "message": {
+                                "content": json.dumps(
+                                    {
+                                        "summary": "局面总结",
+                                        "uncertainty": "依据有限",
+                                    }
+                                )
+                            }
+                        }
+                    ],
+                    "usage": {
+                        "prompt_tokens": 4,
+                        "completion_tokens": 3,
+                        "completion_tokens_details": {"reasoning_tokens": 1},
+                        "total_tokens": 7,
+                    },
+                }
+            ),
+        )
+
+    page.route("https://api.openai.test/**", provider)
+    _configure_mock_profile(page, live_analysis_url)
+    page.goto(f"{live_analysis_url}/tools/analysis")
+    page.locator("#analysis-fen").fill(_START_FEN)
+    page.get_by_role("button", name="Start analysis").click()
+    expect(page.locator("[data-analysis-status]")).to_contain_text(
+        "Analysis complete", timeout=30_000
+    )
+    page.locator("[data-position-summary-preview]").click()
+    expect(page.locator("[data-position-summary-plan]")).to_contain_text(
+        "1 overall Position summary request"
+    )
+    page.locator("[data-explanation-passphrase]").fill("correct horse battery")
+    page.get_by_role("button", name="Confirm Summary Request").click()
+    expect(page.locator("[data-position-summary-text]")).to_have_text("局面总结")
+    expect(page.locator("[data-position-summary-usage]")).to_contain_text(
+        "total 7"
+    )
+    page.unroute("https://api.openai.test/**", provider)

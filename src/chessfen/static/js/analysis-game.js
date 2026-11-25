@@ -74,6 +74,7 @@ function initializeGameAnalysis() {
   let batchController = null;
   let batchBatches = null;
   let pendingBatchIndex = null;
+  let lastSummaryProfile = null;
   const usageTotals = { prompt: 0, completion: 0, reasoning: 0, total: 0 };
   window.addEventListener("chessfen:llm-lock", () => {
     explanationStatus.textContent = llmText.locked_timeout;
@@ -116,6 +117,7 @@ function initializeGameAnalysis() {
   const summaryText = document.querySelector("[data-game-summary-text]");
   const summaryUncertainty = document.querySelector("[data-game-summary-uncertainty]");
   const summaryStale = document.querySelector("[data-game-summary-stale]");
+  const summaryRetry = document.querySelector("[data-game-summary-retry]");
   const workspaceRestore = document.querySelector("[data-workspace-restore]");
   const analysisSettings = {
     preset: ["fast", "standard", "deep"].includes(stored.preset)
@@ -233,7 +235,7 @@ function initializeGameAnalysis() {
 
   function renderGameExplanation(ply) {
     if (ply <= 0) {
-      explanationSection.hidden = true;
+      explanationSection.hidden = !analysis;
       explanationOutput.hidden = true;
       explanationStale.hidden = true;
       return;
@@ -503,6 +505,7 @@ function initializeGameAnalysis() {
         batchStatus.textContent = `Completed batch ${index + 1}/${batchBatches.length}.`;
       }
       batchStatus.textContent = "Generating overall summary…";
+      lastSummaryProfile = profile;
       const summary = await requestOverallSummary(
         profile,
         {
@@ -512,6 +515,8 @@ function initializeGameAnalysis() {
         batchController.signal
       );
       if (!summary.ok) {
+        summarySection.hidden = false;
+        summaryRetry.hidden = false;
         batchStatus.textContent =
           summary.code === "cancelled"
             ? "LLM generation cancelled. Submitted requests may still finish."
@@ -520,6 +525,7 @@ function initializeGameAnalysis() {
       }
       summaryExplanation = summary.summary;
       summaryMeta = meta;
+      summaryRetry.hidden = true;
       addUsage(summary.usage);
       renderSummary();
       await persistGame(analysis ? "complete" : "incomplete", analysis);
@@ -798,6 +804,37 @@ function initializeGameAnalysis() {
     }
   );
 
+  summaryRetry?.addEventListener("click", async () => {
+    if (!lastSummaryProfile) return;
+    const profile = await ensureLlmReady();
+    if (!profile) return;
+    const result = await requestOverallSummary(
+      profile,
+      {
+        game: {
+          white: game.white,
+          black: game.black,
+          result: game.result,
+          mainline: compactGame(),
+        },
+        key_plies: analysis.key_plies,
+      }
+    );
+    if (!result.ok) {
+      batchStatus.textContent = "The summary retry failed.";
+      return;
+    }
+    summaryExplanation = result.summary;
+    summaryMeta = {
+      language: profile.language,
+      audience: profile.audience,
+    };
+    summaryRetry.hidden = true;
+    addUsage(result.usage);
+    renderSummary();
+    await persistGame(analysis ? "complete" : "incomplete", analysis);
+    batchStatus.textContent = "Overall summary complete.";
+  });
   batchPreview?.addEventListener("click", prepareBatch);
   batchGenerate?.addEventListener("click", async () => {
     const profile = await ensureLlmReady();

@@ -1218,3 +1218,45 @@ msgstr "锁定"
 
 msgid "Delete credential"
 msgstr "删除凭据"
+
+msgid "Already submitted requests may still finish and incur Provider charges."
+msgstr "已提交的请求仍可能完成并产生 Provider 费用。"
+
+msgid "Cancel LLM generation"
+msgstr "取消 LLM 生成"
+
+msgid "Cancel summary request"
+msgstr "取消总结请求"
+
+msgid "Confirm Summary Request"
+msgstr "确认总结请求"
+
+msgid "Confirm and Generate"
+msgstr "确认并生成"
+
+msgid "Explanation language or audience changed; regenerate to refresh it."
+msgstr "讲解语言或受众已改变；重新生成可刷新内容。"
+
+msgid "Key Ply batch explanations"
+msgstr "关键 Ply 批量讲解"
+
+msgid "Overall Position summary"
+msgstr "局面总体总结"
+
+msgid "Overall summary"
+msgstr "总体总结"
+
+msgid "PGN"
+msgstr "PGN"
+
+msgid "Preview Key Ply Explanations"
+msgstr "预览关键 Ply 讲解"
+
+msgid "Preview Position Summary"
+msgstr "预览局面总结"
+
+msgid "Retry failed batch"
+msgstr "重试失败批次"
+
+msgid "Retry summary"
+msgstr "重试总结"

@@ -6,6 +6,7 @@ import {
   lockLlm,
   profileRequestReady,
   requestExplanation,
+  requestOverallSummary,
   unlockLlm,
 } from "/static/js/analysis-llm.js";
 import {
@@ -428,6 +429,18 @@ function initializeAnalysis() {
   const explanationStale = root.querySelector("[data-explanation-stale]");
   const explanationPassphrase = root.querySelector("[data-explanation-passphrase]");
   const explanationStatus = root.querySelector("[data-explanation-status]");
+  const positionSummaryPlan = root.querySelector("[data-position-summary-plan]");
+  const positionSummaryPreview = root.querySelector("[data-position-summary-preview]");
+  const positionSummaryConfirm = root.querySelector("[data-position-summary-confirm]");
+  const positionSummaryCancel = root.querySelector("[data-position-summary-cancel]");
+  const positionSummaryWarning = root.querySelector("[data-position-summary-warning]");
+  const positionSummaryStatus = root.querySelector("[data-position-summary-status]");
+  const positionSummaryResult = root.querySelector("[data-position-summary-result]");
+  const positionSummaryText = root.querySelector("[data-position-summary-text]");
+  const positionSummaryUncertainty = root.querySelector("[data-position-summary-uncertainty]");
+  const positionSummaryStale = root.querySelector("[data-position-summary-stale]");
+  const positionSummaryRetry = root.querySelector("[data-position-summary-retry]");
+  const positionSummaryUsage = root.querySelector("[data-position-summary-usage]");
 
   const messages = {
     validating: root.dataset.labelValidating,
@@ -517,6 +530,8 @@ function initializeAnalysis() {
   let activeAssessment = null;
   let activeResult = null;
   let lastRunInput = null;
+  let summaryController = null;
+  let summaryBusy = false;
   let cancellationRequested = false;
   let originalBoardUri = null;
   let currentLines = [];
@@ -600,6 +615,7 @@ function initializeAnalysis() {
     }
     explanationSection.hidden = false;
     renderExplanation(result.explanation, result.explanationMeta);
+    renderPositionSummary(result.summaryExplanation, result.summaryMeta);
     setStatus("restored");
     return true;
   }
@@ -735,6 +751,7 @@ function initializeAnalysis() {
     activeAssessment = null;
     activeResult = null;
     renderExplanation(null, null);
+    renderPositionSummary(null, null);
     originalBoardUri = position.board_uri;
     boardCache.clear();
     boardCache.set(position.fen, position.board_uri);
@@ -790,6 +807,95 @@ function initializeAnalysis() {
       !profile ||
       !meta ||
       (profile.language === meta.language && profile.audience === meta.audience);
+  }
+
+  function renderPositionSummary(summary, meta) {
+    if (!summary) {
+      positionSummaryResult.hidden = true;
+      return;
+    }
+    positionSummaryResult.hidden = false;
+    positionSummaryText.textContent = summary.summary;
+    positionSummaryUncertainty.textContent = summary.uncertainty;
+    positionSummaryRetry.hidden = true;
+    const profile = loadLlmProfile();
+    positionSummaryStale.hidden =
+      !profile ||
+      !meta ||
+      (profile.language === meta.language && profile.audience === meta.audience);
+  }
+
+  async function ensureLlmProfileUnlocked() {
+    const profile = loadLlmProfile();
+    if (!profile) {
+      positionSummaryStatus.textContent = llmText.configure_profile;
+      return null;
+    }
+    if (!profileRequestReady(profile)) {
+      positionSummaryStatus.textContent = llmText.confirm_request;
+      return null;
+    }
+    if (!llmUnlocked()) {
+      const unlocked = await unlockLlm(explanationPassphrase.value, profile);
+      if (!unlocked.ok) {
+        positionSummaryStatus.textContent = llmText.unlock_failed;
+        return null;
+      }
+    }
+    return profile;
+  }
+
+  async function generatePositionSummary() {
+    if (summaryBusy || !activePosition) return;
+    const profile = await ensureLlmProfileUnlocked();
+    if (!profile) return;
+    summaryBusy = true;
+    summaryController = new AbortController();
+    positionSummaryConfirm.hidden = true;
+    positionSummaryCancel.hidden = false;
+    positionSummaryWarning.hidden = false;
+    positionSummaryStatus.textContent = "Generating summary…";
+    try {
+      const result = await requestOverallSummary(
+        profile,
+        {
+          fen: activePosition.fen,
+          side_to_move: activePosition.side_to_move,
+          evaluation: currentLines[0]?.evaluation || null,
+          candidate_lines: currentLines,
+          assessment: activeAssessment,
+          actual_move: activePosition.actual_move,
+        },
+        summaryController.signal
+      );
+      if (!result.ok) {
+        positionSummaryStatus.textContent =
+          result.code === "cancelled"
+            ? "Summary cancelled. Submitted requests may still finish."
+            : "Summary failed. You can retry this summary request manually.";
+        positionSummaryConfirm.hidden = false;
+        positionSummaryRetry.hidden = false;
+        return;
+      }
+      const meta = { language: profile.language, audience: profile.audience };
+      positionSummaryUsage.textContent = result.usage
+        ? `Tokens · prompt ${result.usage.prompt} · completion ${result.usage.completion} · reasoning ${result.usage.reasoning} · total ${result.usage.total}`
+        : "";
+      renderPositionSummary(result.summary, meta);
+      if (activeResult) {
+        activeResult = {
+          ...activeResult,
+          summaryExplanation: result.summary,
+          summaryMeta: meta,
+        };
+        await persistPosition("complete", activeResult);
+      }
+      positionSummaryStatus.textContent = "Summary ready.";
+    } finally {
+      summaryBusy = false;
+      summaryController = null;
+      positionSummaryCancel.hidden = true;
+    }
   }
 
   function evaluationText(evaluation) {
@@ -1295,6 +1401,22 @@ function initializeAnalysis() {
   root.querySelector("[data-explanation-lock]")?.addEventListener("click", () => {
     lockLlm();
     explanationStatus.textContent = llmText.locked;
+  });
+
+  positionSummaryPreview?.addEventListener("click", () => {
+    positionSummaryPlan.textContent =
+      "1 overall Position summary request. No batch requests.";
+    positionSummaryConfirm.hidden = false;
+    positionSummaryStatus.textContent =
+      "Review the request count, then confirm the summary.";
+  });
+  positionSummaryConfirm?.addEventListener("click", generatePositionSummary);
+  positionSummaryRetry?.addEventListener("click", generatePositionSummary);
+  positionSummaryCancel?.addEventListener("click", () => {
+    summaryController?.abort();
+    positionSummaryStatus.textContent =
+      "Cancelling… submitted requests may still finish and incur charges.";
+    positionSummaryWarning.hidden = false;
   });
 
   void restorePositionWorkspace();

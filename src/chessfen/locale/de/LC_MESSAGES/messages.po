@@ -1218,3 +1218,45 @@ msgstr "Sperren"
 
 msgid "Delete credential"
 msgstr "Zugangsdaten löschen"
+
+msgid "Already submitted requests may still finish and incur Provider charges."
+msgstr "Bereits gesendete Anfragen können weiterlaufen und Provider-Kosten verursachen."
+
+msgid "Cancel LLM generation"
+msgstr "LLM-Generierung abbrechen"
+
+msgid "Cancel summary request"
+msgstr "Zusammenfassungsanfrage abbrechen"
+
+msgid "Confirm Summary Request"
+msgstr "Zusammenfassung bestätigen"
+
+msgid "Confirm and Generate"
+msgstr "Bestätigen und erzeugen"
+
+msgid "Explanation language or audience changed; regenerate to refresh it."
+msgstr "Sprache oder Zielgruppe geändert; neu erzeugen, um zu aktualisieren."
+
+msgid "Key Ply batch explanations"
+msgstr "Schlüssel-Ply-Erklärungen in Stapeln"
+
+msgid "Overall Position summary"
+msgstr "Gesamtzusammenfassung der Stellung"
+
+msgid "Overall summary"
+msgstr "Gesamtzusammenfassung"
+
+msgid "PGN"
+msgstr "PGN"
+
+msgid "Preview Key Ply Explanations"
+msgstr "Schlüssel-Ply-Erklärungen vorschauen"
+
+msgid "Preview Position Summary"
+msgstr "Stellungszusammenfassung vorschauen"
+
+msgid "Retry failed batch"
+msgstr "Fehlgeschlagenen Stapel wiederholen"
+
+msgid "Retry summary"
+msgstr "Zusammenfassung wiederholen"
