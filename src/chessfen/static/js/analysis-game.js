@@ -239,6 +239,7 @@ function initializeGameAnalysis() {
       explanationSection.hidden = !analysis;
       explanationOutput.hidden = true;
       explanationStale.hidden = true;
+      explanationUsage.textContent = "";
       return;
     }
     explanationSection.hidden = false;
@@ -246,6 +247,7 @@ function initializeGameAnalysis() {
     if (!stored) {
       explanationOutput.hidden = true;
       explanationStale.hidden = true;
+      explanationUsage.textContent = "";
       return;
     }
     explanationOutput.hidden = false;
@@ -253,6 +255,7 @@ function initializeGameAnalysis() {
     explanationWhy.textContent = stored.explanation.why;
     explanationAlternatives.textContent = stored.explanation.alternatives;
     explanationUncertainty.textContent = stored.explanation.uncertainty;
+    explanationUsage.textContent = usageText(stored.usage);
     const profile = loadLlmProfile();
     explanationStale.hidden =
       !profile ||
@@ -366,10 +369,16 @@ function initializeGameAnalysis() {
     }
   }
 
+  function usageText(usage) {
+    if (!usage) return "";
+    return (
+      `Tokens · prompt ${usage.prompt} · completion ${usage.completion}` +
+      ` · reasoning ${usage.reasoning} · total ${usage.total}`
+    );
+  }
+
   function renderUsage() {
-    tokenUsage.textContent =
-      `Tokens · prompt ${usageTotals.prompt} · completion ${usageTotals.completion}` +
-      ` · reasoning ${usageTotals.reasoning} · total ${usageTotals.total}`;
+    tokenUsage.textContent = usageText(usageTotals);
   }
 
   function renderSummary() {
@@ -788,6 +797,7 @@ function initializeGameAnalysis() {
             language: profile.language,
             audience: profile.audience,
           },
+          usage: result.usage || null,
         };
         renderGameExplanation(activePly);
         await persistGame(analysis ? "complete" : "incomplete", analysis);

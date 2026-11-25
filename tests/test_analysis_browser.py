@@ -843,23 +843,7 @@ def test_browser_secures_profile_and_generates_grounded_explanation(
     assert request_body["max_completion_tokens"] == 16384
     assert request_body["response_format"] == {"type": "json_object"}
     assert "SECRET-RAW-REASONING" not in page.content()
-    workspace = page.evaluate(
-        """async () => {
-          const open = indexedDB.open("chessfen-analysis", 1);
-          const db = await new Promise((resolve, reject) => {
-            open.onsuccess = () => resolve(open.result);
-            open.onerror = () => reject(open.error);
-          });
-          const record = await new Promise((resolve, reject) => {
-            const tx = db.transaction("workspaces", "readonly");
-            const req = tx.objectStore("workspaces").get("current");
-            req.onsuccess = () => resolve(req.result);
-            req.onerror = () => reject(req.error);
-          });
-          db.close();
-          return JSON.stringify(record);
-        }"""
-    )
+    workspace = _workspace_record_text(page)
     assert "SECRET-RAW-REASONING" not in workspace
     assert "sk-test-secret-value" not in workspace
 
@@ -893,6 +877,94 @@ def _configure_mock_profile(
     page.locator("[data-llm-confirm]").check()
     page.get_by_role("button", name="Save LLM Profile").click()
     expect(page.locator("[data-llm-status]")).to_contain_text("saved locally")
+
+
+def _configure_openrouter_profile(
+    page: Page, live_analysis_url: str
+) -> None:
+    page.goto(f"{live_analysis_url}/settings")
+    page.locator("[data-llm-provider]").select_option("openrouter")
+    page.locator("[data-llm-model]").fill("openrouter-model")
+    page.locator("[data-llm-api-key]").fill("sk-or-test")
+    page.locator("[data-llm-passphrase]").fill("correct horse battery")
+    page.locator("[data-llm-passphrase-confirm]").fill("correct horse battery")
+    page.locator("[data-llm-consent]").check()
+    page.locator("[data-llm-confirm]").check()
+    page.get_by_role("button", name="Save LLM Profile").click()
+    expect(page.locator("[data-llm-status]")).to_contain_text("saved locally")
+
+
+def _workspace_record_text(page: Page) -> str:
+    return page.evaluate(
+        """async () => {
+          const open = indexedDB.open("chessfen-analysis", 1);
+          const db = await new Promise((resolve, reject) => {
+            open.onsuccess = () => resolve(open.result);
+            open.onerror = () => reject(open.error);
+          });
+          const record = await new Promise((resolve, reject) => {
+            const tx = db.transaction("workspaces", "readonly");
+            const req = tx.objectStore("workspaces").get("current");
+            req.onsuccess = () => resolve(req.result);
+            req.onerror = () => reject(req.error);
+          });
+          db.close();
+          return JSON.stringify(record);
+        }"""
+    )
+
+
+def test_browser_requires_new_provider_key_after_switch(
+    browser_page: Page, live_analysis_url: str
+) -> None:
+    page = browser_page
+    provider_requests: list[str] = []
+    page.on(
+        "request",
+        lambda request: (
+            provider_requests.append(request.url)
+            if request.url.startswith("https://openrouter.ai/")
+            else None
+        ),
+    )
+    _configure_mock_profile(page, live_analysis_url)
+    expect(page.locator("[data-llm-credential-meta]")).to_contain_text(
+        "api.openai.test"
+    )
+
+    page.locator("[data-llm-provider]").select_option("openrouter")
+    expect(page.locator("[data-llm-base-url]")).to_have_value(
+        "https://openrouter.ai/api/v1"
+    )
+    expect(page.locator("[data-llm-consent]")).not_to_be_checked()
+    expect(page.locator("[data-llm-confirm]")).not_to_be_checked()
+    page.locator("[data-llm-model]").fill("openrouter-model")
+    page.locator("[data-llm-passphrase]").fill("correct horse battery")
+    page.locator("[data-llm-consent]").check()
+    page.locator("[data-llm-confirm]").check()
+    page.get_by_role("button", name="Save LLM Profile").click()
+    expect(page.locator("[data-llm-status]")).to_contain_text("saved locally")
+    expect(page.locator("[data-llm-credential-meta]")).to_contain_text(
+        "api.openai.test"
+    )
+
+    page.get_by_role("button", name="Unlock").click()
+    expect(page.locator("[data-llm-status]")).to_contain_text(
+        "Check the passphrase and Provider"
+    )
+    assert provider_requests == []
+
+    page.locator("[data-llm-api-key]").fill("sk-or-test")
+    page.locator("[data-llm-passphrase]").fill("correct horse battery")
+    page.locator("[data-llm-passphrase-confirm]").fill("correct horse battery")
+    page.get_by_role("button", name="Save LLM Profile").click()
+    expect(page.locator("[data-llm-status]")).to_contain_text("saved locally")
+    expect(page.locator("[data-llm-credential-meta]")).to_contain_text(
+        "openrouter.ai"
+    )
+    page.get_by_role("button", name="Unlock").click()
+    expect(page.locator("[data-llm-status]")).to_contain_text("unlocked")
+    assert provider_requests == []
 
 
 def test_browser_generates_a_selected_game_ply_explanation(
@@ -1201,7 +1273,8 @@ def test_browser_openrouter_requires_reasoning_capabilities_and_routes_directly(
     page = browser_page
     chat_headers: list[dict[str, str]] = []
     chat_bodies: list[dict[str, Any]] = []
-    fail_mode = {"abort": False}
+    chat_attempts: list[str] = []
+    fail_mode = {"mode": ""}
     same_origin_posts: list[str] = []
     page.on(
         "request",
@@ -1244,8 +1317,41 @@ def test_browser_openrouter_requires_reasoning_capabilities_and_routes_directly(
                 ),
             )
             return
-        if fail_mode["abort"]:
+        chat_attempts.append(route.request.url)
+        if fail_mode["mode"] == "abort":
             route.abort("failed")
+            return
+        if fail_mode["mode"] == "cors":
+            route.fulfill(
+                status=200,
+                headers={"Content-Type": "application/json"},
+                body=json.dumps(
+                    {"choices": [{"message": {"content": "{}"}}]}
+                ),
+            )
+            return
+        if fail_mode["mode"] == "routing":
+            route.fulfill(
+                status=400,
+                headers={**headers, "Content-Type": "application/json"},
+                body=json.dumps(
+                    {
+                        "error": {
+                            "code": 400,
+                            "message": "No endpoints support requested parameters",
+                        }
+                    }
+                ),
+            )
+            return
+        if fail_mode["mode"] == "malformed":
+            route.fulfill(
+                status=200,
+                headers={**headers, "Content-Type": "application/json"},
+                body=json.dumps(
+                    {"choices": [{"message": {"content": "{not-json"}}]}
+                ),
+            )
             return
         chat_headers.append(
             {key.lower(): value for key, value in route.request.headers.items()}
@@ -1266,7 +1372,8 @@ def test_browser_openrouter_requires_reasoning_capabilities_and_routes_directly(
                                         "alternatives": "lines",
                                         "uncertainty": "none",
                                     }
-                                )
+                                ),
+                                "reasoning": "SECRET-OPENROUTER-REASONING",
                             }
                         }
                     ],
@@ -1281,20 +1388,14 @@ def test_browser_openrouter_requires_reasoning_capabilities_and_routes_directly(
         )
 
     page.route("https://openrouter.ai/**", provider)
-    page.goto(f"{live_analysis_url}/settings")
-    page.locator("[data-llm-provider]").select_option("openrouter")
-    page.locator("[data-llm-model]").fill("openrouter-model")
-    page.locator("[data-llm-api-key]").fill("sk-or-test")
-    page.locator("[data-llm-passphrase]").fill("correct horse battery")
-    page.locator("[data-llm-passphrase-confirm]").fill("correct horse battery")
-    page.locator("[data-llm-consent]").check()
-    page.locator("[data-llm-confirm]").check()
-    page.get_by_role("button", name="Save LLM Profile").click()
-    expect(page.locator("[data-llm-status]")).to_contain_text("saved locally")
-
+    _configure_openrouter_profile(page, live_analysis_url)
     page.locator("[data-llm-passphrase]").fill("correct horse battery")
     page.get_by_role("button", name="Fetch Models").click()
     expect(page.locator("[data-llm-status]")).to_contain_text("Loaded 1 Models")
+    preview = page.locator("[data-llm-preview]").inner_text()
+    assert '"exclude": true' in preview
+    assert '"require_parameters": true' in preview
+    assert '"max_tokens": 16384' in preview
     page.get_by_role("button", name="Save LLM Profile").click()
     expect(page.locator("[data-llm-status]")).to_contain_text("saved locally")
 
@@ -1322,16 +1423,64 @@ def test_browser_openrouter_requires_reasoning_capabilities_and_routes_directly(
     assert "x-openrouter-title" not in headers
     assert "x-title" not in headers
     expect(page.locator("[data-explanation-usage]")).to_contain_text("total 5")
-    before_posts = len(same_origin_posts)
-    fail_mode["abort"] = True
-    page.get_by_role("button", name="Generate Explanation").click()
-    expect(page.locator("[data-explanation-status]")).to_contain_text(
-        "could not be generated"
+    expect(page.locator("[data-explanation-usage]")).to_contain_text(
+        "reasoning 1"
     )
-    expect(page.locator("[data-explanation-summary]")).to_have_text(
+
+    page.locator("[data-position-summary-preview]").click()
+    expect(page.locator("[data-position-summary-plan]")).to_contain_text(
+        "1 overall Position summary request"
+    )
+    page.locator("[data-position-summary-confirm]").click()
+    expect(page.locator("[data-position-summary-text]")).to_have_text(
         "OpenRouter summary"
     )
-    assert len(same_origin_posts) == before_posts
+    expect(page.locator("[data-position-summary-usage]")).to_contain_text(
+        "total 5"
+    )
+    expect(page.locator("[data-position-summary-usage]")).to_contain_text(
+        "reasoning 1"
+    )
+    summary_body = chat_bodies[-1]
+    assert summary_body["reasoning"] == {
+        "enabled": True,
+        "effort": "max",
+        "exclude": True,
+    }
+    assert summary_body["provider"] == {"require_parameters": True}
+    assert summary_body["max_tokens"] == 16384
+
+    assert "SECRET-OPENROUTER-REASONING" not in page.content()
+    local_storage = page.evaluate("() => JSON.stringify(localStorage)")
+    assert "SECRET-OPENROUTER-REASONING" not in local_storage
+    workspace = _workspace_record_text(page)
+    assert "SECRET-OPENROUTER-REASONING" not in workspace
+    assert "OpenRouter summary" in workspace
+
+    before_posts = len(same_origin_posts)
+    before_bodies = len(chat_bodies)
+    before_attempts = len(chat_attempts)
+    expected_status = {
+        "routing": "Provider rejected the request",
+        "malformed": "could not be generated",
+        "cors": "could not be generated",
+        "abort": "could not be generated",
+    }
+    for index, mode in enumerate(("routing", "malformed", "cors", "abort")):
+        fail_mode["mode"] = mode
+        page.get_by_role("button", name="Generate Explanation").click()
+        expect(page.locator("[data-explanation-status]")).to_contain_text(
+            expected_status[mode]
+        )
+        expect(page.locator("[data-explanation-summary]")).to_have_text(
+            "OpenRouter summary"
+        )
+        expect(page.locator("[data-position-summary-text]")).to_have_text(
+            "OpenRouter summary"
+        )
+        assert len(chat_attempts) == before_attempts + index + 1
+        assert len(chat_bodies) == before_bodies
+        assert len(same_origin_posts) == before_posts
     page.unroute("https://openrouter.ai/**", provider)
 
 
@@ -1444,3 +1593,261 @@ def test_browser_recovers_openrouter_unsupported_effort_and_persists_capabilitie
     expect(page.locator("[data-llm-effort] option[value='max']")).to_be_disabled()
     expect(page.locator("[data-llm-capabilities]")).to_contain_text("high")
     page.unroute("https://openrouter.ai/**", provider)
+
+
+def test_browser_openrouter_batches_and_summarizes_game_with_malformed_retry(
+    browser_page: Page, live_analysis_url: str
+) -> None:
+    page = browser_page
+    requests: list[dict[str, Any]] = []
+    batch_attempts = 0
+
+    def provider(route) -> None:
+        nonlocal batch_attempts
+        headers = {
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Headers": "authorization,content-type",
+            "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+        }
+        if route.request.method == "OPTIONS":
+            route.fulfill(status=204, headers=headers)
+            return
+        if route.request.url.endswith("/models"):
+            route.fulfill(
+                status=200,
+                headers={**headers, "Content-Type": "application/json"},
+                body=json.dumps(
+                    {
+                        "data": [
+                            {
+                                "id": "openrouter-model",
+                                "supported_parameters": ["reasoning"],
+                                "reasoning": {
+                                    "supported_efforts": ["max", "high"]
+                                },
+                            }
+                        ]
+                    }
+                ),
+            )
+            return
+        body = route.request.post_data_json
+        requests.append(body)
+        system = body["messages"][0]["content"]
+        reasoning = ""
+        usage = None
+        if system.startswith("Explain chess analysis"):
+            content = json.dumps(
+                {
+                    "summary": "OpenRouter manual ply",
+                    "why": "engine facts",
+                    "alternatives": "candidate lines",
+                    "uncertainty": "limited",
+                }
+            )
+            reasoning = "SECRET-MANUAL-REASONING"
+            usage = {
+                "prompt_tokens": 3,
+                "completion_tokens": 2,
+                "completion_tokens_details": {"reasoning_tokens": 1},
+                "total_tokens": 5,
+            }
+        else:
+            payload = json.loads(body["messages"][1]["content"])
+            if "targets" in payload:
+                batch_attempts += 1
+                if batch_attempts == 1:
+                    content = "{not-json"
+                else:
+                    content = json.dumps(
+                        {
+                            "explanations": [
+                                {
+                                    "ply": target["ply"],
+                                    "summary": "OpenRouter key ply",
+                                    "why": "engine facts",
+                                    "alternatives": "candidate lines",
+                                    "uncertainty": "limited",
+                                }
+                                for target in payload["targets"]
+                            ]
+                        }
+                    )
+                    reasoning = "SECRET-BATCH-REASONING"
+                usage = (
+                    {
+                        "prompt_tokens": 3,
+                        "completion_tokens": 2,
+                        "completion_tokens_details": {
+                            "reasoning_tokens": 1
+                        },
+                        "total_tokens": 5,
+                    }
+                    if batch_attempts > 1
+                    else None
+                )
+            else:
+                content = json.dumps(
+                    {
+                        "summary": "OpenRouter game summary",
+                        "uncertainty": "limited",
+                    }
+                )
+                reasoning = "SECRET-SUMMARY-REASONING"
+                usage = {
+                    "prompt_tokens": 3,
+                    "completion_tokens": 2,
+                    "completion_tokens_details": {"reasoning_tokens": 1},
+                    "total_tokens": 5,
+                }
+        message = {"content": content}
+        if reasoning:
+            message["reasoning"] = reasoning
+        response: dict[str, Any] = {"choices": [{"message": message}]}
+        if usage is not None:
+            response["usage"] = usage
+        route.fulfill(
+            status=200,
+            headers={**headers, "Content-Type": "application/json"},
+            body=json.dumps(response),
+        )
+
+    fake_analysis = {
+        "start_fen": _START_FEN,
+        "evaluations": [
+            {"kind": "cp", "value": 10, "text": "+0.10"},
+            {"kind": "cp", "value": 10, "text": "+0.10"},
+        ],
+        "plies": [
+            {
+                "ply": 1,
+                "number": 1,
+                "side": "white",
+                "uci": "e2e4",
+                "san": "e4",
+                "before_fen": _START_FEN,
+                "after_fen": _AFTER_E4_FEN,
+                "quality": "best",
+                "cpl": 10,
+                "mate_loss": False,
+                "is_forced": False,
+                "is_key": True,
+                "key_reasons": ["quality"],
+                "evaluation_before": {
+                    "kind": "cp",
+                    "value": 10,
+                    "text": "+0.10",
+                },
+                "evaluation_after": {
+                    "kind": "cp",
+                    "value": 10,
+                    "text": "+0.10",
+                },
+                "exact_facts": {},
+                "indicators": {},
+            }
+        ],
+        "key_plies": [1],
+        "summary": {},
+    }
+
+    def game_results(route) -> None:
+        route.fulfill(
+            status=200,
+            content_type="application/json",
+            body=json.dumps(fake_analysis),
+        )
+
+    page.route("https://openrouter.ai/**", provider)
+    page.route("**/tools/analysis/game/results", game_results)
+    _configure_openrouter_profile(page, live_analysis_url)
+    page.locator("[data-llm-passphrase]").fill("correct horse battery")
+    page.get_by_role("button", name="Fetch Models").click()
+    expect(page.locator("[data-llm-capabilities]")).to_contain_text("high")
+
+    page.goto(f"{live_analysis_url}/tools/analysis/pgn")
+    page.locator("#pgn").fill(
+        '[Event "OpenRouter"]\n[White "A"]\n[Black "B"]\n[Result "*"]\n\n1. e4 *'
+    )
+    page.get_by_role("button", name="Parse PGN").click()
+    page.get_by_role("button", name="Open Game").click()
+    page.get_by_role("button", name="Start Game Analysis").click()
+    expect(page.locator("[data-game-status]")).to_contain_text(
+        "Analysis complete", timeout=30_000
+    )
+    page.locator("[data-game-moves] [data-ply='1']").click()
+    page.locator("[data-game-explanation-passphrase]").fill(
+        "correct horse battery"
+    )
+    page.get_by_role("button", name="Generate Explanation").click()
+    expect(page.locator("[data-game-explanation-summary]")).to_have_text(
+        "OpenRouter manual ply"
+    )
+    expect(page.locator("[data-game-explanation-usage]")).to_contain_text(
+        "total 5"
+    )
+    expect(page.locator("[data-game-explanation-usage]")).to_contain_text(
+        "reasoning 1"
+    )
+
+    page.locator("[data-game-batch-preview]").click()
+    expect(page.locator("[data-game-batch-plan]")).to_contain_text(
+        "1 Key Plies · 1 batch requests + 1 summary request"
+    )
+    page.locator("[data-game-explanation-passphrase]").fill(
+        "correct horse battery"
+    )
+    page.get_by_role("button", name="Confirm and Generate").click()
+    expect(page.locator("[data-game-batch-status]")).to_contain_text(
+        "Key Ply explanations and summary complete.", timeout=30_000
+    )
+    expect(page.locator("[data-game-summary-text]")).to_have_text(
+        "OpenRouter game summary"
+    )
+    expect(page.locator("[data-game-token-usage]")).to_contain_text("total 10")
+    expect(page.locator("[data-game-token-usage]")).to_contain_text(
+        "reasoning 2"
+    )
+    assert batch_attempts == 2
+    assert len(requests) == 4
+    assert requests[0]["messages"][0]["content"].startswith(
+        "Explain chess analysis"
+    )
+    manual_payload = json.loads(
+        requests[0]["messages"][1]["content"].split("\n", 1)[1]
+    )
+    assert manual_payload["quality"] == "best"
+    assert manual_payload["evaluation_before"]["value"] == 10
+    payloads = [
+        json.loads(item["messages"][1]["content"]) for item in requests[1:]
+    ]
+    assert [len(payload.get("targets", [])) for payload in payloads] == [1, 1, 0]
+    target = payloads[-2]["targets"][0]
+    assert target["quality"] == "best"
+    assert target["evaluation_before"]["value"] == 10
+    assert "key_plies" in payloads[-1]
+    for body in requests:
+        assert body["reasoning"] == {
+            "enabled": True,
+            "effort": "max",
+            "exclude": True,
+        }
+        assert body["provider"] == {"require_parameters": True}
+        assert body["max_tokens"] == 16384
+    page.locator("[data-game-moves] [data-ply='1']").click()
+    expect(page.locator("[data-game-explanation-summary]")).to_have_text(
+        "OpenRouter key ply"
+    )
+    assert "SECRET-MANUAL-REASONING" not in page.content()
+    assert "SECRET-BATCH-REASONING" not in page.content()
+    assert "SECRET-SUMMARY-REASONING" not in page.content()
+    workspace = _workspace_record_text(page)
+    for secret in (
+        "SECRET-MANUAL-REASONING",
+        "SECRET-BATCH-REASONING",
+        "SECRET-SUMMARY-REASONING",
+    ):
+        assert secret not in workspace
+    assert "OpenRouter game summary" in workspace
+    page.unroute("https://openrouter.ai/**", provider)
+    page.unroute("**/tools/analysis/game/results", game_results)
