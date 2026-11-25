@@ -1269,3 +1269,12 @@ msgstr "当前模型不支持所选思考强度。请选择受支持的取值。
 
 msgid "Fetch Models to confirm Reasoning capabilities before generating."
 msgstr "生成前请先获取模型以确认思考能力。"
+
+msgid "This Model cannot disable Reasoning. Keep Reasoning enabled or choose a Model that supports non-thinking mode."
+msgstr "当前模型无法关闭思考模式。请保持思考开启，或选择支持非思考模式的模型。"
+
+msgid "Reasoning cannot be disabled for this unverified Model. Keep Reasoning enabled or choose a listed DeepSeek Model."
+msgstr "此未验证模型无法关闭思考模式。请保持思考开启，或选择列表中受支持的 DeepSeek 模型。"
+
+msgid "DeepSeek browser-direct connections are unverified from this deployment. Requests may fail because of CORS; ChessFEN will not proxy them."
+msgstr "当前部署尚未验证 DeepSeek 的浏览器直连兼容性。请求可能因 CORS 失败；ChessFEN 不会改用服务器代理。"

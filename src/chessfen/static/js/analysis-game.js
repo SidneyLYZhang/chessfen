@@ -5,6 +5,7 @@ import {
   loadLlmProfile,
   lockLlm,
   profileRequestReady,
+  reasoningFailureText,
   requestExplanation,
   requestKeyPlyBatch,
   requestOverallSummary,
@@ -68,6 +69,8 @@ function initializeGameAnalysis() {
       node.textContent,
     ])
   );
+  const llmFailureText = (code, fallback) =>
+    reasoningFailureText(code, llmText) || fallback;
   const explanations = {};
   let summaryExplanation = null;
   let summaryMeta = null;
@@ -500,10 +503,12 @@ function initializeGameAnalysis() {
           }
           pendingBatchIndex = index;
           batchRetry.hidden = false;
-          batchStatus.textContent =
+          batchStatus.textContent = llmFailureText(
+            result.code,
             result.code === "budget_exhausted"
               ? "The generation budget was exhausted. Prior results were preserved."
-              : `A batch failed (${result.code}). Retry this batch manually.`;
+              : `A batch failed (${result.code}). Retry this batch manually.`
+          );
           return;
         }
         for (const [ply, explanation] of Object.entries(result.explanations)) {
@@ -527,10 +532,12 @@ function initializeGameAnalysis() {
       if (!summary.ok) {
         summarySection.hidden = false;
         summaryRetry.hidden = false;
-        batchStatus.textContent =
+        batchStatus.textContent = llmFailureText(
+          summary.code,
           summary.code === "cancelled"
             ? "LLM generation cancelled. Submitted requests may still finish."
-            : "Batches completed, but the overall summary failed. Retry it separately.";
+            : "Batches completed, but the overall summary failed. Retry it separately."
+        );
         return;
       }
       summaryExplanation = summary.summary;
@@ -787,8 +794,10 @@ function initializeGameAnalysis() {
           candidate_lines: activeCandidateLines,
         });
         if (!result.ok) {
-          explanationStatus.textContent =
-            "Explanation could not be generated. Confirm the Provider and Reasoning Settings.";
+          explanationStatus.textContent = llmFailureText(
+            result.code,
+            "Explanation could not be generated. Confirm the Provider and Reasoning Settings."
+          );
           return;
         }
         explanations[activePly] = {
@@ -832,7 +841,10 @@ function initializeGameAnalysis() {
       }
     );
     if (!result.ok) {
-      batchStatus.textContent = "The summary retry failed.";
+      batchStatus.textContent = llmFailureText(
+        result.code,
+        "The summary retry failed."
+      );
       return;
     }
     summaryExplanation = result.summary;

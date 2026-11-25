@@ -1269,3 +1269,12 @@ msgstr "Das gewählte Reasoning wird von diesem Modell nicht unterstützt. Wähl
 
 msgid "Fetch Models to confirm Reasoning capabilities before generating."
 msgstr "Lade Modelle, um die Reasoning-Fähigkeiten vor der Generierung zu bestätigen."
+
+msgid "This Model cannot disable Reasoning. Keep Reasoning enabled or choose a Model that supports non-thinking mode."
+msgstr "Dieses Modell kann Reasoning nicht deaktivieren. Lass Reasoning aktiviert oder wähle ein Modell mit Nicht-Denkmodus."
+
+msgid "Reasoning cannot be disabled for this unverified Model. Keep Reasoning enabled or choose a listed DeepSeek Model."
+msgstr "Reasoning kann für dieses unverifizierte Modell nicht deaktiviert werden. Lass Reasoning aktiviert oder wähle ein aufgeführtes DeepSeek-Modell."
+
+msgid "DeepSeek browser-direct connections are unverified from this deployment. Requests may fail because of CORS; ChessFEN will not proxy them."
+msgstr "Direkte DeepSeek-Browserverbindungen sind für diese Bereitstellung nicht verifiziert. Anfragen können wegen CORS fehlschlagen; ChessFEN nutzt keinen Server-Proxy."

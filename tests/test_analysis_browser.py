@@ -894,6 +894,26 @@ def _configure_openrouter_profile(
     expect(page.locator("[data-llm-status]")).to_contain_text("saved locally")
 
 
+def _configure_deepseek_profile(
+    page: Page,
+    live_analysis_url: str,
+    model: str = "deepseek-flash",
+    reasoning: bool = True,
+) -> None:
+    page.goto(f"{live_analysis_url}/settings")
+    page.locator("[data-llm-provider]").select_option("deepseek")
+    page.locator("[data-llm-model]").fill(model)
+    if not reasoning:
+        page.locator("[data-llm-reasoning]").uncheck()
+    page.locator("[data-llm-api-key]").fill("sk-ds-test")
+    page.locator("[data-llm-passphrase]").fill("correct horse battery")
+    page.locator("[data-llm-passphrase-confirm]").fill("correct horse battery")
+    page.locator("[data-llm-consent]").check()
+    page.locator("[data-llm-confirm]").check()
+    page.get_by_role("button", name="Save LLM Profile").click()
+    expect(page.locator("[data-llm-status]")).to_contain_text("saved locally")
+
+
 def _workspace_record_text(page: Page) -> str:
     return page.evaluate(
         """async () => {
@@ -914,8 +934,74 @@ def _workspace_record_text(page: Page) -> str:
     )
 
 
+def _single_ply_game_analysis() -> dict[str, Any]:
+    return {
+        "start_fen": _START_FEN,
+        "evaluations": [
+            {"kind": "cp", "value": 10, "text": "+0.10"},
+            {"kind": "cp", "value": 10, "text": "+0.10"},
+        ],
+        "plies": [
+            {
+                "ply": 1,
+                "number": 1,
+                "side": "white",
+                "uci": "e2e4",
+                "san": "e4",
+                "before_fen": _START_FEN,
+                "after_fen": _AFTER_E4_FEN,
+                "quality": "best",
+                "cpl": 10,
+                "mate_loss": False,
+                "is_forced": False,
+                "is_key": True,
+                "key_reasons": ["quality"],
+                "evaluation_before": {
+                    "kind": "cp",
+                    "value": 10,
+                    "text": "+0.10",
+                },
+                "evaluation_after": {
+                    "kind": "cp",
+                    "value": 10,
+                    "text": "+0.10",
+                },
+                "exact_facts": {},
+                "indicators": {},
+            }
+        ],
+        "key_plies": [1],
+        "summary": {},
+    }
+
+
+@pytest.mark.parametrize(
+    ("provider", "base_url", "model", "host", "key"),
+    [
+        (
+            "openrouter",
+            "https://openrouter.ai/api/v1",
+            "openrouter-model",
+            "openrouter.ai",
+            "sk-or-test",
+        ),
+        (
+            "deepseek",
+            "https://api.deepseek.com",
+            "deepseek-flash",
+            "api.deepseek.com",
+            "sk-ds-test",
+        ),
+    ],
+)
 def test_browser_requires_new_provider_key_after_switch(
-    browser_page: Page, live_analysis_url: str
+    browser_page: Page,
+    live_analysis_url: str,
+    provider: str,
+    base_url: str,
+    model: str,
+    host: str,
+    key: str,
 ) -> None:
     page = browser_page
     provider_requests: list[str] = []
@@ -923,7 +1009,7 @@ def test_browser_requires_new_provider_key_after_switch(
         "request",
         lambda request: (
             provider_requests.append(request.url)
-            if request.url.startswith("https://openrouter.ai/")
+            if request.url.startswith(f"https://{host}/")
             else None
         ),
     )
@@ -932,13 +1018,11 @@ def test_browser_requires_new_provider_key_after_switch(
         "api.openai.test"
     )
 
-    page.locator("[data-llm-provider]").select_option("openrouter")
-    expect(page.locator("[data-llm-base-url]")).to_have_value(
-        "https://openrouter.ai/api/v1"
-    )
+    page.locator("[data-llm-provider]").select_option(provider)
+    expect(page.locator("[data-llm-base-url]")).to_have_value(base_url)
     expect(page.locator("[data-llm-consent]")).not_to_be_checked()
     expect(page.locator("[data-llm-confirm]")).not_to_be_checked()
-    page.locator("[data-llm-model]").fill("openrouter-model")
+    page.locator("[data-llm-model]").fill(model)
     page.locator("[data-llm-passphrase]").fill("correct horse battery")
     page.locator("[data-llm-consent]").check()
     page.locator("[data-llm-confirm]").check()
@@ -954,14 +1038,12 @@ def test_browser_requires_new_provider_key_after_switch(
     )
     assert provider_requests == []
 
-    page.locator("[data-llm-api-key]").fill("sk-or-test")
+    page.locator("[data-llm-api-key]").fill(key)
     page.locator("[data-llm-passphrase]").fill("correct horse battery")
     page.locator("[data-llm-passphrase-confirm]").fill("correct horse battery")
     page.get_by_role("button", name="Save LLM Profile").click()
     expect(page.locator("[data-llm-status]")).to_contain_text("saved locally")
-    expect(page.locator("[data-llm-credential-meta]")).to_contain_text(
-        "openrouter.ai"
-    )
+    expect(page.locator("[data-llm-credential-meta]")).to_contain_text(host)
     page.get_by_role("button", name="Unlock").click()
     expect(page.locator("[data-llm-status]")).to_contain_text("unlocked")
     assert provider_requests == []
@@ -1522,7 +1604,7 @@ def test_browser_blocks_openrouter_without_confirmed_reasoning_capabilities(
     page.locator("[data-explanation-passphrase]").fill("correct horse battery")
     page.get_by_role("button", name="Generate Explanation").click()
     expect(page.locator("[data-explanation-status]")).to_contain_text(
-        "could not be generated"
+        "Fetch Models to confirm Reasoning capabilities"
     )
     assert chat_calls == []
     page.unroute("https://openrouter.ai/**", provider)
@@ -1712,44 +1794,7 @@ def test_browser_openrouter_batches_and_summarizes_game_with_malformed_retry(
             body=json.dumps(response),
         )
 
-    fake_analysis = {
-        "start_fen": _START_FEN,
-        "evaluations": [
-            {"kind": "cp", "value": 10, "text": "+0.10"},
-            {"kind": "cp", "value": 10, "text": "+0.10"},
-        ],
-        "plies": [
-            {
-                "ply": 1,
-                "number": 1,
-                "side": "white",
-                "uci": "e2e4",
-                "san": "e4",
-                "before_fen": _START_FEN,
-                "after_fen": _AFTER_E4_FEN,
-                "quality": "best",
-                "cpl": 10,
-                "mate_loss": False,
-                "is_forced": False,
-                "is_key": True,
-                "key_reasons": ["quality"],
-                "evaluation_before": {
-                    "kind": "cp",
-                    "value": 10,
-                    "text": "+0.10",
-                },
-                "evaluation_after": {
-                    "kind": "cp",
-                    "value": 10,
-                    "text": "+0.10",
-                },
-                "exact_facts": {},
-                "indicators": {},
-            }
-        ],
-        "key_plies": [1],
-        "summary": {},
-    }
+    fake_analysis = _single_ply_game_analysis()
 
     def game_results(route) -> None:
         route.fulfill(
@@ -1851,3 +1896,474 @@ def test_browser_openrouter_batches_and_summarizes_game_with_malformed_retry(
     assert "OpenRouter game summary" in workspace
     page.unroute("https://openrouter.ai/**", provider)
     page.unroute("**/tools/analysis/game/results", game_results)
+
+
+def test_browser_deepseek_preset_serializes_reasoning_usage_and_failures(
+    browser_page: Page, live_analysis_url: str
+) -> None:
+    page = browser_page
+    chat_bodies: list[dict[str, Any]] = []
+    chat_headers: list[dict[str, str]] = []
+    chat_attempts: list[str] = []
+    provider_requests: list[str] = []
+    same_origin_posts: list[str] = []
+    fail_mode = {"value": ""}
+    page.on(
+        "request",
+        lambda request: (
+            same_origin_posts.append(request.url)
+            if request.method == "POST"
+            and request.url.startswith(live_analysis_url)
+            else None
+        ),
+    )
+
+    def provider(route) -> None:
+        headers = {
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Headers": "authorization,content-type",
+            "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+        }
+        provider_requests.append(route.request.url)
+        if route.request.method == "OPTIONS":
+            route.fulfill(status=204, headers=headers)
+            return
+        if route.request.url.endswith("/models"):
+            route.fulfill(
+                status=200,
+                headers={**headers, "Content-Type": "application/json"},
+                body=json.dumps(
+                    {
+                        "data": [
+                            {"id": "deepseek-flash"},
+                            {"id": "deepseek-v4-pro"},
+                        ]
+                    }
+                ),
+            )
+            return
+        chat_attempts.append(route.request.url)
+        chat_headers.append(
+            {key.lower(): value for key, value in route.request.headers.items()}
+        )
+        mode = fail_mode["value"]
+        if mode == "abort":
+            route.abort("failed")
+            return
+        if mode == "cors":
+            route.fulfill(
+                status=200,
+                headers={"Content-Type": "application/json"},
+                body=json.dumps(
+                    {"choices": [{"message": {"content": "{}"}}]}
+                ),
+            )
+            return
+        content = json.dumps(
+            {
+                "summary": "DeepSeek summary",
+                "why": "engine facts",
+                "alternatives": "candidate lines",
+                "uncertainty": "limited",
+            }
+        )
+        finish_reason = "stop"
+        if mode == "malformed":
+            content = "{not-json"
+        elif mode == "empty":
+            content = ""
+        elif mode == "length":
+            content = '{"summary":"partial"'
+            finish_reason = "length"
+        elif mode == "incomplete":
+            content = ""
+            finish_reason = "insufficient_system_resource"
+        else:
+            chat_bodies.append(route.request.post_data_json)
+        route.fulfill(
+            status=200,
+            headers={**headers, "Content-Type": "application/json"},
+            body=json.dumps(
+                {
+                    "choices": [
+                        {
+                            "finish_reason": finish_reason,
+                            "message": {
+                                "content": content,
+                                "reasoning_content": (
+                                    "SECRET-DEEPSEEK-REASONING"
+                                ),
+                            },
+                        }
+                    ],
+                    "usage": {
+                        "prompt_tokens": 3,
+                        "completion_tokens": 6,
+                        "completion_tokens_details": {"reasoning_tokens": 4},
+                        "total_tokens": 9,
+                    },
+                }
+            ),
+        )
+
+    page.route("https://api.deepseek.com/**", provider)
+    _configure_deepseek_profile(page, live_analysis_url)
+    expect(page.locator("[data-llm-base-url]")).to_have_value(
+        "https://api.deepseek.com"
+    )
+    expect(page.locator("[data-llm-compatibility]")).to_be_visible()
+    expect(page.locator("[data-llm-compatibility]")).to_contain_text(
+        "unverified"
+    )
+    assert chat_attempts == []
+    assert provider_requests == []
+
+    page.locator("[data-llm-passphrase]").fill("correct horse battery")
+    page.get_by_role("button", name="Fetch Models").click()
+    expect(page.locator("[data-llm-status]")).to_contain_text("Loaded 2 Models")
+    expect(page.locator("[data-llm-capabilities]")).to_contain_text(
+        "low, high, max"
+    )
+    expect(page.locator("[data-llm-effort] option[value='xhigh']")).to_be_disabled()
+    preview = json.loads(page.locator("[data-llm-preview]").inner_text())
+    assert preview["thinking"] == {"type": "enabled"}
+    assert preview["reasoning_effort"] == "max"
+    assert preview["max_tokens"] == 16384
+    assert "max_completion_tokens" not in preview
+    page.get_by_role("button", name="Test Connection").click()
+    expect(page.locator("[data-llm-status]")).to_contain_text(
+        "Connection test succeeded"
+    )
+    assert chat_attempts == []
+
+    page.goto(f"{live_analysis_url}/tools/analysis")
+    page.locator("#analysis-fen").fill(_START_FEN)
+    page.get_by_role("button", name="Start analysis").click()
+    expect(page.locator("[data-analysis-status]")).to_contain_text(
+        "Analysis complete", timeout=30_000
+    )
+    page.locator("[data-explanation-passphrase]").fill("correct horse battery")
+    page.get_by_role("button", name="Generate Explanation").click()
+    expect(page.locator("[data-explanation-summary]")).to_have_text(
+        "DeepSeek summary"
+    )
+    body = chat_bodies[-1]
+    assert body["thinking"] == {"type": "enabled"}
+    assert body["reasoning_effort"] == "max"
+    assert body["max_tokens"] == 16384
+    assert "max_completion_tokens" not in body
+    assert body["response_format"] == {"type": "json_object"}
+    assert chat_headers[0]["authorization"] == "Bearer sk-ds-test"
+    expect(page.locator("[data-explanation-usage]")).to_contain_text(
+        "completion 6"
+    )
+    expect(page.locator("[data-explanation-usage]")).to_contain_text(
+        "reasoning 4"
+    )
+    expect(page.locator("[data-explanation-usage]")).to_contain_text("total 9")
+    assert "SECRET-DEEPSEEK-REASONING" not in page.content()
+    workspace = _workspace_record_text(page)
+    assert "SECRET-DEEPSEEK-REASONING" not in workspace
+    assert "DeepSeek summary" in workspace
+
+    before_attempts = len(chat_attempts)
+    before_bodies = len(chat_bodies)
+    before_posts = len(same_origin_posts)
+    for index, mode in enumerate(
+        ("malformed", "empty", "length", "incomplete", "cors", "abort")
+    ):
+        fail_mode["value"] = mode
+        page.get_by_role("button", name="Generate Explanation").click()
+        expect(page.locator("[data-explanation-status]")).to_contain_text(
+            "could not be generated"
+        )
+        expect(page.locator("[data-explanation-summary]")).to_have_text(
+            "DeepSeek summary"
+        )
+        assert len(chat_attempts) == before_attempts + index + 1
+        assert len(chat_bodies) == before_bodies
+        assert len(same_origin_posts) == before_posts
+    page.unroute("https://api.deepseek.com/**", provider)
+
+
+def test_browser_deepseek_disables_optional_reasoning_and_blocks_unverified_off(
+    browser_page: Page, live_analysis_url: str
+) -> None:
+    page = browser_page
+    chat_bodies: list[dict[str, Any]] = []
+    same_origin_posts: list[str] = []
+    page.on(
+        "request",
+        lambda request: (
+            same_origin_posts.append(request.url)
+            if request.method == "POST"
+            and request.url.startswith(live_analysis_url)
+            else None
+        ),
+    )
+
+    def provider(route) -> None:
+        headers = {
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Headers": "authorization,content-type",
+            "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+        }
+        if route.request.method == "OPTIONS":
+            route.fulfill(status=204, headers=headers)
+            return
+        if route.request.url.endswith("/models"):
+            route.fulfill(
+                status=200,
+                headers={**headers, "Content-Type": "application/json"},
+                body=json.dumps({"data": [{"id": "deepseek-flash"}]}),
+            )
+            return
+        chat_bodies.append(route.request.post_data_json)
+        route.fulfill(
+            status=200,
+            headers={**headers, "Content-Type": "application/json"},
+            body=json.dumps(
+                {
+                    "choices": [
+                        {
+                            "finish_reason": "stop",
+                            "message": {
+                                "content": json.dumps(
+                                    {
+                                        "summary": "DeepSeek no-thinking summary",
+                                        "why": "engine facts",
+                                        "alternatives": "candidate lines",
+                                        "uncertainty": "limited",
+                                    }
+                                ),
+                                "reasoning_content": None,
+                            },
+                        }
+                    ],
+                    "usage": {
+                        "prompt_tokens": 2,
+                        "completion_tokens": 3,
+                        "total_tokens": 5,
+                    },
+                }
+            ),
+        )
+
+    page.route("https://api.deepseek.com/**", provider)
+    _configure_deepseek_profile(
+        page, live_analysis_url, "deepseek-flash", reasoning=False
+    )
+    preview = json.loads(page.locator("[data-llm-preview]").inner_text())
+    assert preview["thinking"] == {"type": "disabled"}
+    assert "reasoning_effort" not in preview
+
+    page.goto(f"{live_analysis_url}/tools/analysis")
+    page.locator("#analysis-fen").fill(_START_FEN)
+    page.get_by_role("button", name="Start analysis").click()
+    expect(page.locator("[data-analysis-status]")).to_contain_text(
+        "Analysis complete", timeout=30_000
+    )
+    page.locator("[data-explanation-passphrase]").fill("correct horse battery")
+    page.get_by_role("button", name="Generate Explanation").click()
+    expect(page.locator("[data-explanation-summary]")).to_have_text(
+        "DeepSeek no-thinking summary"
+    )
+    body = chat_bodies[-1]
+    assert body["thinking"] == {"type": "disabled"}
+    assert "reasoning_effort" not in body
+    assert body["max_tokens"] == 16384
+
+    before_chats = len(chat_bodies)
+    before_posts = len(same_origin_posts)
+    page.goto(f"{live_analysis_url}/settings")
+    page.locator("[data-llm-model]").fill("deepseek-future")
+    expect(page.locator("[data-llm-capabilities]")).to_contain_text(
+        "cannot be disabled for this unverified Model"
+    )
+    page.locator("[data-llm-confirm]").check()
+    page.get_by_role("button", name="Save LLM Profile").click()
+    expect(page.locator("[data-llm-status]")).to_contain_text("saved locally")
+
+    page.goto(f"{live_analysis_url}/tools/analysis")
+    expect(page.locator("[data-analysis-status]")).to_contain_text("Restored")
+    page.locator("[data-explanation-passphrase]").fill("correct horse battery")
+    page.get_by_role("button", name="Generate Explanation").click()
+    expect(page.locator("[data-explanation-status]")).to_contain_text(
+        "cannot be disabled for this unverified Model"
+    )
+    assert len(chat_bodies) == before_chats
+    assert len(same_origin_posts) == before_posts
+    page.unroute("https://api.deepseek.com/**", provider)
+
+
+def test_browser_deepseek_batches_summarizes_and_restores_game(
+    browser_page: Page, live_analysis_url: str
+) -> None:
+    page = browser_page
+    requests: list[dict[str, Any]] = []
+
+    def provider(route) -> None:
+        headers = {
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Headers": "authorization,content-type",
+            "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+        }
+        if route.request.method == "OPTIONS":
+            route.fulfill(status=204, headers=headers)
+            return
+        if route.request.url.endswith("/models"):
+            route.fulfill(
+                status=200,
+                headers={**headers, "Content-Type": "application/json"},
+                body=json.dumps({"data": [{"id": "deepseek-flash"}]}),
+            )
+            return
+        body = route.request.post_data_json
+        requests.append(body)
+        payload = json.loads(body["messages"][1]["content"])
+        if "targets" in payload:
+            content = json.dumps(
+                {
+                    "explanations": [
+                        {
+                            "ply": target["ply"],
+                            "summary": "DeepSeek key ply",
+                            "why": "engine facts",
+                            "alternatives": "candidate lines",
+                            "uncertainty": "limited",
+                        }
+                        for target in payload["targets"]
+                    ]
+                }
+            )
+            reasoning = "SECRET-DEEPSEEK-BATCH-REASONING"
+        else:
+            content = json.dumps(
+                {
+                    "summary": "DeepSeek game summary",
+                    "uncertainty": "limited",
+                }
+            )
+            reasoning = "SECRET-DEEPSEEK-SUMMARY-REASONING"
+        route.fulfill(
+            status=200,
+            headers={**headers, "Content-Type": "application/json"},
+            body=json.dumps(
+                {
+                    "choices": [
+                        {
+                            "finish_reason": "stop",
+                            "message": {
+                                "content": content,
+                                "reasoning_content": reasoning,
+                            },
+                        }
+                    ],
+                    "usage": {
+                        "prompt_tokens": 3,
+                        "completion_tokens": 6,
+                        "completion_tokens_details": {"reasoning_tokens": 4},
+                        "total_tokens": 9,
+                    },
+                }
+            ),
+        )
+
+    fake_analysis = _single_ply_game_analysis()
+
+    def game_results(route) -> None:
+        route.fulfill(
+            status=200,
+            content_type="application/json",
+            body=json.dumps(fake_analysis),
+        )
+
+    page.route("https://api.deepseek.com/**", provider)
+    page.route("**/tools/analysis/game/results", game_results)
+    _configure_deepseek_profile(page, live_analysis_url)
+    page.goto(f"{live_analysis_url}/tools/analysis/pgn")
+    page.locator("#pgn").fill(
+        '[Event "DeepSeek"]\n[White "A"]\n[Black "B"]\n[Result "*"]\n\n1. e4 *'
+    )
+    page.get_by_role("button", name="Parse PGN").click()
+    page.get_by_role("button", name="Open Game").click()
+    page.get_by_role("button", name="Start Game Analysis").click()
+    expect(page.locator("[data-game-status]")).to_contain_text(
+        "Analysis complete", timeout=30_000
+    )
+    page.locator("[data-game-batch-preview]").click()
+    page.locator("[data-game-explanation-passphrase]").fill(
+        "correct horse battery"
+    )
+    page.get_by_role("button", name="Confirm and Generate").click()
+    expect(page.locator("[data-game-batch-status]")).to_contain_text(
+        "Key Ply explanations and summary complete.", timeout=30_000
+    )
+    expect(page.locator("[data-game-summary-text]")).to_have_text(
+        "DeepSeek game summary"
+    )
+    expect(page.locator("[data-game-token-usage]")).to_contain_text("total 18")
+    expect(page.locator("[data-game-token-usage]")).to_contain_text(
+        "reasoning 8"
+    )
+    assert len(requests) == 2
+    payloads = [json.loads(item["messages"][1]["content"]) for item in requests]
+    assert len(payloads[0]["targets"]) == 1
+    assert payloads[0]["targets"][0]["quality"] == "best"
+    assert payloads[0]["targets"][0]["evaluation_before"]["value"] == 10
+    assert "key_plies" in payloads[1]
+    for body in requests:
+        assert body["thinking"] == {"type": "enabled"}
+        assert body["reasoning_effort"] == "max"
+        assert body["max_tokens"] == 16384
+        assert "max_completion_tokens" not in body
+    assert "SECRET-DEEPSEEK-BATCH-REASONING" not in page.content()
+    assert "SECRET-DEEPSEEK-SUMMARY-REASONING" not in page.content()
+    workspace = _workspace_record_text(page)
+    assert "SECRET-DEEPSEEK-BATCH-REASONING" not in workspace
+    assert "SECRET-DEEPSEEK-SUMMARY-REASONING" not in workspace
+    assert "DeepSeek game summary" in workspace
+
+    page.goto(f"{live_analysis_url}/tools/analysis/pgn")
+    expect(page.locator("[data-workspace-restore]")).to_be_visible()
+    with page.expect_navigation():
+        page.locator("[data-workspace-restore-button]").click()
+    expect(page.locator("[data-game-status]")).to_contain_text(
+        "Restored from the local Analysis Workspace."
+    )
+    page.locator("[data-game-moves] [data-ply='1']").click()
+    expect(page.locator("[data-game-explanation-summary]")).to_have_text(
+        "DeepSeek key ply"
+    )
+    page.evaluate(
+        """() => {
+          const key = "chessfen.analysis.llm.profile.v1";
+          const profile = JSON.parse(localStorage.getItem(key));
+          profile.audience = "beginner";
+          localStorage.setItem(key, JSON.stringify(profile));
+        }"""
+    )
+    page.locator("[data-game-moves] [data-ply='1']").click()
+    expect(page.locator("[data-game-explanation-stale]")).to_be_visible()
+    page.unroute("https://api.deepseek.com/**", provider)
+    page.unroute("**/tools/analysis/game/results", game_results)
+
+
+def test_browser_deepseek_blocks_unsupported_reasoning_effort(
+    browser_page: Page, live_analysis_url: str
+) -> None:
+    page = browser_page
+    page.goto(f"{live_analysis_url}/settings")
+    result = page.evaluate(
+        """async () => {
+          const module = await import("/static/js/analysis-llm.js");
+          return module.providerRequestParameters({
+            provider: "deepseek",
+            model: "deepseek-flash",
+            reasoningEnabled: true,
+            reasoningEffort: "xhigh",
+            maxTokens: 16384,
+          });
+        }"""
+    )
+    assert result == {"ok": False, "code": "reasoning_effort_unsupported"}

@@ -7,14 +7,23 @@ import {
   saveCredential,
 } from "/static/js/analysis-credential.js";
 import {
+  DEEPSEEK_COMPATIBILITY,
+  deepseekReasoningCapabilities,
   fetchModels,
   loadLlmProfile,
   lockLlm,
   profileRequestReady,
+  providerRequestParameters,
   requestFingerprint,
   saveLlmProfile,
   unlockLlm,
 } from "/static/js/analysis-llm.js";
+
+const PROVIDER_BASE_URLS = {
+  openai: "https://api.openai.com/v1",
+  openrouter: "https://openrouter.ai/api/v1",
+  deepseek: "https://api.deepseek.com",
+};
 
 function initializeSettings() {
   const form = document.querySelector("[data-llm-form]");
@@ -33,6 +42,7 @@ function initializeSettings() {
   const confirm = q("confirm");
   const preview = q("preview");
   const capabilitiesText = q("capabilities");
+  const compatibility = q("compatibility");
   const apiKey = document.querySelector("[data-llm-api-key]");
   const passphrase = document.querySelector("[data-llm-passphrase]");
   const passphraseConfirm = document.querySelector(
@@ -88,10 +98,21 @@ function initializeSettings() {
   }
 
   function capabilitiesForModel() {
+    if (provider.value === "deepseek") {
+      return deepseekReasoningCapabilities(model.value.trim());
+    }
     return provider.value === "openrouter" &&
       capabilityModel === model.value.trim()
       ? capabilityMap[model.value.trim()] || null
       : null;
+  }
+
+  function applyCompatibility() {
+    const unverified =
+      provider.value === "deepseek" &&
+      !DEEPSEEK_COMPATIBILITY.browserDirectVerified;
+    compatibility.hidden = !unverified;
+    compatibility.textContent = unverified ? text.deepseek_unverified : "";
   }
 
   function persistCapabilities() {
@@ -110,7 +131,7 @@ function initializeSettings() {
     for (const option of effort.options) {
       option.disabled = false;
     }
-    if (provider.value !== "openrouter") {
+    if (!["openrouter", "deepseek"].includes(provider.value)) {
       capabilitiesText.textContent = "";
       return;
     }
@@ -134,28 +155,19 @@ function initializeSettings() {
     if (!efforts.includes(effort.value)) {
       capabilitiesText.textContent += " " + text.reasoning_unsupported;
     }
+    if (!reasoning.checked) {
+      if (caps.known === false) {
+        capabilitiesText.textContent += " " + text.reasoning_unverified;
+      } else if (caps.canDisableReasoning === false) {
+        capabilitiesText.textContent += " " + text.reasoning_mandatory;
+      }
+    }
   }
 
   function paintPreview() {
-    const common = {
-      model: model.value.trim(),
-      response_format: { type: "json_object" },
-    };
+    const request = providerRequestParameters(readProfile());
     preview.textContent = JSON.stringify(
-      provider.value === "openrouter"
-        ? {
-            ...common,
-            reasoning: reasoning.checked
-              ? { enabled: true, effort: effort.value, exclude: true }
-              : { enabled: false },
-            provider: { require_parameters: true },
-            max_tokens: Number.parseInt(budget.value, 10),
-          }
-        : {
-            ...common,
-            reasoning_effort: reasoning.checked ? effort.value : null,
-            max_completion_tokens: Number.parseInt(budget.value, 10),
-          },
+      request.ok ? request.body : { error: request.code },
       null,
       2
     );
@@ -202,6 +214,7 @@ function initializeSettings() {
   }
   paintPreview();
   applyCapabilities();
+  applyCompatibility();
   void paintCredential();
   status.textContent = stored ? text.profile_loaded : text.profile_missing;
 
@@ -211,14 +224,13 @@ function initializeSettings() {
   });
   provider.addEventListener("change", () => {
     baseUrl.value =
-      provider.value === "openrouter"
-        ? "https://openrouter.ai/api/v1"
-        : "https://api.openai.com/v1";
+      PROVIDER_BASE_URLS[provider.value] || PROVIDER_BASE_URLS.openai;
     consent.checked = false;
     confirm.checked = false;
     capabilityModel = null;
     capabilityMap = {};
     applyCapabilities();
+    applyCompatibility();
     paintPreview();
   });
   model.addEventListener("change", () => {
@@ -238,6 +250,7 @@ function initializeSettings() {
     paintPreview();
   });
   effort.addEventListener("change", applyCapabilities);
+  reasoning.addEventListener("change", applyCapabilities);
   for (const control of [
     provider,
     baseUrl,
@@ -327,6 +340,7 @@ function initializeSettings() {
     }
     applyCapabilities();
     persistCapabilities();
+    paintPreview();
     status.textContent = text.models_loaded.replace("{count}", String(result.models.length));
   });
 
