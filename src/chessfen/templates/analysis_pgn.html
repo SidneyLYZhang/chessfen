@@ -125,6 +125,25 @@
           <button class="ghost-button" type="button" data-game-explanation-lock>{% trans %}Lock LLM{% endtrans %}</button>
         </div>
         <p class="analysis-status" data-game-explanation-status role="status" aria-live="polite"></p>
+        <div class="analysis-playback" data-game-batch>
+          <p class="field-label">{% trans %}Key Ply batch explanations{% endtrans %}</p>
+          <p class="field-hint" data-game-batch-plan></p>
+          <div class="form-actions">
+            <button class="secondary-button" type="button" data-game-batch-preview>{% trans %}Preview Key Ply Explanations{% endtrans %}</button>
+            <button class="primary-button" type="button" data-game-batch-generate hidden>{% trans %}Confirm and Generate{% endtrans %}</button>
+            <button class="danger-button" type="button" data-game-batch-cancel hidden>{% trans %}Cancel LLM generation{% endtrans %}</button>
+            <button class="ghost-button" type="button" data-game-batch-retry hidden>{% trans %}Retry failed batch{% endtrans %}</button>
+          </div>
+          <p class="field-hint" data-game-batch-warning hidden>{% trans %}Already submitted requests may still finish and incur Provider charges.{% endtrans %}</p>
+          <p class="analysis-status" data-game-batch-status role="status" aria-live="polite"></p>
+          <p class="field-hint" data-game-token-usage></p>
+        </div>
+      </section>
+      <section class="analysis-assessment" data-game-overall-summary hidden>
+        <h3>{% trans %}Overall summary{% endtrans %}</h3>
+        <p data-game-summary-text></p>
+        <p class="field-hint" data-game-summary-uncertainty></p>
+        <p class="form-error" data-game-summary-stale hidden>{% trans %}Explanation language or audience changed; regenerate to refresh it.{% endtrans %}</p>
       </section>
       <section class="analysis-assessment">
         <h3>{% trans %}Structured facts{% endtrans %}</h3>

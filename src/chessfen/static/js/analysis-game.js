@@ -6,6 +6,8 @@ import {
   lockLlm,
   profileRequestReady,
   requestExplanation,
+  requestKeyPlyBatch,
+  requestOverallSummary,
   unlockLlm,
 } from "/static/js/analysis-llm.js";
 import {
@@ -67,6 +69,12 @@ function initializeGameAnalysis() {
     ])
   );
   const explanations = {};
+  let summaryExplanation = null;
+  let summaryMeta = null;
+  let batchController = null;
+  let batchBatches = null;
+  let pendingBatchIndex = null;
+  const usageTotals = { prompt: 0, completion: 0, reasoning: 0, total: 0 };
   window.addEventListener("chessfen:llm-lock", () => {
     explanationStatus.textContent = llmText.locked_timeout;
   });
@@ -96,6 +104,18 @@ function initializeGameAnalysis() {
   const explanationStale = document.querySelector("[data-game-explanation-stale]");
   const explanationPassphrase = document.querySelector("[data-game-explanation-passphrase]");
   const explanationStatus = document.querySelector("[data-game-explanation-status]");
+  const batchPlan = document.querySelector("[data-game-batch-plan]");
+  const batchPreview = document.querySelector("[data-game-batch-preview]");
+  const batchGenerate = document.querySelector("[data-game-batch-generate]");
+  const batchCancel = document.querySelector("[data-game-batch-cancel]");
+  const batchRetry = document.querySelector("[data-game-batch-retry]");
+  const batchWarning = document.querySelector("[data-game-batch-warning]");
+  const batchStatus = document.querySelector("[data-game-batch-status]");
+  const tokenUsage = document.querySelector("[data-game-token-usage]");
+  const summarySection = document.querySelector("[data-game-overall-summary]");
+  const summaryText = document.querySelector("[data-game-summary-text]");
+  const summaryUncertainty = document.querySelector("[data-game-summary-uncertainty]");
+  const summaryStale = document.querySelector("[data-game-summary-stale]");
   const workspaceRestore = document.querySelector("[data-workspace-restore]");
   const analysisSettings = {
     preset: ["fast", "standard", "deep"].includes(stored.preset)
@@ -151,6 +171,9 @@ function initializeGameAnalysis() {
       result,
       gameData: game,
       explanations,
+      summaryExplanation,
+      summaryMeta,
+      usageTotals,
     };
   }
 
@@ -340,6 +363,173 @@ function initializeGameAnalysis() {
     }
   }
 
+  function renderUsage() {
+    tokenUsage.textContent =
+      `Tokens · prompt ${usageTotals.prompt} · completion ${usageTotals.completion}` +
+      ` · reasoning ${usageTotals.reasoning} · total ${usageTotals.total}`;
+  }
+
+  function renderSummary() {
+    if (!summaryExplanation) {
+      summarySection.hidden = true;
+      return;
+    }
+    summarySection.hidden = false;
+    summaryText.textContent = summaryExplanation.summary;
+    summaryUncertainty.textContent = summaryExplanation.uncertainty;
+    const profile = loadLlmProfile();
+    summaryStale.hidden =
+      !profile ||
+      !summaryMeta ||
+      (profile.language === summaryMeta.language &&
+        profile.audience === summaryMeta.audience);
+  }
+
+  function gameTargets() {
+    return analysis.plies
+      .filter((ply) => ply.is_key)
+      .map((ply) => ({
+        ply: ply.ply,
+        move: `${ply.number}${ply.side === "white" ? "." : "..."} ${ply.san}`,
+        quality: ply.quality,
+        cpl: ply.cpl,
+        mate_loss: ply.mate_loss,
+        key_reasons: ply.key_reasons,
+        exact_facts: ply.exact_facts,
+        indicators: ply.indicators,
+        evaluation_before: ply.evaluation_before,
+        evaluation_after: ply.evaluation_after,
+        candidate_lines: completed[ply.ply - 1]?.lines || [],
+        neighbors: analysis.plies
+          .filter((item) => Math.abs(item.ply - ply.ply) === 1)
+          .map((item) => ({ ply: item.ply, san: item.san, quality: item.quality })),
+      }));
+  }
+
+  function compactGame() {
+    return analysis.plies
+      .map(
+        (ply) =>
+          `${ply.number}${ply.side === "white" ? "." : "..."} ${ply.san}` +
+          ` (${ply.quality}${ply.is_key ? ", key" : ""})`
+      )
+      .join(" ");
+  }
+
+  function prepareBatch() {
+    const targets = gameTargets();
+    if (!targets.length) {
+      batchStatus.textContent = "No Key Plies were selected.";
+      return;
+    }
+    batchBatches = [];
+    for (let index = 0; index < targets.length; index += 5) {
+      batchBatches.push(targets.slice(index, index + 5));
+    }
+    pendingBatchIndex = null;
+    batchPlan.textContent =
+      `${targets.length} Key Plies · ${batchBatches.length} batch requests + 1 summary request.`;
+    batchGenerate.hidden = false;
+    batchRetry.hidden = true;
+    batchStatus.textContent = "Review the request count, then confirm generation.";
+  }
+
+  async function ensureLlmReady() {
+    const profile = loadLlmProfile();
+    if (!profile) {
+      explanationStatus.textContent = llmText.configure_profile;
+      return null;
+    }
+    if (!profileRequestReady(profile)) {
+      explanationStatus.textContent = llmText.confirm_request;
+      return null;
+    }
+    if (!llmUnlocked()) {
+      const unlocked = await unlockLlm(explanationPassphrase.value, profile);
+      if (!unlocked.ok) {
+        explanationStatus.textContent = llmText.unlock_failed;
+        return null;
+      }
+    }
+    return profile;
+  }
+
+  function addUsage(usage) {
+    if (!usage) return;
+    for (const key of ["prompt", "completion", "reasoning", "total"]) {
+      usageTotals[key] += usage[key] || 0;
+    }
+    renderUsage();
+  }
+
+  async function generateBatches(profile, startIndex = 0) {
+    if (!batchBatches) return;
+    batchController = new AbortController();
+    batchGenerate.hidden = true;
+    batchCancel.hidden = false;
+    batchRetry.hidden = true;
+    batchWarning.hidden = false;
+    const meta = { language: profile.language, audience: profile.audience };
+    try {
+      for (let index = startIndex; index < batchBatches.length; index += 1) {
+        batchStatus.textContent = `Generating batch ${index + 1}/${batchBatches.length}…`;
+        const result = await requestKeyPlyBatch(
+          profile,
+          {
+            game: { white: game.white, black: game.black, result: game.result, mainline: compactGame() },
+            targets: batchBatches[index],
+          },
+          batchController.signal
+        );
+        if (!result.ok) {
+          if (result.code === "cancelled") {
+            batchStatus.textContent = "LLM generation cancelled. Submitted requests may still finish.";
+            return;
+          }
+          pendingBatchIndex = index;
+          batchRetry.hidden = false;
+          batchStatus.textContent =
+            result.code === "budget_exhausted"
+              ? "The generation budget was exhausted. Prior results were preserved."
+              : `A batch failed (${result.code}). Retry this batch manually.`;
+          return;
+        }
+        for (const [ply, explanation] of Object.entries(result.explanations)) {
+          explanations[Number(ply)] = { explanation, meta };
+        }
+        addUsage(result.usage);
+        await persistGame(analysis ? "complete" : "incomplete", analysis);
+        renderGameExplanation(activePly);
+        batchStatus.textContent = `Completed batch ${index + 1}/${batchBatches.length}.`;
+      }
+      batchStatus.textContent = "Generating overall summary…";
+      const summary = await requestOverallSummary(
+        profile,
+        {
+          game: { white: game.white, black: game.black, result: game.result, mainline: compactGame() },
+          key_plies: analysis.key_plies,
+        },
+        batchController.signal
+      );
+      if (!summary.ok) {
+        batchStatus.textContent =
+          summary.code === "cancelled"
+            ? "LLM generation cancelled. Submitted requests may still finish."
+            : "Batches completed, but the overall summary failed. Retry it separately.";
+        return;
+      }
+      summaryExplanation = summary.summary;
+      summaryMeta = meta;
+      addUsage(summary.usage);
+      renderSummary();
+      await persistGame(analysis ? "complete" : "incomplete", analysis);
+      batchStatus.textContent = "Key Ply explanations and summary complete.";
+    } finally {
+      batchController = null;
+      batchCancel.hidden = true;
+    }
+  }
+
   async function renderGameAnalysis(payload, restored = false) {
     analysis = payload;
     empty.hidden = true;
@@ -348,6 +538,9 @@ function initializeGameAnalysis() {
     renderGraph();
     renderMoveList();
     await selectPly(0);
+    explanationSection.hidden = false;
+    renderSummary();
+    renderUsage();
     status.textContent = restored
       ? "Restored from the local Analysis Workspace."
       : labels.complete;
@@ -368,6 +561,8 @@ function initializeGameAnalysis() {
     if (reset) {
       completed.fill(null);
       analysis = null;
+      summaryExplanation = null;
+      summaryMeta = null;
       result.hidden = true;
       ribbon.hidden = true;
       empty.hidden = false;
@@ -521,6 +716,11 @@ function initializeGameAnalysis() {
     if (record.explanations && typeof record.explanations === "object") {
       Object.assign(explanations, record.explanations);
     }
+    summaryExplanation = record.summaryExplanation || null;
+    summaryMeta = record.summaryMeta || null;
+    if (record.usageTotals) Object.assign(usageTotals, record.usageTotals);
+    renderSummary();
+    renderUsage();
     if (record.result) {
       await renderGameAnalysis(record.result, true);
       setBusy(false);
@@ -597,6 +797,23 @@ function initializeGameAnalysis() {
       explanationStatus.textContent = llmText.locked;
     }
   );
+
+  batchPreview?.addEventListener("click", prepareBatch);
+  batchGenerate?.addEventListener("click", async () => {
+    const profile = await ensureLlmReady();
+    if (profile) await generateBatches(profile);
+  });
+  batchRetry?.addEventListener("click", async () => {
+    if (pendingBatchIndex === null) return;
+    const profile = await ensureLlmReady();
+    if (profile) await generateBatches(profile, pendingBatchIndex);
+  });
+  batchCancel?.addEventListener("click", () => {
+    batchController?.abort();
+    batchStatus.textContent =
+      "Cancelling… submitted requests may still finish and incur charges.";
+    batchWarning.hidden = false;
+  });
 
   showBoard(game.start_fen).catch(() => showError(labels.board));
   void restoreGameWorkspace();

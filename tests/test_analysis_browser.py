@@ -981,3 +981,140 @@ def test_browser_locks_the_llm_after_the_configured_idle_timeout(
         "data-llm-locked", "true", timeout=3_000
     )
     expect(page.locator("[data-llm-status]")).to_contain_text("after inactivity")
+
+
+def test_browser_batches_key_ply_explanations_and_summary(
+    browser_page: Page, live_analysis_url: str
+) -> None:
+    page = browser_page
+    requests: list[dict[str, Any]] = []
+    invalid_sent = False
+
+    def provider(route) -> None:
+        headers = {
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Headers": "authorization,content-type",
+            "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+        }
+        if route.request.method == "OPTIONS":
+            route.fulfill(status=204, headers=headers)
+            return
+        body = route.request.post_data_json
+        requests.append(body)
+        nonlocal invalid_sent
+        request_payload = json.loads(body["messages"][1]["content"])
+        content: dict[str, Any]
+        if "targets" in request_payload:
+            if not invalid_sent:
+                invalid_sent = True
+                content = {"unexpected": True}
+            else:
+                explanations = [
+                    {
+                        "ply": target["ply"],
+                        "summary": f"Key {target['ply']}",
+                        "why": "facts",
+                        "alternatives": "lines",
+                        "uncertainty": "none",
+                    }
+                    for target in request_payload["targets"]
+                ]
+                content = {"explanations": explanations}
+        else:
+            content = {"summary": "Overall", "uncertainty": "limited"}
+        route.fulfill(
+            status=200,
+            headers={**headers, "Content-Type": "application/json"},
+            body=json.dumps(
+                {
+                    "choices": [
+                        {"message": {"content": json.dumps(content)}}
+                    ],
+                    "usage": {
+                        "prompt_tokens": 10,
+                        "completion_tokens": 5,
+                        "completion_tokens_details": {"reasoning_tokens": 2},
+                        "total_tokens": 15,
+                    },
+                }
+            ),
+        )
+
+    moves = ["e2e4", "e7e5", "g1f3", "b8c6", "f1b5", "a7a6"]
+    plies = [
+        {
+            "ply": index + 1,
+            "number": index // 2 + 1,
+            "side": "white" if index % 2 == 0 else "black",
+            "uci": uci,
+            "san": san,
+            "before_fen": _START_FEN,
+            "after_fen": _AFTER_E4_FEN,
+            "quality": "best",
+            "cpl": 10,
+            "mate_loss": False,
+            "is_forced": False,
+            "is_key": True,
+            "key_reasons": ["quality"],
+            "evaluation_before": {"kind": "cp", "value": 10, "text": "+0.10"},
+            "evaluation_after": {"kind": "cp", "value": 10, "text": "+0.10"},
+            "exact_facts": {},
+            "indicators": {},
+        }
+        for index, (uci, san) in enumerate(
+            zip(moves, ["e4", "e5", "Nf3", "Nc6", "Bb5", "a6"])
+        )
+    ]
+    fake_analysis = {
+        "start_fen": _START_FEN,
+        "evaluations": [
+            {"kind": "cp", "value": 10, "text": "+0.10"} for _ in range(7)
+        ],
+        "plies": plies,
+        "key_plies": [1, 2, 3, 4, 5, 6],
+        "summary": {},
+    }
+
+    def game_results(route) -> None:
+        route.fulfill(
+            status=200,
+            content_type="application/json",
+            body=json.dumps(fake_analysis),
+        )
+
+    page.route("https://api.openai.test/**", provider)
+    page.route("**/tools/analysis/game/results", game_results)
+    _configure_mock_profile(page, live_analysis_url)
+    page.goto(f"{live_analysis_url}/tools/analysis/pgn")
+    page.locator("#pgn").fill(
+        '[Event "Batch"]\n[White "A"]\n[Black "B"]\n[Result "*"]\n\n1. e4 e5 2. Nf3 Nc6 3. Bb5 a6 *'
+    )
+    page.get_by_role("button", name="Parse PGN").click()
+    page.get_by_role("button", name="Open Game").click()
+    page.get_by_role("button", name="Start Game Analysis").click()
+    expect(page.locator("[data-game-status]")).to_contain_text(
+        "Analysis complete", timeout=60_000
+    )
+    page.locator("[data-game-batch-preview]").click()
+    expect(page.locator("[data-game-batch-plan]")).to_contain_text(
+        "6 Key Plies · 2 batch requests + 1 summary request"
+    )
+    page.locator("[data-game-explanation-passphrase]").fill(
+        "correct horse battery"
+    )
+    page.get_by_role("button", name="Confirm and Generate").click()
+    expect(page.locator("[data-game-batch-status]")).to_contain_text(
+        "complete", timeout=30_000
+    )
+    expect(page.locator("[data-game-overall-summary]")).to_be_visible()
+    expect(page.locator("[data-game-summary-text]")).to_have_text("Overall")
+    expect(page.locator("[data-game-token-usage]")).to_contain_text(
+        "total 45"
+    )
+    assert len(requests) == 4
+    first_payload = json.loads(requests[0]["messages"][1]["content"])
+    retry_payload = json.loads(requests[1]["messages"][1]["content"])
+    second_payload = json.loads(requests[2]["messages"][1]["content"])
+    assert len(first_payload["targets"]) == 5
+    assert len(retry_payload["targets"]) == 5
+    assert len(second_payload["targets"]) == 1
