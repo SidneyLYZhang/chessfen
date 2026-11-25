@@ -41,6 +41,15 @@ function initializeSettings() {
   const meta = document.querySelector("[data-llm-credential-meta]");
   const insecure = document.querySelector("[data-llm-insecure]");
   const stored = loadLlmProfile();
+  const text = Object.fromEntries(
+    [...document.querySelectorAll("[data-llm-message]")].map((node) => [
+      node.dataset.llmMessage,
+      node.textContent,
+    ])
+  );
+  window.addEventListener("chessfen:llm-lock", () => {
+    status.textContent = text.locked_timeout;
+  });
 
   if (!credentialSecurityAvailable()) {
     insecure.hidden = false;
@@ -123,7 +132,7 @@ function initializeSettings() {
   }
   paintPreview();
   void paintCredential();
-  status.textContent = stored ? "LLM Profile loaded." : "No LLM Profile saved.";
+  status.textContent = stored ? text.profile_loaded : text.profile_missing;
 
   baseUrl.addEventListener("change", () => {
     consent.checked = false;
@@ -150,13 +159,13 @@ function initializeSettings() {
     const nextProfile = readProfile();
     if (!profileRequestReady(nextProfile)) {
       status.textContent =
-        "Confirm privacy consent and the exact request parameters before contacting the Provider.";
+        text.consent_required;
       return false;
     }
     const result = await unlockLlm(passphrase.value, nextProfile);
     status.textContent = result.ok
-      ? "LLM credential unlocked for this tab."
-      : "Unlock failed. Check the passphrase and Provider.";
+      ? text.unlock_ok
+      : text.unlock_failed;
     return result.ok;
   }
 
@@ -174,20 +183,20 @@ function initializeSettings() {
       }
     } catch (error) {
       status.textContent =
-        "Provide an HTTPS Base URL, Model, consent, and confirmed parameters.";
+        text.profile_incomplete;
       return;
     }
     if (apiKey.value.trim()) {
       if (passphrase.value !== passphraseConfirm.value) {
-        status.textContent = "Passphrases do not match.";
+        status.textContent = text.passphrase_mismatch;
         return;
       }
       const saved = await saveCredential(apiKey.value, passphrase.value, next);
       if (!saved.ok) {
         status.textContent =
           saved.code === "passphrase_too_short"
-            ? "The passphrase must contain at least 12 characters."
-            : "The credential could not be encrypted.";
+            ? text.passphrase_too_short
+            : text.credential_save_failed;
         return;
       }
       apiKey.value = "";
@@ -195,14 +204,14 @@ function initializeSettings() {
     }
     saveLlmProfile(next);
     await paintCredential();
-    status.textContent = "LLM Profile saved locally.";
+    status.textContent = text.profile_saved;
   });
 
   form.querySelector("[data-llm-models-button]").addEventListener("click", async () => {
     if (!(await unlockCurrent())) return;
     const result = await fetchModels(readProfile());
     if (!result.ok) {
-      status.textContent = "Model list could not be retrieved.";
+      status.textContent = text.models_failed;
       return;
     }
     models.replaceChildren();
@@ -211,29 +220,29 @@ function initializeSettings() {
       option.value = id;
       models.append(option);
     }
-    status.textContent = `Loaded ${result.models.length} Models.`;
+    status.textContent = text.models_loaded.replace("{count}", String(result.models.length));
   });
 
   form.querySelector("[data-llm-test]").addEventListener("click", async () => {
     if (!(await unlockCurrent())) return;
     const result = await fetchModels(readProfile());
     status.textContent = result.ok
-      ? "Connection test succeeded via the Model list."
-      : "Connection test failed.";
+      ? text.connection_ok
+      : text.connection_failed;
   });
 
   document.querySelector("[data-llm-unlock]").addEventListener("click", unlockCurrent);
   document.querySelector("[data-llm-lock]").addEventListener("click", () => {
     lockLlm();
-    status.textContent = "LLM credential locked.";
+    status.textContent = text.locked;
   });
   document.querySelector("[data-llm-delete]").addEventListener("click", async () => {
-    if (!window.confirm("Delete the encrypted LLM credential?")) return;
+    if (!window.confirm(text.credential_delete_confirm)) return;
     const result = await deleteCredential();
     lockLlm();
     status.textContent = result.ok
-      ? "Encrypted credential deleted."
-      : "Delete failed.";
+      ? text.credential_deleted
+      : text.credential_delete_failed;
     await paintCredential();
   });
 }

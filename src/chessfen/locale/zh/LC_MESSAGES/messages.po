@@ -1059,3 +1059,162 @@ msgstr "口令"
 
 msgid "Settings"
 msgstr "设置"
+
+msgid "LLM Profile loaded."
+msgstr "LLM Profile 已加载。"
+
+msgid "No LLM Profile saved."
+msgstr "尚未保存 LLM Profile。"
+
+msgid "LLM Profile saved locally."
+msgstr "LLM Profile 已保存到本地。"
+
+msgid "Provide an HTTPS Base URL, Model, consent, and confirmed parameters."
+msgstr "请提供 HTTPS Base URL、模型、隐私确认并确认请求参数。"
+
+msgid "LLM credential unlocked for this tab."
+msgstr "LLM 凭据仅在本标签页解锁。"
+
+msgid "Unlock failed. Check the passphrase and Provider."
+msgstr "解锁失败。请检查口令与 Provider。"
+
+msgid "LLM credential locked."
+msgstr "LLM 凭据已锁定。"
+
+msgid "LLM credential locked after inactivity."
+msgstr "LLM 凭据因长时间未使用已锁定。"
+
+msgid "Passphrases do not match."
+msgstr "两次口令不一致。"
+
+msgid "The passphrase must contain at least 12 characters."
+msgstr "口令至少需要 12 个字符。"
+
+msgid "The credential could not be encrypted."
+msgstr "无法加密该凭据。"
+
+msgid "Model list could not be retrieved."
+msgstr "无法获取模型列表。"
+
+msgid "Loaded {count} Models."
+msgstr "已加载 {count} 个模型。"
+
+msgid "Connection test succeeded via the Model list."
+msgstr "通过模型列表测试连接成功。"
+
+msgid "Connection test failed."
+msgstr "连接测试失败。"
+
+msgid "Encrypted credential deleted."
+msgstr "已删除加密凭据。"
+
+msgid "Delete failed."
+msgstr "删除失败。"
+
+msgid "Delete the encrypted LLM credential?"
+msgstr "要删除加密的 LLM 凭据吗？"
+
+msgid "Confirm privacy consent and the exact request parameters before contacting the Provider."
+msgstr "联系 Provider 前，请确认隐私授权和准确请求参数。"
+
+msgid "Configure an LLM Profile before generating an explanation."
+msgstr "生成讲解前请先配置 LLM Profile。"
+
+msgid "Confirm the LLM request parameters and privacy consent in Settings."
+msgstr "请在设置中确认 LLM 请求参数与隐私授权。"
+
+msgid "Generating explanation…"
+msgstr "正在生成讲解…"
+
+msgid "Explanation could not be generated. Confirm the Provider and Reasoning settings."
+msgstr "无法生成讲解。请确认 Provider 和思考设置。"
+
+msgid "Explanation ready."
+msgstr "讲解已生成。"
+
+msgid "Configure a locally encrypted LLM Profile for Analysis Explanations."
+msgstr "配置本地加密的 LLM Profile，用于分析文字讲解。"
+
+msgid "Stockfish stays local. Your LLM credential is encrypted in this browser and sent only to your configured Provider."
+msgstr "Stockfish 保持本地运行。LLM 凭据在此浏览器中加密，只会发送给你配置的 Provider。"
+
+msgid "LLM credentials require HTTPS or localhost."
+msgstr "LLM 凭据功能需要 HTTPS 或 localhost。"
+
+msgid "LLM Profile"
+msgstr "LLM Profile"
+
+msgid "Provider"
+msgstr "Provider"
+
+msgid "Base URL"
+msgstr "Base URL"
+
+msgid "Model"
+msgstr "模型"
+
+msgid "Explanation language"
+msgstr "讲解语言"
+
+msgid "Audience"
+msgstr "受众"
+
+msgid "Beginner"
+msgstr "入门"
+
+msgid "Club"
+msgstr "俱乐部"
+
+msgid "Advanced"
+msgstr "高级"
+
+msgid "Reasoning effort"
+msgstr "思考强度"
+
+msgid "Enable model reasoning"
+msgstr "启用模型思考"
+
+msgid "Generation budget (tokens)"
+msgstr "生成长度预算（tokens）"
+
+msgid "I understand this Base URL receives my PGN/FEN, engine facts, and explanations."
+msgstr "我了解此 Base URL 会接收我的 PGN/FEN、引擎事实与讲解文本。"
+
+msgid "I confirm the exact request parameters shown below."
+msgstr "我确认下方显示的准确请求参数。"
+
+msgid "Request parameters (credential excluded)"
+msgstr "请求参数（不含凭据）"
+
+msgid "Save LLM Profile"
+msgstr "保存 LLM Profile"
+
+msgid "Fetch Models"
+msgstr "获取模型"
+
+msgid "Test Connection"
+msgstr "测试连接"
+
+msgid "Encrypted credential"
+msgstr "加密凭据"
+
+msgid "AES-GCM with a PBKDF2-derived key. Only ciphertext is stored in IndexedDB."
+msgstr "使用 PBKDF2 派生密钥与 AES-GCM。IndexedDB 只保存密文。"
+
+msgid "LLM API key"
+msgstr "LLM API 密钥"
+
+msgid "Passphrase (12+ characters)"
+msgstr "口令（至少 12 个字符）"
+
+msgid "Confirm passphrase"
+msgstr "确认口令"
+
+msgid "Unlock"
+msgstr "解锁"
+
+msgid "Lock"
+msgstr "锁定"
+
+msgid "Delete credential"
+msgstr "删除凭据"

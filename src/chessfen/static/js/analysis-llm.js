@@ -3,7 +3,11 @@
 import { unlockCredential } from "/static/js/analysis-credential.js";
 
 const PROFILE_KEY = "chessfen.analysis.llm.profile.v1";
-const LOCK_MS = 30 * 60 * 1000;
+const configuredLockMs = Number(window.CHESSFEN_LLM_LOCK_MS);
+const LOCK_MS =
+  Number.isFinite(configuredLockMs) && configuredLockMs > 0
+    ? configuredLockMs
+    : 30 * 60 * 1000;
 let unlockedKey = null;
 let unlockedHost = null;
 let lockTimer = null;
@@ -48,6 +52,8 @@ export function profileRequestReady(profile) {
 export function lockLlm() {
   unlockedKey = null;
   unlockedHost = null;
+  document.documentElement.dataset.llmLocked = "true";
+  window.dispatchEvent(new CustomEvent("chessfen:llm-lock"));
   if (lockTimer !== null) {
     clearTimeout(lockTimer);
     lockTimer = null;
@@ -72,6 +78,7 @@ export async function unlockLlm(passphrase, profile) {
   }
   unlockedKey = result.key;
   unlockedHost = new URL(profile.baseUrl).host;
+  document.documentElement.dataset.llmLocked = "false";
   touchLock();
   return { ok: true };
 }

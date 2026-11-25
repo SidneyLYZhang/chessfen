@@ -1220,7 +1220,16 @@ function initializeAnalysis() {
     void updatePlayback();
   });
 
+  const llmText = Object.fromEntries(
+    [...document.querySelectorAll("[data-llm-message]")].map((node) => [
+      node.dataset.llmMessage,
+      node.textContent,
+    ])
+  );
   let explanationBusy = false;
+  window.addEventListener("chessfen:llm-lock", () => {
+    explanationStatus.textContent = llmText.locked_timeout;
+  });
   root.querySelector("[data-explanation-generate]")?.addEventListener(
     "click",
     async () => {
@@ -1229,12 +1238,12 @@ function initializeAnalysis() {
       const profile = loadLlmProfile();
       if (!profile) {
         explanationStatus.textContent =
-          "Configure an LLM Profile before generating an explanation.";
+          llmText.configure_profile;
         return;
       }
       if (!profileRequestReady(profile)) {
         explanationStatus.textContent =
-          "Confirm the LLM request parameters and privacy consent in Settings.";
+          llmText.confirm_request;
         return;
       }
       if (!llmUnlocked()) {
@@ -1244,11 +1253,11 @@ function initializeAnalysis() {
         );
         if (!unlocked.ok) {
           explanationStatus.textContent =
-            "Unlock failed. Check the passphrase.";
+            llmText.unlock_failed;
           return;
         }
       }
-      explanationStatus.textContent = "Generating explanation…";
+      explanationStatus.textContent = llmText.generating;
       try {
         const result = await requestExplanation(profile, {
         fen: activePosition.fen,
@@ -1277,7 +1286,7 @@ function initializeAnalysis() {
         };
         await persistPosition("complete", activeResult);
       }
-        explanationStatus.textContent = "Explanation ready.";
+        explanationStatus.textContent = llmText.explanation_ready;
       } finally {
         explanationBusy = false;
       }
@@ -1285,7 +1294,7 @@ function initializeAnalysis() {
   );
   root.querySelector("[data-explanation-lock]")?.addEventListener("click", () => {
     lockLlm();
-    explanationStatus.textContent = "LLM credential locked.";
+    explanationStatus.textContent = llmText.locked;
   });
 
   void restorePositionWorkspace();

@@ -1059,3 +1059,162 @@ msgstr "Passphrase"
 
 msgid "Settings"
 msgstr "Einstellungen"
+
+msgid "LLM Profile loaded."
+msgstr "LLM-Profil geladen."
+
+msgid "No LLM Profile saved."
+msgstr "Kein LLM-Profil gespeichert."
+
+msgid "LLM Profile saved locally."
+msgstr "LLM-Profil lokal gespeichert."
+
+msgid "Provide an HTTPS Base URL, Model, consent, and confirmed parameters."
+msgstr "Gib HTTPS-Basis-URL, Modell, Einwilligung und bestätigte Parameter an."
+
+msgid "LLM credential unlocked for this tab."
+msgstr "LLM-Zugangsdaten sind nur für diesen Tab entsperrt."
+
+msgid "Unlock failed. Check the passphrase and Provider."
+msgstr "Entsperren fehlgeschlagen. Prüfe Passphrase und Provider."
+
+msgid "LLM credential locked."
+msgstr "LLM-Zugangsdaten gesperrt."
+
+msgid "LLM credential locked after inactivity."
+msgstr "LLM-Zugangsdaten nach Inaktivität gesperrt."
+
+msgid "Passphrases do not match."
+msgstr "Passphrasen stimmen nicht überein."
+
+msgid "The passphrase must contain at least 12 characters."
+msgstr "Die Passphrase muss mindestens 12 Zeichen enthalten."
+
+msgid "The credential could not be encrypted."
+msgstr "Die Zugangsdaten konnten nicht verschlüsselt werden."
+
+msgid "Model list could not be retrieved."
+msgstr "Modellliste konnte nicht geladen werden."
+
+msgid "Loaded {count} Models."
+msgstr "{count} Modelle geladen."
+
+msgid "Connection test succeeded via the Model list."
+msgstr "Verbindungstest über die Modellliste erfolgreich."
+
+msgid "Connection test failed."
+msgstr "Verbindungstest fehlgeschlagen."
+
+msgid "Encrypted credential deleted."
+msgstr "Verschlüsselte Zugangsdaten gelöscht."
+
+msgid "Delete failed."
+msgstr "Löschen fehlgeschlagen."
+
+msgid "Delete the encrypted LLM credential?"
+msgstr "Verschlüsselte LLM-Zugangsdaten löschen?"
+
+msgid "Confirm privacy consent and the exact request parameters before contacting the Provider."
+msgstr "Bestätige Einwilligung und genaue Anfrageparameter vor dem Provider-Kontakt."
+
+msgid "Configure an LLM Profile before generating an explanation."
+msgstr "Konfiguriere ein LLM-Profil vor der Erklärung."
+
+msgid "Confirm the LLM request parameters and privacy consent in Settings."
+msgstr "Bestätige LLM-Parameter und Einwilligung in den Einstellungen."
+
+msgid "Generating explanation…"
+msgstr "Erklärung wird erzeugt…"
+
+msgid "Explanation could not be generated. Confirm the Provider and Reasoning settings."
+msgstr "Erklärung konnte nicht erzeugt werden. Prüfe Provider und Reasoning-Einstellungen."
+
+msgid "Explanation ready."
+msgstr "Erklärung bereit."
+
+msgid "Configure a locally encrypted LLM Profile for Analysis Explanations."
+msgstr "Konfiguriere ein lokal verschlüsseltes LLM-Profil für Analyse-Erklärungen."
+
+msgid "Stockfish stays local. Your LLM credential is encrypted in this browser and sent only to your configured Provider."
+msgstr "Stockfish bleibt lokal. Deine LLM-Zugangsdaten werden in diesem Browser verschlüsselt und nur an den konfigurierten Provider gesendet."
+
+msgid "LLM credentials require HTTPS or localhost."
+msgstr "LLM-Zugangsdaten erfordern HTTPS oder localhost."
+
+msgid "LLM Profile"
+msgstr "LLM-Profil"
+
+msgid "Provider"
+msgstr "Provider"
+
+msgid "Base URL"
+msgstr "Basis-URL"
+
+msgid "Model"
+msgstr "Modell"
+
+msgid "Explanation language"
+msgstr "Erklärungssprache"
+
+msgid "Audience"
+msgstr "Zielgruppe"
+
+msgid "Beginner"
+msgstr "Anfänger"
+
+msgid "Club"
+msgstr "Verein"
+
+msgid "Advanced"
+msgstr "Fortgeschritten"
+
+msgid "Reasoning effort"
+msgstr "Reasoning-Stärke"
+
+msgid "Enable model reasoning"
+msgstr "Modell-Reasoning aktivieren"
+
+msgid "Generation budget (tokens)"
+msgstr "Generierungsbudget (Tokens)"
+
+msgid "I understand this Base URL receives my PGN/FEN, engine facts, and explanations."
+msgstr "Ich verstehe, dass diese Basis-URL PGN/FEN, Engine-Fakten und Erklärungen erhält."
+
+msgid "I confirm the exact request parameters shown below."
+msgstr "Ich bestätige die unten gezeigten genauen Anfrageparameter."
+
+msgid "Request parameters (credential excluded)"
+msgstr "Anfrageparameter (ohne Zugangsdaten)"
+
+msgid "Save LLM Profile"
+msgstr "LLM-Profil speichern"
+
+msgid "Fetch Models"
+msgstr "Modelle laden"
+
+msgid "Test Connection"
+msgstr "Verbindung testen"
+
+msgid "Encrypted credential"
+msgstr "Verschlüsselte Zugangsdaten"
+
+msgid "AES-GCM with a PBKDF2-derived key. Only ciphertext is stored in IndexedDB."
+msgstr "AES-GCM mit PBKDF2-Schlüssel. In IndexedDB wird nur der Geheimtext gespeichert."
+
+msgid "LLM API key"
+msgstr "LLM-API-Schlüssel"
+
+msgid "Passphrase (12+ characters)"
+msgstr "Passphrase (mindestens 12 Zeichen)"
+
+msgid "Confirm passphrase"
+msgstr "Passphrase bestätigen"
+
+msgid "Unlock"
+msgstr "Entsperren"
+
+msgid "Lock"
+msgstr "Sperren"
+
+msgid "Delete credential"
+msgstr "Zugangsdaten löschen"

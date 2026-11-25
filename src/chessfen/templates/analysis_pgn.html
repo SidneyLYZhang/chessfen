@@ -14,6 +14,8 @@
   </div>
 </header>
 
+{% include "analysis_llm_messages.html" %}
+
 <div class="workspace-grid analysis-workspace">
   <section class="tool-panel">
     <p class="eyebrow" aria-hidden="true">01 / SOURCE</p>
@@ -103,6 +105,26 @@
       <section class="analysis-lines" aria-labelledby="game-lines-title">
         <h3 id="game-lines-title">{% trans %}Candidate Lines{% endtrans %}</h3>
         <ol class="candidate-lines" data-game-lines></ol>
+      </section>
+      <section class="analysis-lines" data-game-explanation-section hidden aria-labelledby="game-explanation-title">
+        <h3 id="game-explanation-title">{% trans %}Explanation{% endtrans %}</h3>
+        <p class="field-hint"><a href="/settings">{% trans %}Configure LLM Profile{% endtrans %}</a></p>
+        <div data-game-explanation-output hidden>
+          <p data-game-explanation-summary></p>
+          <p data-game-explanation-why></p>
+          <p data-game-explanation-alternatives></p>
+          <p data-game-explanation-uncertainty></p>
+        </div>
+        <p class="form-error" data-game-explanation-stale hidden>{% trans %}Explanation language or audience changed; regenerate to refresh it.{% endtrans %}</p>
+        <div class="field">
+          <label class="field-label" for="game-explanation-passphrase">{% trans %}Passphrase{% endtrans %}</label>
+          <input class="text-input" id="game-explanation-passphrase" type="password" autocomplete="current-password" data-game-explanation-passphrase>
+        </div>
+        <div class="form-actions">
+          <button class="secondary-button" type="button" data-game-explanation-generate>{% trans %}Generate Explanation{% endtrans %}</button>
+          <button class="ghost-button" type="button" data-game-explanation-lock>{% trans %}Lock LLM{% endtrans %}</button>
+        </div>
+        <p class="analysis-status" data-game-explanation-status role="status" aria-live="polite"></p>
       </section>
       <section class="analysis-assessment">
         <h3>{% trans %}Structured facts{% endtrans %}</h3>

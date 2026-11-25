@@ -878,3 +878,106 @@ def test_browser_secures_profile_and_generates_grounded_explanation(
     page.reload()
     expect(page.locator("[data-explanation-stale]")).to_be_visible()
     page.unroute("https://api.openai.test/**", provider)
+
+
+def _configure_mock_profile(
+    page: Page, live_analysis_url: str, base_url: str = "https://api.openai.test/v1"
+) -> None:
+    page.goto(f"{live_analysis_url}/settings")
+    page.locator("[data-llm-base-url]").fill(base_url)
+    page.locator("[data-llm-model]").fill("mock-model")
+    page.locator("[data-llm-api-key]").fill("sk-test-secret-value")
+    page.locator("[data-llm-passphrase]").fill("correct horse battery")
+    page.locator("[data-llm-passphrase-confirm]").fill("correct horse battery")
+    page.locator("[data-llm-consent]").check()
+    page.locator("[data-llm-confirm]").check()
+    page.get_by_role("button", name="Save LLM Profile").click()
+    expect(page.locator("[data-llm-status]")).to_contain_text("saved locally")
+
+
+def test_browser_generates_a_selected_game_ply_explanation(
+    browser_page: Page, live_analysis_url: str
+) -> None:
+    page = browser_page
+
+    def provider(route) -> None:
+        headers = {
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Headers": "authorization,content-type",
+            "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+        }
+        if route.request.method == "OPTIONS":
+            route.fulfill(status=204, headers=headers)
+            return
+        route.fulfill(
+            status=200,
+            headers={**headers, "Content-Type": "application/json"},
+            body=json.dumps(
+                {
+                    "choices": [
+                        {
+                            "message": {
+                                "content": json.dumps(
+                                    {
+                                        "summary": "这一手争夺中心。",
+                                        "why": "候选变化支持中心控制。",
+                                        "alternatives": "其他变化同样可行。",
+                                        "uncertainty": "只基于引擎事实。",
+                                    }
+                                )
+                            }
+                        }
+                    ]
+                }
+            ),
+        )
+
+    page.route("https://api.openai.test/**", provider)
+    _configure_mock_profile(page, live_analysis_url)
+    page.goto(f"{live_analysis_url}/tools/analysis/pgn")
+    page.locator("#pgn").fill(
+        '[Event "Explain"]\n[White "Alice"]\n[Black "Bob"]\n[Result "*"]\n\n1. e4 *\n'
+    )
+    page.get_by_role("button", name="Parse PGN").click()
+    page.get_by_role("button", name="Open Game").click()
+    page.get_by_role("button", name="Start Game Analysis").click()
+    expect(page.locator("[data-game-status]")).to_contain_text(
+        "Analysis complete", timeout=30_000
+    )
+    page.locator("[data-game-moves] [data-ply='1']").click()
+    expect(page.locator("[data-game-explanation-section]")).to_be_visible()
+    page.locator("[data-game-explanation-passphrase]").fill(
+        "correct horse battery"
+    )
+    page.get_by_role("button", name="Generate Explanation").click()
+    expect(page.locator("[data-game-explanation-summary]")).to_have_text(
+        "这一手争夺中心。"
+    )
+    page.goto(f"{live_analysis_url}/tools/analysis/pgn")
+    expect(page.locator("[data-workspace-restore]")).to_be_visible()
+    with page.expect_navigation():
+        page.locator("[data-workspace-restore-button]").click()
+    expect(page.locator("[data-game-status]")).to_contain_text(
+        "Restored from the local Analysis Workspace."
+    )
+    page.locator("[data-game-moves] [data-ply='1']").click()
+    expect(page.locator("[data-game-explanation-summary]")).to_have_text(
+        "这一手争夺中心。"
+    )
+    page.unroute("https://api.openai.test/**", provider)
+
+
+def test_browser_locks_the_llm_after_the_configured_idle_timeout(
+    browser_page: Page, live_analysis_url: str
+) -> None:
+    page = browser_page
+    page.add_init_script("window.CHESSFEN_LLM_LOCK_MS = 150;")
+    _configure_mock_profile(page, live_analysis_url)
+    page.locator("[data-llm-passphrase]").fill("correct horse battery")
+    page.get_by_role("button", name="Unlock").click()
+    expect(page.locator("[data-llm-status]")).to_contain_text("unlocked")
+    expect(page.locator("html")).to_have_attribute("data-llm-locked", "false")
+    expect(page.locator("html")).to_have_attribute(
+        "data-llm-locked", "true", timeout=3_000
+    )
+    expect(page.locator("[data-llm-status]")).to_contain_text("after inactivity")

@@ -1,6 +1,14 @@
 "use strict";
 
 import {
+  llmUnlocked,
+  loadLlmProfile,
+  lockLlm,
+  profileRequestReady,
+  requestExplanation,
+  unlockLlm,
+} from "/static/js/analysis-llm.js";
+import {
   clearWorkspace,
   engineSettingsCompatible,
   engineSnapshot,
@@ -49,6 +57,19 @@ function initializeGameAnalysis() {
   let cancelled = false;
   let busy = false;
   let hasStarted = false;
+  let activePly = 0;
+  let activeCandidateLines = [];
+  let explanationBusy = false;
+  const llmText = Object.fromEntries(
+    [...document.querySelectorAll("[data-llm-message]")].map((node) => [
+      node.dataset.llmMessage,
+      node.textContent,
+    ])
+  );
+  const explanations = {};
+  window.addEventListener("chessfen:llm-lock", () => {
+    explanationStatus.textContent = llmText.locked_timeout;
+  });
   const labels = {
     analyzing: root.dataset.statusAnalyzing,
     complete: root.dataset.statusComplete,
@@ -66,6 +87,15 @@ function initializeGameAnalysis() {
     catch (error) { return {}; }
   })();
   const workspaceStatus = document.querySelector("[data-workspace-status]");
+  const explanationSection = document.querySelector("[data-game-explanation-section]");
+  const explanationOutput = document.querySelector("[data-game-explanation-output]");
+  const explanationSummary = document.querySelector("[data-game-explanation-summary]");
+  const explanationWhy = document.querySelector("[data-game-explanation-why]");
+  const explanationAlternatives = document.querySelector("[data-game-explanation-alternatives]");
+  const explanationUncertainty = document.querySelector("[data-game-explanation-uncertainty]");
+  const explanationStale = document.querySelector("[data-game-explanation-stale]");
+  const explanationPassphrase = document.querySelector("[data-game-explanation-passphrase]");
+  const explanationStatus = document.querySelector("[data-game-explanation-status]");
   const workspaceRestore = document.querySelector("[data-workspace-restore]");
   const analysisSettings = {
     preset: ["fast", "standard", "deep"].includes(stored.preset)
@@ -120,6 +150,7 @@ function initializeGameAnalysis() {
       status,
       result,
       gameData: game,
+      explanations,
     };
   }
 
@@ -177,7 +208,36 @@ function initializeGameAnalysis() {
     board.src = position.board_uri;
   }
 
+  function renderGameExplanation(ply) {
+    if (ply <= 0) {
+      explanationSection.hidden = true;
+      explanationOutput.hidden = true;
+      explanationStale.hidden = true;
+      return;
+    }
+    explanationSection.hidden = false;
+    const stored = explanations[ply];
+    if (!stored) {
+      explanationOutput.hidden = true;
+      explanationStale.hidden = true;
+      return;
+    }
+    explanationOutput.hidden = false;
+    explanationSummary.textContent = stored.explanation.summary;
+    explanationWhy.textContent = stored.explanation.why;
+    explanationAlternatives.textContent = stored.explanation.alternatives;
+    explanationUncertainty.textContent = stored.explanation.uncertainty;
+    const profile = loadLlmProfile();
+    explanationStale.hidden =
+      !profile ||
+      (profile.language === stored.meta.language &&
+        profile.audience === stored.meta.audience);
+  }
+
   async function selectPly(ply) {
+    activePly = ply;
+    activeCandidateLines = [];
+    renderGameExplanation(ply);
     const index = Math.max(0, ply);
     await showBoard(game.positions[index]);
     evaluation.textContent = analysis.evaluations[index].text;
@@ -194,6 +254,7 @@ function initializeGameAnalysis() {
         fen: game.positions[index - 1],
         lines: completed[index - 1].lines,
       });
+      activeCandidateLines = normalized.lines;
       for (const line of normalized.lines) {
         const item = document.createElement("li");
         item.className = "candidate-line";
@@ -205,6 +266,7 @@ function initializeGameAnalysis() {
         item.append(moves);
         linesElement.append(item);
       }
+      renderGameExplanation(ply);
     }
     for (const button of moveList.querySelectorAll("[data-ply]")) {
       button.setAttribute(
@@ -456,6 +518,9 @@ function initializeGameAnalysis() {
       });
     }
     hasStarted = completed.some(Boolean);
+    if (record.explanations && typeof record.explanations === "object") {
+      Object.assign(explanations, record.explanations);
+    }
     if (record.result) {
       await renderGameAnalysis(record.result, true);
       setBusy(false);
@@ -466,6 +531,72 @@ function initializeGameAnalysis() {
     }
     workspaceRestore.hidden = true;
   }
+
+  document.querySelector("[data-game-explanation-generate]")?.addEventListener(
+    "click",
+    async () => {
+      if (explanationBusy || activePly <= 0 || !analysis) return;
+      explanationBusy = true;
+      try {
+        const profile = loadLlmProfile();
+        if (!profile) {
+          explanationStatus.textContent =
+            llmText.configure_profile;
+          return;
+        }
+        if (!profileRequestReady(profile)) {
+          explanationStatus.textContent =
+            llmText.confirm_request;
+          return;
+        }
+        if (!llmUnlocked()) {
+          const unlocked = await unlockLlm(explanationPassphrase.value, profile);
+          if (!unlocked.ok) {
+            explanationStatus.textContent =
+              llmText.unlock_failed;
+            return;
+          }
+        }
+        explanationStatus.textContent = llmText.generating;
+        const data = analysis.plies[activePly - 1];
+        const result = await requestExplanation(profile, {
+          fen: game.positions[activePly - 1],
+          actual_move: game.moves[activePly - 1],
+          facts: data.exact_facts,
+          indicators: data.indicators,
+          evaluation_before: data.evaluation_before,
+          evaluation_after: data.evaluation_after,
+          quality: data.quality,
+          cpl: data.cpl,
+          candidate_lines: activeCandidateLines,
+        });
+        if (!result.ok) {
+          explanationStatus.textContent =
+            "Explanation could not be generated. Confirm the Provider and Reasoning Settings.";
+          return;
+        }
+        explanations[activePly] = {
+          explanation: result.explanation,
+          meta: {
+            language: profile.language,
+            audience: profile.audience,
+          },
+        };
+        renderGameExplanation(activePly);
+        await persistGame(analysis ? "complete" : "incomplete", analysis);
+        explanationStatus.textContent = llmText.explanation_ready;
+      } finally {
+        explanationBusy = false;
+      }
+    }
+  );
+  document.querySelector("[data-game-explanation-lock]")?.addEventListener(
+    "click",
+    () => {
+      lockLlm();
+      explanationStatus.textContent = llmText.locked;
+    }
+  );
 
   showBoard(game.start_fen).catch(() => showError(labels.board));
   void restoreGameWorkspace();
