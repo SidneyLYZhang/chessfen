@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import chess
+import chess.pgn
 import pytest
 from fastapi.testclient import TestClient
 
@@ -908,3 +910,142 @@ def test_analysis_lines_reject_duplicate_ranks(client: TestClient) -> None:
 
     assert response.status_code == 400
     assert response.json()["error"]["code"] == "invalid_candidate_line"
+
+
+_PGN_TWO_GAMES = '''[Event "One"]
+[White "Alice"]
+[Black "Bob"]
+[Result "1-0"]
+
+1. e4 e5 2. Nf3 Nc6 1-0
+
+[Event "Two"]
+[White "Carol"]
+[Black "Dave"]
+[Result "0-1"]
+
+1. d4 d5 0-1
+'''
+
+_PGN_ONE_MOVE = '''[Event "Short"]
+[White "Alice"]
+[Black "Bob"]
+[Result "*"]
+
+1. e4 *
+'''
+
+
+def test_game_analysis_page_parses_and_opens_a_selected_game(
+    client: TestClient,
+) -> None:
+    parsed = client.post(
+        "/tools/analysis/pgn",
+        data={"pgn": _PGN_TWO_GAMES, "mode": "parse"},
+        headers={**_EN, **_ORIGIN},
+    )
+    opened = client.post(
+        "/tools/analysis/pgn",
+        data={"pgn": _PGN_TWO_GAMES, "game_index": "1", "mode": "open"},
+        headers={**_EN, **_ORIGIN},
+    )
+
+    assert parsed.status_code == 200
+    assert "Alice vs Bob" in parsed.text
+    assert "Carol vs Dave" in parsed.text
+    assert opened.status_code == 200
+    assert "data-game-root" in opened.text
+    assert '"total_plies": 2' in opened.text
+    assert '"d2d4"' in opened.text or '"d4"' in opened.text
+
+
+def test_game_analysis_page_rejects_invalid_pgn_and_long_games(
+    client: TestClient,
+) -> None:
+    invalid = client.post(
+        "/tools/analysis/pgn",
+        data={"pgn": "not a pgn", "mode": "parse"},
+        headers={**_EN, **_ORIGIN},
+    )
+
+    assert invalid.status_code == 400
+    assert "Invalid PGN" in invalid.text
+
+
+def test_game_results_compute_n_plus_one_evaluations_and_key_plies(
+    client: TestClient,
+) -> None:
+    response = _analysis_post(
+        client,
+        "/tools/analysis/game/results",
+        {
+            "start_fen": _START_FEN,
+            "moves": ["e2e4"],
+            "positions": [
+                {
+                    "lines": [
+                        {
+                            "multipv": 1,
+                            "depth": 18,
+                            "score": {"kind": "cp", "value": 20},
+                            "pv": ["e2e4", "e7e5"],
+                        },
+                        {
+                            "multipv": 2,
+                            "depth": 18,
+                            "score": {"kind": "cp", "value": -130},
+                            "pv": ["d2d4", "d7d5"],
+                        },
+                    ]
+                },
+                {
+                    "lines": [
+                        {
+                            "multipv": 1,
+                            "depth": 18,
+                            "score": {"kind": "cp", "value": -10},
+                            "pv": ["e7e5", "g1f3"],
+                        }
+                    ]
+                },
+            ],
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert len(payload["evaluations"]) == 2
+    assert len(payload["plies"]) == 1
+    ply = payload["plies"][0]
+    assert ply["ply"] == 1
+    assert ply["san"] == "e4"
+    assert ply["quality"] == "best"
+    assert ply["is_key"] is True
+    assert "only_best" in ply["key_reasons"]
+    assert ply["exact_facts"]["is_capture"] is False
+    assert "doubled_pawns" in ply["indicators"]
+    assert payload["key_plies"] == [1]
+
+
+def test_game_analysis_page_rejects_more_than_400_plies(
+    client: TestClient,
+) -> None:
+    game = chess.pgn.Game()
+    game.headers["Event"] = "Long"
+    game.headers["White"] = "Alice"
+    game.headers["Black"] = "Bob"
+    game.headers["Result"] = "*"
+    node: chess.pgn.GameNode = game
+    for _ in range(101):
+        for uci in ("g1f3", "g8f6", "f3g1", "f6g8"):
+            node = node.add_variation(chess.Move.from_uci(uci))
+    pgn = game.accept(chess.pgn.StringExporter(headers=True, comments=False))
+
+    response = client.post(
+        "/tools/analysis/pgn",
+        data={"pgn": pgn, "game_index": "0", "mode": "open"},
+        headers={**_EN, **_ORIGIN},
+    )
+
+    assert response.status_code == 400
+    assert "Analysis supports Games up to 400 Ply." in response.text

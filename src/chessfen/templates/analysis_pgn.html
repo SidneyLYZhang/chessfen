@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+{% block title %}ChessFEN · {% trans %}PGN Game analysis{% endtrans %}{% endblock %}
+{% block description %}{% trans %}Analyze every Mainline Ply of a PGN Game in your browser.{% endtrans %}{% endblock %}
+{% block content %}
+<header class="tool-header">
+  <div>
+    <p class="eyebrow" aria-hidden="true">WORKSPACE / GAME ANALYSIS</p>
+    <h1>{% trans %}PGN Game analysis{% endtrans %}</h1>
+    <p class="tool-lead">{% trans %}Analyze every Mainline Ply by both sides. Stockfish runs in your browser.{% endtrans %}</p>
+  </div>
+  <div class="tool-header-links">
+    <a class="text-icon-button" href="/tools/analysis">{% trans %}Position analysis{% endtrans %} <span aria-hidden="true">→</span></a>
+    <a class="text-icon-button" href="/learn/pgn">{% trans %}PGN guide{% endtrans %} <span aria-hidden="true">→</span></a>
+  </div>
+</header>
+
+<div class="workspace-grid analysis-workspace">
+  <section class="tool-panel">
+    <p class="eyebrow" aria-hidden="true">01 / SOURCE</p>
+    <h2>{% trans %}PGN{% endtrans %}</h2>
+    <form method="post" action="/tools/analysis/pgn" enctype="multipart/form-data" class="pgn-form">
+      {% if error == "invalid_pgn" %}<p class="form-error" role="alert">{% trans %}Invalid PGN{% endtrans %}</p>{% endif %}
+      {% if error == "invalid_game" %}<p class="form-error" role="alert">{% trans %}Game not found{% endtrans %}</p>{% endif %}
+      {% if error == "pgn_too_large" %}<p class="form-error" role="alert">{% trans %}The PGN must be 1 MB or smaller.{% endtrans %}</p>{% endif %}
+      {% if error == "analysis_too_long" %}<p class="form-error" role="alert">{% trans %}Analysis supports Games up to 400 Ply.{% endtrans %}</p>{% endif %}
+      <div class="field">
+        <label class="field-label" for="pgn">PGN</label>
+        <textarea id="pgn" name="pgn" class="text-area code-input pgn-input" spellcheck="false">{{ pgn }}</textarea>
+      </div>
+      <div class="field">
+        <label class="field-label" for="pgn_file">{% trans %}PGN file{% endtrans %}</label>
+        <input class="file-input" type="file" id="pgn_file" name="pgn_file" accept=".pgn,text/plain">
+        <p class="field-hint">{% trans %}A file takes precedence over the pasted text.{% endtrans %}</p>
+      </div>
+      <div class="form-actions">
+        <button class="primary-button" type="submit" name="mode" value="parse">{% trans %}Parse PGN{% endtrans %}</button>
+      </div>
+      {% if games %}
+      <div class="pgn-game-row">
+        <div class="field">
+          <label class="field-label" for="game_index">{% trans %}Game{% endtrans %}</label>
+          <select class="select-input" id="game_index" name="game_index">
+            {% for game in games %}
+            <option value="{{ game.index }}"{% if game_index == game.index|string %} selected{% endif %}>{% trans index=game.index + 1 %}Game {{ index }}{% endtrans %}: {{ game.white_player }} {% trans %}vs{% endtrans %} {{ game.black_player }} ({{ game.result }})</option>
+            {% endfor %}
+          </select>
+        </div>
+        <button class="secondary-button" type="submit" name="mode" value="open">{% trans %}Open Game{% endtrans %}</button>
+      </div>
+      {% endif %}
+    </form>
+
+    {% if game_data %}
+    <div
+      data-game-root
+      data-game='{{ game_data|tojson }}'
+      data-results-endpoint="/tools/analysis/game/results"
+      data-lines-endpoint="/tools/analysis/lines"
+      data-position-endpoint="/tools/analysis/position"
+      data-quality-best="{% trans %}Best{% endtrans %}"
+      data-quality-excellent="{% trans %}Excellent{% endtrans %}"
+      data-quality-good="{% trans %}Good{% endtrans %}"
+      data-quality-inaccuracy="{% trans %}Inaccuracy{% endtrans %}"
+      data-quality-mistake="{% trans %}Mistake{% endtrans %}"
+      data-quality-blunder="{% trans %}Blunder{% endtrans %}"
+      data-quality-forced="{% trans %}Forced{% endtrans %}"
+      data-label-key="{% trans %}Key Ply{% endtrans %}"
+      data-status-analyzing="{% trans %}Analyzing Position{% endtrans %}"
+      data-status-complete="{% trans %}Analysis complete.{% endtrans %}"
+      data-status-cancelled="{% trans %}Analysis cancelled.{% endtrans %}"
+      data-status-stopping="{% trans %}Stopping…{% endtrans %}"
+      data-status-ready="{% trans %}Ready to analyze.{% endtrans %}"
+      data-error-generic="{% trans %}Game analysis could not be completed.{% endtrans %}"
+      data-error-board="{% trans %}Board unavailable.{% endtrans %}"
+      data-label-graph="{% trans %}Evaluation graph{% endtrans %}"
+    >
+      <div class="form-actions">
+        <button class="primary-button" type="button" data-game-start>{% trans %}Start Game Analysis{% endtrans %}</button>
+        <button class="secondary-button" type="button" data-game-cancel disabled>{% trans %}Cancel{% endtrans %}</button>
+        <button class="secondary-button" type="button" data-game-continue disabled>{% trans %}Continue{% endtrans %}</button>
+        <button class="ghost-button" type="button" data-game-restart disabled>{% trans %}Restart{% endtrans %}</button>
+      </div>
+      <p class="analysis-status" data-game-status role="status" aria-live="polite">{% trans %}Ready to analyze.{% endtrans %}</p>
+      <p class="form-error" data-game-error role="alert" hidden></p>
+    </div>
+    {% endif %}
+  </section>
+
+  <section class="result-panel">
+    <div class="empty-state" data-game-empty>
+      <img src="/static/brand/mark-mono.svg" alt="" width="48" height="48">
+      <p class="empty-state-title">{% trans %}The board appears here.{% endtrans %}</p>
+      <p>{% trans %}Parse a PGN and open a Game to analyze its Mainline.{% endtrans %}</p>
+    </div>
+    <div data-game-result hidden>
+      <div class="result-board analysis-board"><img data-game-board alt="{% trans %}Analyzed Position{% endtrans %}" width="560" height="560"></div>
+      <dl class="result-meta analysis-summary">
+        <div><dt>{% trans %}Evaluation{% endtrans %}</dt><dd data-game-evaluation></dd></div>
+        <div><dt>{% trans %}Move quality{% endtrans %}</dt><dd data-game-quality></dd></div>
+      </dl>
+      <section class="analysis-lines" aria-labelledby="game-lines-title">
+        <h3 id="game-lines-title">{% trans %}Candidate Lines{% endtrans %}</h3>
+        <ol class="candidate-lines" data-game-lines></ol>
+      </section>
+      <section class="analysis-assessment">
+        <h3>{% trans %}Structured facts{% endtrans %}</h3>
+        <dl class="analysis-assessment-facts">
+          <div><dt>{% trans %}Exact facts{% endtrans %}</dt><dd data-game-exact></dd></div>
+          <div><dt>{% trans %}Heuristic indicators{% endtrans %}</dt><dd data-game-indicators></dd></div>
+        </dl>
+      </section>
+    </div>
+  </section>
+</div>
+
+{% if game_data %}
+<section class="game-ribbon" data-game-ribbon hidden>
+  <p class="eyebrow" aria-hidden="true">02 / MAINLINE</p>
+  <h2>{{ game_data.white }} {% trans %}vs{% endtrans %} {{ game_data.black }} ({{ game_data.result }})</h2>
+  <div class="analysis-eval-graph" data-game-graph></div>
+  <div class="game-move-list" data-game-moves role="group" aria-label="{% trans %}Mainline moves{% endtrans %}"></div>
+</section>
+{% endif %}
+{% endblock %}
+{% block body_scripts %}
+<script type="module" src="/static/js/analysis-game.js"></script>
+{% endblock %}

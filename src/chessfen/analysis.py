@@ -409,6 +409,27 @@ def _loss_for_move(
     return max(0, best_score - actual_score), False
 
 
+def evaluation_gap(
+    best: Evaluation, alternative: Evaluation, mover_is_white: bool
+) -> int:
+    return max(
+        0,
+        _mover_score(best, mover_is_white)
+        - _mover_score(alternative, mover_is_white),
+    )
+
+
+def evaluation_transition(
+    before: Evaluation, after: Evaluation
+) -> tuple[int, bool]:
+    mate_changed = (before.kind == "mate") != (after.kind == "mate")
+    if before.kind == "mate" or after.kind == "mate":
+        if before.kind == after.kind == "mate" and before.value != after.value:
+            mate_changed = True
+        return 0, mate_changed
+    return abs(after.value - before.value), False
+
+
 def _move_quality(cpl: int, is_forced: bool) -> MoveQuality:
     if is_forced:
         return "forced"

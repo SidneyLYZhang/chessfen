@@ -446,3 +446,57 @@ def test_browser_reports_placement_only_before_starting_engine(
     expect(page.locator("[data-analysis-status]")).to_have_text(
         "Enter a Full FEN to begin."
     )
+
+
+def test_browser_analyzes_a_complete_pgn_mainline(
+    browser_page: Page, live_analysis_url: str
+) -> None:
+    page = browser_page
+    page.goto(f"{live_analysis_url}/tools/analysis/pgn")
+    page.locator("#pgn").fill(
+        '[Event "Short"]\n[White "Alice"]\n[Black "Bob"]\n[Result "*"]\n\n1. e4 *\n'
+    )
+    page.get_by_role("button", name="Parse PGN").click()
+    expect(page.locator("#game_index")).to_be_visible()
+    page.get_by_role("button", name="Open Game").click()
+    expect(page.get_by_role("button", name="Start Game Analysis")).to_be_visible()
+    page.get_by_role("button", name="Start Game Analysis").click()
+    expect(page.locator("[data-game-status]")).to_contain_text(
+        "Analysis complete", timeout=30_000
+    )
+    expect(page.locator("[data-game-ribbon]")).to_be_visible()
+    expect(page.locator("[data-game-moves] [data-ply='1']")).to_be_visible()
+    page.locator("[data-game-moves] [data-ply='1']").click()
+    expect(page.locator("[data-game-quality]")).not_to_be_empty()
+    expect(page.locator("[data-game-lines] .candidate-line")).not_to_have_count(0)
+    expect(page.locator("[data-game-exact]")).not_to_be_empty()
+    expect(page.locator("[data-game-indicators]")).not_to_be_empty()
+
+
+def test_browser_cancels_and_continues_a_game_queue(
+    browser_page: Page, live_analysis_url: str
+) -> None:
+    page = browser_page
+    page.goto(f"{live_analysis_url}/tools/analysis/pgn")
+    page.locator("#pgn").fill(
+        '[Event "Two moves"]\n[White "Alice"]\n[Black "Bob"]\n[Result "*"]\n\n1. e4 e5 *\n'
+    )
+    page.get_by_role("button", name="Parse PGN").click()
+    page.get_by_role("button", name="Open Game").click()
+    page.get_by_role("button", name="Start Game Analysis").click()
+    expect(page.locator("[data-game-status]")).to_contain_text(
+        "Analyzing Position", timeout=20_000
+    )
+    page.get_by_role("button", name="Cancel").click()
+    expect(page.locator("[data-game-status]")).to_contain_text(
+        "Analysis cancelled"
+    )
+    continue_button = page.get_by_role("button", name="Continue")
+    expect(continue_button).to_be_enabled()
+    continue_button.click()
+    expect(page.locator("[data-game-status]")).to_contain_text(
+        "Analysis complete", timeout=30_000
+    )
+    expect(page.locator("[data-game-moves] [data-ply]")).to_have_count(3)
+    page.locator("[data-graph-ply='1']").click()
+    expect(page.locator("[data-game-quality]")).not_to_be_empty()

@@ -942,3 +942,54 @@ msgstr "当前根着法"
 
 msgid "Candidate Lines"
 msgstr "候选变化"
+
+msgid "PGN Game analysis"
+msgstr "PGN 对局分析"
+
+msgid "Analyze every Mainline Ply by both sides. Stockfish runs in your browser."
+msgstr "分析双方主线的每一步。Stockfish 在你的浏览器中运行。"
+
+msgid "Open Game"
+msgstr "打开对局"
+
+msgid "Start Game Analysis"
+msgstr "开始对局分析"
+
+msgid "Continue"
+msgstr "继续"
+
+msgid "Ready to analyze."
+msgstr "可以开始分析。"
+
+msgid "Analysis supports Games up to 400 Ply."
+msgstr "分析最多支持 400 Ply 的对局。"
+
+msgid "Parse a PGN and open a Game to analyze its Mainline."
+msgstr "解析 PGN 并打开一局以分析其主线。"
+
+msgid "Structured facts"
+msgstr "结构化事实"
+
+msgid "Exact facts"
+msgstr "确定事实"
+
+msgid "Heuristic indicators"
+msgstr "启发式指标"
+
+msgid "Analyze every Mainline Ply of a PGN Game in your browser."
+msgstr "在浏览器中分析 PGN 对局主线的每一步。"
+
+msgid "Key Ply"
+msgstr "关键 Ply"
+
+msgid "Analyzing Position"
+msgstr "正在分析局面"
+
+msgid "Game analysis could not be completed."
+msgstr "对局分析未能完成。"
+
+msgid "Board unavailable."
+msgstr "棋盘不可用。"
+
+msgid "Evaluation graph"
+msgstr "评估曲线"

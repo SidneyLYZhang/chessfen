@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import io
 from dataclasses import asdict
 from urllib.parse import urlsplit
 
-from fastapi import APIRouter, Request
+import chess
+from fastapi import APIRouter, File, Form, Request, UploadFile
 from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import BaseModel, Field
 
@@ -15,6 +17,16 @@ from chessfen.analysis import (
     analyze_position,
     assess_position,
     candidate_lines,
+    terminal_result,
+)
+from chessfen.game_analysis import GameAnalysis, analyze_game
+from chessfen.limits import PGN_MAX_BYTES
+from chessfen.pgn import (
+    PgnError,
+    count_plies,
+    load_games,
+    select_game,
+    summarize,
 )
 from chessfen.templating import render_response
 
@@ -48,6 +60,16 @@ class LinesRequest(FenRequest):
 class AssessmentRequest(LinesRequest):
     move: str = Field(min_length=1, max_length=30)
     after_lines: list[LineRequest] = Field(default_factory=list, max_length=5)
+
+
+class GameLineRequest(BaseModel):
+    lines: list[LineRequest] = Field(default_factory=list, max_length=5)
+
+
+class GameResultsRequest(BaseModel):
+    start_fen: str = Field(max_length=200)
+    moves: list[str] = Field(max_length=400)
+    positions: list[GameLineRequest] = Field(max_length=401)
 
 
 def _candidate_inputs(lines: list[LineRequest]) -> list[CandidateInput]:
@@ -130,9 +152,174 @@ def _is_same_origin(request: Request) -> bool:
     )
 
 
+def _analysis_page_response(
+    request: Request, template: str, context: dict[str, object] | None = None,
+    status_code: int = 200,
+) -> HTMLResponse:
+    return _analysis_headers(
+        render_response(request, template, context, status_code=status_code)
+    )
+
+
 @router.get("/analysis")
 def analysis_page(request: Request) -> HTMLResponse:
-    return _analysis_headers(render_response(request, "analysis.html"))
+    return _analysis_page_response(request, "analysis.html")
+
+
+def _decode_pgn_bytes(raw: bytes) -> str:
+    try:
+        return raw.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        return raw.decode("latin-1")
+
+
+def _pgn_page(
+    request: Request,
+    *,
+    pgn: str = "",
+    game_index: str = "",
+    games: list[dict[str, object]] | None = None,
+    game_data: dict[str, object] | None = None,
+    error: str | None = None,
+    status_code: int = 200,
+) -> HTMLResponse:
+    return _analysis_page_response(
+        request,
+        "analysis_pgn.html",
+        {
+            "pgn": pgn,
+            "game_index": game_index,
+            "games": games or [],
+            "game_data": game_data,
+            "error": error,
+        },
+        status_code,
+    )
+
+
+def _game_payload(game: chess.pgn.Game) -> dict[str, object]:
+    count = count_plies(game)
+    if count > 400:
+        raise PgnError("analysis_too_long")
+    board = game.board()
+    start_fen = board.fen()
+    positions = [start_fen]
+    terminal_positions = [terminal_result(board) is not None]
+    moves: list[dict[str, object]] = []
+    for move in game.mainline_moves():
+        before = board.fen()
+        side = "white" if board.turn == chess.WHITE else "black"
+        number = board.fullmove_number
+        is_forced = board.legal_moves.count() == 1
+        san = board.san(move)
+        board.push(move)
+        after = board.fen()
+        positions.append(after)
+        terminal_positions.append(terminal_result(board) is not None)
+        moves.append(
+            {
+                "ply": len(moves) + 1,
+                "number": number,
+                "side": side,
+                "san": san,
+                "uci": move.uci(),
+                "before_fen": before,
+                "after_fen": after,
+                "is_forced": is_forced,
+            }
+        )
+    return {
+        "start_fen": start_fen,
+        "positions": positions,
+        "terminal_positions": terminal_positions,
+        "moves": moves,
+        "total_plies": count,
+        "white": game.headers.get("White", "?"),
+        "black": game.headers.get("Black", "?"),
+        "result": game.headers.get("Result", "*"),
+    }
+
+
+@router.get("/analysis/pgn")
+def analysis_pgn_page(request: Request) -> HTMLResponse:
+    return _pgn_page(request)
+
+
+@router.post("/analysis/pgn")
+def analysis_pgn_submit(
+    request: Request,
+    pgn: str = Form(""),
+    pgn_file: UploadFile | None = File(None),
+    game_index: str = Form(""),
+    mode: str = Form(""),
+) -> HTMLResponse:
+    if pgn_file is not None and pgn_file.filename:
+        raw = pgn_file.file.read()
+        if len(raw) > PGN_MAX_BYTES:
+            return _pgn_page(
+                request, pgn=pgn, error="pgn_too_large", status_code=400
+            )
+        pgn = _decode_pgn_bytes(raw)
+    elif len(pgn.encode("utf-8")) > PGN_MAX_BYTES:
+        return _pgn_page(
+            request, pgn=pgn, error="pgn_too_large", status_code=400
+        )
+    try:
+        games = load_games(pgn)
+    except PgnError as exc:
+        return _pgn_page(request, pgn=pgn, error=exc.code, status_code=400)
+    summaries = [
+        asdict(summarize(game, index)) for index, game in enumerate(games)
+    ]
+    if mode == "parse" or not game_index:
+        return _pgn_page(request, pgn=pgn, games=summaries)
+    try:
+        index = int(game_index)
+    except ValueError:
+        return _pgn_page(
+            request,
+            pgn=pgn,
+            games=summaries,
+            error="invalid_game",
+            status_code=400,
+        )
+    try:
+        game = select_game(games, index)
+        game_data = _game_payload(game)
+    except PgnError as exc:
+        return _pgn_page(
+            request,
+            pgn=pgn,
+            game_index=str(index),
+            games=summaries,
+            error=exc.code,
+            status_code=400,
+        )
+    return _pgn_page(
+        request,
+        pgn=pgn,
+        game_index=str(index),
+        games=summaries,
+        game_data=game_data,
+    )
+
+
+@router.post("/analysis/game/results")
+def analysis_game_results(
+    request: Request, payload: GameResultsRequest
+) -> JSONResponse:
+    if not _is_same_origin(request):
+        return analysis_error("invalid_origin", status_code=403)
+    positions = [
+        _candidate_inputs(position.lines) for position in payload.positions
+    ]
+    try:
+        analysis = analyze_game(
+            payload.start_fen, payload.moves, positions
+        )
+    except (AnalysisInputError, ValueError, chess.IllegalMoveError):
+        return analysis_error("invalid_game_results")
+    return _json_response(asdict(analysis))
 
 
 @router.post("/analysis/position")

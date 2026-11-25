@@ -942,3 +942,54 @@ msgstr "Aktueller Wurzelzug"
 
 msgid "Candidate Lines"
 msgstr "Kandidatenlinien"
+
+msgid "PGN Game analysis"
+msgstr "PGN-Partieanalyse"
+
+msgid "Analyze every Mainline Ply by both sides. Stockfish runs in your browser."
+msgstr "Analysiere jeden Ply der Hauptvariante beider Seiten. Stockfish läuft im Browser."
+
+msgid "Open Game"
+msgstr "Partie öffnen"
+
+msgid "Start Game Analysis"
+msgstr "Partieanalyse starten"
+
+msgid "Continue"
+msgstr "Fortsetzen"
+
+msgid "Ready to analyze."
+msgstr "Bereit zur Analyse."
+
+msgid "Analysis supports Games up to 400 Ply."
+msgstr "Die Analyse unterstützt Partien bis 400 Ply."
+
+msgid "Parse a PGN and open a Game to analyze its Mainline."
+msgstr "Parse ein PGN und öffne eine Partie, um ihre Hauptvariante zu analysieren."
+
+msgid "Structured facts"
+msgstr "Strukturierte Fakten"
+
+msgid "Exact facts"
+msgstr "Exakte Fakten"
+
+msgid "Heuristic indicators"
+msgstr "Heuristische Indikatoren"
+
+msgid "Analyze every Mainline Ply of a PGN Game in your browser."
+msgstr "Analysiere jeden Mainline-Ply einer PGN-Partie im Browser."
+
+msgid "Key Ply"
+msgstr "Schlüssel-Ply"
+
+msgid "Analyzing Position"
+msgstr "Stellung wird analysiert"
+
+msgid "Game analysis could not be completed."
+msgstr "Die Partieanalyse konnte nicht abgeschlossen werden."
+
+msgid "Board unavailable."
+msgstr "Brett nicht verfügbar."
+
+msgid "Evaluation graph"
+msgstr "Bewertungsdiagramm"

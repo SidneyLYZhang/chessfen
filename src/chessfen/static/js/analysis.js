@@ -989,3 +989,5 @@ if (document.readyState === "loading") {
 } else {
   initializeAnalysis();
 }
+
+export { EngineSupervisor };

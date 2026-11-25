@@ -11,6 +11,7 @@ _PUBLIC_PAGES = [
     "/tools/render",
     "/tools/pgn",
     "/tools/analysis",
+    "/tools/analysis/pgn",
     "/tools/recognize",
     "/learn/fen",
     "/learn/pgn",
@@ -96,6 +97,12 @@ def test_pages_load_only_their_scoped_scripts(client: TestClient) -> None:
             assert page.text.count("<script") == 2, path
             assert (
                 '<script type="module" src="/static/js/analysis.js"></script>'
+                in page.text
+            ), path
+        elif path == "/tools/analysis/pgn":
+            assert page.text.count("<script") == 2, path
+            assert (
+                '<script type="module" src="/static/js/analysis-game.js"></script>'
                 in page.text
             ), path
         else:

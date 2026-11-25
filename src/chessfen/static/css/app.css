@@ -2623,3 +2623,43 @@ html:has(body.v2) {
 .v2 .analysis-result[data-playback="true"] .analysis-terminal {
   display: none;
 }
+
+/* PGN Game analysis ----------------------------------------------------------- */
+
+.v2 .game-ribbon {
+  margin-top: var(--space-7);
+  padding-top: var(--space-5);
+  border-top: 1px solid var(--ink-1);
+}
+
+.v2 .analysis-eval-graph {
+  margin-top: var(--space-4);
+  border: 1px solid var(--line-soft);
+  background: var(--paper-1);
+}
+
+.v2 .analysis-eval-graph svg {
+  display: block;
+  width: 100%;
+  height: 9rem;
+}
+
+.v2 .game-move-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  max-height: 20rem;
+  margin-top: var(--space-4);
+  overflow-y: auto;
+}
+
+.v2 .game-move-list .pgn-move-button {
+  width: auto;
+  border: 1px solid var(--line-soft);
+  font-size: var(--text-xs);
+}
+
+.v2 .game-move-list .pgn-move-button[aria-current="true"] {
+  background: var(--ink-1);
+  color: var(--paper-warm);
+}
