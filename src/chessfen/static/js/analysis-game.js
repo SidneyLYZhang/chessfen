@@ -105,6 +105,7 @@ function initializeGameAnalysis() {
   const explanationStale = document.querySelector("[data-game-explanation-stale]");
   const explanationPassphrase = document.querySelector("[data-game-explanation-passphrase]");
   const explanationStatus = document.querySelector("[data-game-explanation-status]");
+  const explanationUsage = document.querySelector("[data-game-explanation-usage]");
   const batchPlan = document.querySelector("[data-game-batch-plan]");
   const batchPreview = document.querySelector("[data-game-batch-preview]");
   const batchGenerate = document.querySelector("[data-game-batch-generate]");

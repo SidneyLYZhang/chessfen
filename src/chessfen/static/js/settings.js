@@ -32,6 +32,7 @@ function initializeSettings() {
   const consent = q("consent");
   const confirm = q("confirm");
   const preview = q("preview");
+  const capabilitiesText = q("capabilities");
   const apiKey = document.querySelector("[data-llm-api-key]");
   const passphrase = document.querySelector("[data-llm-passphrase]");
   const passphraseConfirm = document.querySelector(
@@ -84,6 +85,55 @@ function initializeSettings() {
       ? requestFingerprint(candidate)
       : null;
     return candidate;
+  }
+
+  function capabilitiesForModel() {
+    return provider.value === "openrouter" &&
+      capabilityModel === model.value.trim()
+      ? capabilityMap[model.value.trim()] || null
+      : null;
+  }
+
+  function persistCapabilities() {
+    const current = loadLlmProfile();
+    if (
+      current &&
+      current.provider === "openrouter" &&
+      current.model === model.value.trim()
+    ) {
+      current.reasoningCapabilities = capabilitiesForModel();
+      saveLlmProfile(current);
+    }
+  }
+
+  function applyCapabilities() {
+    for (const option of effort.options) {
+      option.disabled = false;
+    }
+    if (provider.value !== "openrouter") {
+      capabilitiesText.textContent = "";
+      return;
+    }
+    const caps = capabilitiesForModel();
+    if (!caps) {
+      capabilitiesText.textContent = text.reasoning_unknown;
+      return;
+    }
+    const efforts = caps.supportedEfforts;
+    if (!Array.isArray(efforts) || !efforts.length) {
+      capabilitiesText.textContent = text.reasoning_unknown;
+      return;
+    }
+    for (const option of effort.options) {
+      option.disabled = !efforts.includes(option.value);
+    }
+    capabilitiesText.textContent = text.reasoning_supported.replace(
+      "{values}",
+      efforts.join(", ")
+    );
+    if (!efforts.includes(effort.value)) {
+      capabilitiesText.textContent += " " + text.reasoning_unsupported;
+    }
   }
 
   function paintPreview() {
@@ -151,6 +201,7 @@ function initializeSettings() {
     confirm.checked = false;
   }
   paintPreview();
+  applyCapabilities();
   void paintCredential();
   status.textContent = stored ? text.profile_loaded : text.profile_missing;
 
@@ -167,6 +218,7 @@ function initializeSettings() {
     confirm.checked = false;
     capabilityModel = null;
     capabilityMap = {};
+    applyCapabilities();
     paintPreview();
   });
   model.addEventListener("change", () => {
@@ -174,8 +226,18 @@ function initializeSettings() {
       ? model.value.trim()
       : null;
     confirm.checked = false;
+    applyCapabilities();
     paintPreview();
   });
+  model.addEventListener("input", () => {
+    capabilityModel = capabilityMap[model.value.trim()]
+      ? model.value.trim()
+      : null;
+    confirm.checked = false;
+    applyCapabilities();
+    paintPreview();
+  });
+  effort.addEventListener("change", applyCapabilities);
   for (const control of [
     provider,
     baseUrl,
@@ -263,6 +325,8 @@ function initializeSettings() {
     if (selected) {
       capabilityModel = model.value.trim();
     }
+    applyCapabilities();
+    persistCapabilities();
     status.textContent = text.models_loaded.replace("{count}", String(result.models.length));
   });
 

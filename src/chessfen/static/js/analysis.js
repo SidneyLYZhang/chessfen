@@ -429,6 +429,7 @@ function initializeAnalysis() {
   const explanationStale = root.querySelector("[data-explanation-stale]");
   const explanationPassphrase = root.querySelector("[data-explanation-passphrase]");
   const explanationStatus = root.querySelector("[data-explanation-status]");
+  const explanationUsage = root.querySelector("[data-explanation-usage]");
   const positionSummaryPlan = root.querySelector("[data-position-summary-plan]");
   const positionSummaryPreview = root.querySelector("[data-position-summary-preview]");
   const positionSummaryConfirm = root.querySelector("[data-position-summary-confirm]");
@@ -1392,7 +1393,10 @@ function initializeAnalysis() {
         };
         await persistPosition("complete", activeResult);
       }
-        explanationStatus.textContent = llmText.explanation_ready;
+        explanationUsage.textContent = result.usage
+        ? `Tokens · prompt ${result.usage.prompt} · completion ${result.usage.completion} · reasoning ${result.usage.reasoning} · total ${result.usage.total}`
+        : "";
+      explanationStatus.textContent = llmText.explanation_ready;
       } finally {
         explanationBusy = false;
       }

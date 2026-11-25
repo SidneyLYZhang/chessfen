@@ -1260,3 +1260,12 @@ msgstr "重试失败批次"
 
 msgid "Retry summary"
 msgstr "重试总结"
+
+msgid "Supported reasoning efforts: {values}."
+msgstr "支持的思考强度：{values}。"
+
+msgid "The selected effort is not supported by this Model. Choose a supported value."
+msgstr "当前模型不支持所选思考强度。请选择受支持的取值。"
+
+msgid "Fetch Models to confirm Reasoning capabilities before generating."
+msgstr "生成前请先获取模型以确认思考能力。"

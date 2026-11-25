@@ -1260,3 +1260,12 @@ msgstr "Fehlgeschlagenen Stapel wiederholen"
 
 msgid "Retry summary"
 msgstr "Zusammenfassung wiederholen"
+
+msgid "Supported reasoning efforts: {values}."
+msgstr "Unterstützte Reasoning-Stärken: {values}."
+
+msgid "The selected effort is not supported by this Model. Choose a supported value."
+msgstr "Das gewählte Reasoning wird von diesem Modell nicht unterstützt. Wähle einen unterstützten Wert."
+
+msgid "Fetch Models to confirm Reasoning capabilities before generating."
+msgstr "Lade Modelle, um die Reasoning-Fähigkeiten vor der Generierung zu bestätigen."

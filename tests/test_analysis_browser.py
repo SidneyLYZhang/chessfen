@@ -1201,6 +1201,17 @@ def test_browser_openrouter_requires_reasoning_capabilities_and_routes_directly(
     page = browser_page
     chat_headers: list[dict[str, str]] = []
     chat_bodies: list[dict[str, Any]] = []
+    fail_mode = {"abort": False}
+    same_origin_posts: list[str] = []
+    page.on(
+        "request",
+        lambda request: (
+            same_origin_posts.append(request.url)
+            if request.method == "POST"
+            and request.url.startswith(live_analysis_url)
+            else None
+        ),
+    )
 
     def provider(route) -> None:
         headers = {
@@ -1232,6 +1243,9 @@ def test_browser_openrouter_requires_reasoning_capabilities_and_routes_directly(
                     }
                 ),
             )
+            return
+        if fail_mode["abort"]:
+            route.abort("failed")
             return
         chat_headers.append(
             {key.lower(): value for key, value in route.request.headers.items()}
@@ -1307,6 +1321,17 @@ def test_browser_openrouter_requires_reasoning_capabilities_and_routes_directly(
     assert "http-referer" not in headers
     assert "x-openrouter-title" not in headers
     assert "x-title" not in headers
+    expect(page.locator("[data-explanation-usage]")).to_contain_text("total 5")
+    before_posts = len(same_origin_posts)
+    fail_mode["abort"] = True
+    page.get_by_role("button", name="Generate Explanation").click()
+    expect(page.locator("[data-explanation-status]")).to_contain_text(
+        "could not be generated"
+    )
+    expect(page.locator("[data-explanation-summary]")).to_have_text(
+        "OpenRouter summary"
+    )
+    assert len(same_origin_posts) == before_posts
     page.unroute("https://openrouter.ai/**", provider)
 
 
@@ -1351,4 +1376,71 @@ def test_browser_blocks_openrouter_without_confirmed_reasoning_capabilities(
         "could not be generated"
     )
     assert chat_calls == []
+    page.unroute("https://openrouter.ai/**", provider)
+
+
+def test_browser_recovers_openrouter_unsupported_effort_and_persists_capabilities(
+    browser_page: Page, live_analysis_url: str
+) -> None:
+    page = browser_page
+
+    def provider(route) -> None:
+        headers = {
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Headers": "authorization,content-type",
+            "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+        }
+        if route.request.method == "OPTIONS":
+            route.fulfill(status=204, headers=headers)
+            return
+        route.fulfill(
+            status=200,
+            headers={**headers, "Content-Type": "application/json"},
+            body=json.dumps(
+                {
+                    "data": [
+                        {
+                            "id": "model-max",
+                            "supported_parameters": ["reasoning"],
+                            "reasoning": {"supported_efforts": ["max", "high"]},
+                        },
+                        {
+                            "id": "model-high-only",
+                            "supported_parameters": ["reasoning"],
+                            "reasoning": {"supported_efforts": ["high"]},
+                        },
+                    ]
+                }
+            ),
+        )
+
+    page.route("https://openrouter.ai/**", provider)
+    page.goto(f"{live_analysis_url}/settings")
+    page.locator("[data-llm-provider]").select_option("openrouter")
+    page.locator("[data-llm-model]").fill("model-high-only")
+    page.locator("[data-llm-api-key]").fill("sk-or-test")
+    page.locator("[data-llm-passphrase]").fill("correct horse battery")
+    page.locator("[data-llm-passphrase-confirm]").fill("correct horse battery")
+    page.locator("[data-llm-consent]").check()
+    page.locator("[data-llm-confirm]").check()
+    page.get_by_role("button", name="Save LLM Profile").click()
+    expect(page.locator("[data-llm-status]")).to_contain_text("saved locally")
+
+    page.locator("[data-llm-passphrase]").fill("correct horse battery")
+    page.get_by_role("button", name="Fetch Models").click()
+    expect(page.locator("[data-llm-capabilities]")).to_contain_text("high")
+    expect(page.locator("[data-llm-capabilities]")).to_contain_text(
+        "not supported"
+    )
+    expect(page.locator("[data-llm-effort] option[value='max']")).to_be_disabled()
+    page.locator("[data-llm-effort]").select_option("high")
+    page.locator("[data-llm-confirm]").check()
+    page.get_by_role("button", name="Save LLM Profile").click()
+    expect(page.locator("[data-llm-status]")).to_contain_text("saved locally")
+
+    page.reload()
+    expect(page.locator("[data-llm-model]")).to_have_value("model-high-only")
+    expect(page.locator("[data-llm-effort]")).to_have_value("high")
+    expect(page.locator("[data-llm-effort] option[value='max']")).to_be_disabled()
+    expect(page.locator("[data-llm-capabilities]")).to_contain_text("high")
     page.unroute("https://openrouter.ai/**", provider)
