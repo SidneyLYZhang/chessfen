@@ -13,6 +13,7 @@ _PUBLIC_PAGES = [
     "/tools/analysis",
     "/tools/analysis/pgn",
     "/tools/recognize",
+    "/settings",
     "/learn/fen",
     "/learn/pgn",
     "/about",
@@ -103,6 +104,9 @@ def test_pages_load_only_their_scoped_scripts(client: TestClient) -> None:
                 '<script type="module" src="/static/js/analysis-settings.js"></script>'
                 in page.text
             ), path
+        elif path == "/settings":
+            assert page.text.count("<script") == 2, path
+            assert '<script type="module" src="/static/js/settings.js"></script>' in page.text, path
         elif path == "/tools/analysis/pgn":
             assert page.text.count("<script") == 4, path
             assert (

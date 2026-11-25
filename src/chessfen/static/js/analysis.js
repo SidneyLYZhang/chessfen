@@ -1,6 +1,14 @@
 "use strict";
 
 import {
+  llmUnlocked,
+  loadLlmProfile,
+  lockLlm,
+  profileRequestReady,
+  requestExplanation,
+  unlockLlm,
+} from "/static/js/analysis-llm.js";
+import {
   clearWorkspace,
   engineSettingsCompatible,
   engineSnapshot,
@@ -411,6 +419,15 @@ function initializeAnalysis() {
   const playbackReset = root.querySelector("[data-playback-reset]");
   const workspaceStatus = root.querySelector("[data-workspace-status]");
   const workspaceRestore = root.querySelector("[data-workspace-restore]");
+  const explanationSection = root.querySelector("[data-explanation-section]");
+  const explanationOutput = root.querySelector("[data-explanation-output]");
+  const explanationSummary = root.querySelector("[data-explanation-summary]");
+  const explanationWhy = root.querySelector("[data-explanation-why]");
+  const explanationAlternatives = root.querySelector("[data-explanation-alternatives]");
+  const explanationUncertainty = root.querySelector("[data-explanation-uncertainty]");
+  const explanationStale = root.querySelector("[data-explanation-stale]");
+  const explanationPassphrase = root.querySelector("[data-explanation-passphrase]");
+  const explanationStatus = root.querySelector("[data-explanation-status]");
 
   const messages = {
     validating: root.dataset.labelValidating,
@@ -498,6 +515,7 @@ function initializeAnalysis() {
   let activePosition = null;
   let busy = false;
   let activeAssessment = null;
+  let activeResult = null;
   let lastRunInput = null;
   let cancellationRequested = false;
   let originalBoardUri = null;
@@ -575,10 +593,13 @@ function initializeAnalysis() {
     }
     updateTelemetry(result.telemetry || { depth: null, nps: null, rootMove: null });
     renderLines(result.lines);
+    activeResult = result;
     if (result.assessment) {
       activeAssessment = result.assessment;
       renderAssessment(result.assessment);
     }
+    explanationSection.hidden = false;
+    renderExplanation(result.explanation, result.explanationMeta);
     setStatus("restored");
     return true;
   }
@@ -712,6 +733,8 @@ function initializeAnalysis() {
   function showPosition(position) {
     activePosition = position;
     activeAssessment = null;
+    activeResult = null;
+    renderExplanation(null, null);
     originalBoardUri = position.board_uri;
     boardCache.clear();
     boardCache.set(position.fen, position.board_uri);
@@ -745,6 +768,28 @@ function initializeAnalysis() {
     assessmentAfterFen.textContent = assessment.actual_move.fen;
     assessmentOutcome.textContent = terminalText(assessment.terminal);
     assessmentOutcome.hidden = !assessment.terminal;
+  }
+
+  function renderExplanation(explanation, meta) {
+    if (!explanation) {
+      explanationSection.hidden = Boolean(
+        !activePosition || activePosition.terminal
+      );
+      explanationOutput.hidden = true;
+      explanationStale.hidden = true;
+      return;
+    }
+    explanationSection.hidden = false;
+    explanationOutput.hidden = false;
+    explanationSummary.textContent = explanation.summary;
+    explanationWhy.textContent = explanation.why;
+    explanationAlternatives.textContent = explanation.alternatives;
+    explanationUncertainty.textContent = explanation.uncertainty;
+    const profile = loadLlmProfile();
+    explanationStale.hidden =
+      !profile ||
+      !meta ||
+      (profile.language === meta.language && profile.audience === meta.audience);
   }
 
   function evaluationText(evaluation) {
@@ -996,16 +1041,21 @@ function initializeAnalysis() {
         renderLines(assessed.lines);
         activeAssessment = assessed.assessment;
         renderAssessment(assessed.assessment);
-        await persistPosition("complete", {
+        activeResult = {
           position,
           lines: assessed.lines,
           assessment: assessed.assessment,
+          explanation: null,
+          explanationMeta: null,
           telemetry: {
             depth: beforeResult.depth,
             nps: beforeResult.nps,
             rootMove: beforeResult.rootMove,
           },
-        });
+        };
+        await persistPosition("complete", activeResult);
+        explanationSection.hidden = false;
+        renderExplanation(null, null);
       } else {
         const normalized = await postJson(
           root.dataset.linesEndpoint,
@@ -1016,16 +1066,21 @@ function initializeAnalysis() {
           return;
         }
         renderLines(normalized.lines);
-        await persistPosition("complete", {
+        activeResult = {
           position,
           lines: normalized.lines,
           assessment: null,
+          explanation: null,
+          explanationMeta: null,
           telemetry: {
             depth: beforeResult.depth,
             nps: beforeResult.nps,
             rootMove: beforeResult.rootMove,
           },
-        });
+        };
+        await persistPosition("complete", activeResult);
+        explanationSection.hidden = false;
+        renderExplanation(null, null);
       }
       setStatus("complete");
     } catch (error) {
@@ -1163,6 +1218,74 @@ function initializeAnalysis() {
     }
     playbackStep = 0;
     void updatePlayback();
+  });
+
+  let explanationBusy = false;
+  root.querySelector("[data-explanation-generate]")?.addEventListener(
+    "click",
+    async () => {
+      if (explanationBusy) return;
+      explanationBusy = true;
+      const profile = loadLlmProfile();
+      if (!profile) {
+        explanationStatus.textContent =
+          "Configure an LLM Profile before generating an explanation.";
+        return;
+      }
+      if (!profileRequestReady(profile)) {
+        explanationStatus.textContent =
+          "Confirm the LLM request parameters and privacy consent in Settings.";
+        return;
+      }
+      if (!llmUnlocked()) {
+        const unlocked = await unlockLlm(
+          explanationPassphrase.value,
+          profile
+        );
+        if (!unlocked.ok) {
+          explanationStatus.textContent =
+            "Unlock failed. Check the passphrase.";
+          return;
+        }
+      }
+      explanationStatus.textContent = "Generating explanation…";
+      try {
+        const result = await requestExplanation(profile, {
+        fen: activePosition.fen,
+        side_to_move: activePosition.side_to_move,
+        candidate_lines: currentLines,
+        assessment: activeAssessment,
+        actual_move: activePosition.actual_move,
+      });
+      if (!result.ok) {
+        explanationStatus.textContent =
+          result.code === "provider_error"
+            ? "The Provider rejected the request. Confirm the Model and Reasoning settings."
+            : "Explanation could not be generated.";
+        return;
+      }
+      const meta = {
+        language: profile.language,
+        audience: profile.audience,
+      };
+      renderExplanation(result.explanation, meta);
+      if (activeResult) {
+        activeResult = {
+          ...activeResult,
+          explanation: result.explanation,
+          explanationMeta: meta,
+        };
+        await persistPosition("complete", activeResult);
+      }
+        explanationStatus.textContent = "Explanation ready.";
+      } finally {
+        explanationBusy = false;
+      }
+    }
+  );
+  root.querySelector("[data-explanation-lock]")?.addEventListener("click", () => {
+    lockLlm();
+    explanationStatus.textContent = "LLM credential locked.";
   });
 
   void restorePositionWorkspace();

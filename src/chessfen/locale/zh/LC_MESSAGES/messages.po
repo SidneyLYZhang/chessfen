@@ -1035,3 +1035,27 @@ msgstr "已从本地分析工作区恢复。"
 
 msgid "Analysis results are not being saved locally."
 msgstr "分析结果未能保存到本地。"
+
+msgid "Analysis settings"
+msgstr "分析设置"
+
+msgid "Configure an LLM Profile"
+msgstr "配置 LLM Profile"
+
+msgid "Explanation"
+msgstr "文字讲解"
+
+msgid "Configure LLM Profile"
+msgstr "配置 LLM Profile"
+
+msgid "Generate Explanation"
+msgstr "生成文字讲解"
+
+msgid "Lock LLM"
+msgstr "锁定 LLM"
+
+msgid "Passphrase"
+msgstr "口令"
+
+msgid "Settings"
+msgstr "设置"

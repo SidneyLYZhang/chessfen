@@ -31,6 +31,7 @@ from chessfen.pages import router as pages_router
 from chessfen.ratelimit import LoginRateLimiter, RequestRateLimiter
 from chessfen.recognition import Recognizer
 from chessfen.settings import DEFAULT_SECRET_KEY, Settings, get_settings
+from chessfen.settings_web import router as settings_router
 from chessfen.templating import render_response
 from chessfen.web import oversized_upload_page
 from chessfen.web import router as tools_router
@@ -117,6 +118,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.mount("/static", StaticFiles(directory=_STATIC_DIR), name="static")
     app.include_router(admin_router)
     app.include_router(analysis_router)
+    app.include_router(settings_router)
     app.include_router(api_router)
     app.include_router(tools_router)
     app.include_router(pages_router)

@@ -8,6 +8,7 @@ import time
 import urllib.request
 from collections.abc import Iterator
 from pathlib import Path
+from typing import Any
 
 import pytest
 import uvicorn
@@ -721,3 +722,159 @@ def test_browser_requires_confirmation_before_restart(
         "Analysis complete", timeout=30_000
     )
     assert any("Restart analysis" in message for message in dialogs)
+
+
+def test_browser_secures_profile_and_generates_grounded_explanation(
+    browser_page: Page, live_analysis_url: str
+) -> None:
+    page = browser_page
+    captured: list[dict[str, Any]] = []
+
+    def provider(route) -> None:
+        request = route.request
+        headers = {
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Headers": "authorization,content-type",
+            "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+        }
+        if request.method == "OPTIONS":
+            route.fulfill(status=204, headers=headers)
+            return
+        if request.url.endswith("/models"):
+            route.fulfill(
+                status=200,
+                headers={**headers, "Content-Type": "application/json"},
+                body=json.dumps({"data": [{"id": "mock-model"}]}),
+            )
+            return
+        captured.append(
+            {
+                "authorization": request.headers.get("authorization"),
+                "body": request.post_data_json,
+            }
+        )
+        route.fulfill(
+            status=200,
+            headers={**headers, "Content-Type": "application/json"},
+            body=json.dumps(
+                {
+                    "choices": [
+                        {
+                            "message": {
+                                "content": json.dumps(
+                                    {
+                                        "summary": "控制中心，稳步发展。",
+                                        "why": "Candidate Lines 支持中心控制。",
+                                        "alternatives": "第二条变化同样合理。",
+                                        "uncertainty": "战略判断仅基于已给出的引擎事实。",
+                                    }
+                                ),
+                                "reasoning_content": "SECRET-RAW-REASONING",
+                            }
+                        }
+                    ],
+                    "usage": {"total_tokens": 123},
+                }
+            ),
+        )
+
+    page.route("https://api.openai.test/**", provider)
+    page.goto(f"{live_analysis_url}/settings")
+    page.locator("[data-llm-base-url]").fill("https://api.openai.test/v1")
+    page.locator("[data-llm-model]").fill("mock-model")
+    page.locator("[data-llm-api-key]").fill("sk-test-secret-value")
+    page.locator("[data-llm-passphrase]").fill("correct horse battery")
+    page.locator("[data-llm-passphrase-confirm]").fill("correct horse battery")
+    page.locator("[data-llm-consent]").check()
+    page.locator("[data-llm-confirm]").check()
+    page.get_by_role("button", name="Save LLM Profile").click()
+    expect(page.locator("[data-llm-status]")).to_contain_text(
+        "saved locally"
+    )
+
+    stored = page.evaluate(
+        """async () => {
+          const open = indexedDB.open("chessfen-credentials", 1);
+          const db = await new Promise((resolve, reject) => {
+            open.onsuccess = () => resolve(open.result);
+            open.onerror = () => reject(open.error);
+          });
+          const record = await new Promise((resolve, reject) => {
+            const tx = db.transaction("credentials", "readonly");
+            const req = tx.objectStore("credentials").get("llm");
+            req.onsuccess = () => resolve(req.result);
+            req.onerror = () => reject(req.error);
+          });
+          db.close();
+          return {
+            plaintext: JSON.stringify(record).includes("sk-test-secret-value"),
+            ciphertextBytes: record.ciphertext.byteLength,
+            local: JSON.stringify(localStorage).includes("sk-test-secret-value"),
+          };
+        }"""
+    )
+    assert stored["plaintext"] is False
+    assert stored["local"] is False
+    assert stored["ciphertextBytes"] > 0
+
+    page.locator("[data-llm-passphrase]").fill("wrong passphrase")
+    page.get_by_role("button", name="Unlock").click()
+    expect(page.locator("[data-llm-status]")).to_contain_text("Unlock failed")
+    page.locator("[data-llm-passphrase]").fill("correct horse battery")
+    page.get_by_role("button", name="Unlock").click()
+    expect(page.locator("[data-llm-status]")).to_contain_text("unlocked")
+
+    page.goto(f"{live_analysis_url}/tools/analysis")
+    page.locator("#analysis-fen").fill(_START_FEN)
+    page.get_by_role("button", name="Start analysis").click()
+    expect(page.locator("[data-analysis-status]")).to_contain_text(
+        "Analysis complete", timeout=30_000
+    )
+    expect(page.locator("[data-explanation-section]")).to_be_visible()
+    page.locator("[data-explanation-passphrase]").fill("correct horse battery")
+    page.get_by_role("button", name="Generate Explanation").click()
+    expect(page.locator("[data-explanation-summary]")).to_have_text(
+        "控制中心，稳步发展。"
+    )
+    assert captured
+    assert captured[0]["authorization"] == "Bearer sk-test-secret-value"
+    request_body = captured[0]["body"]
+    assert request_body["reasoning_effort"] == "max"
+    assert request_body["max_completion_tokens"] == 16384
+    assert request_body["response_format"] == {"type": "json_object"}
+    assert "SECRET-RAW-REASONING" not in page.content()
+    workspace = page.evaluate(
+        """async () => {
+          const open = indexedDB.open("chessfen-analysis", 1);
+          const db = await new Promise((resolve, reject) => {
+            open.onsuccess = () => resolve(open.result);
+            open.onerror = () => reject(open.error);
+          });
+          const record = await new Promise((resolve, reject) => {
+            const tx = db.transaction("workspaces", "readonly");
+            const req = tx.objectStore("workspaces").get("current");
+            req.onsuccess = () => resolve(req.result);
+            req.onerror = () => reject(req.error);
+          });
+          db.close();
+          return JSON.stringify(record);
+        }"""
+    )
+    assert "SECRET-RAW-REASONING" not in workspace
+    assert "sk-test-secret-value" not in workspace
+
+    page.reload()
+    expect(page.locator("[data-explanation-summary]")).to_have_text(
+        "控制中心，稳步发展。"
+    )
+    page.evaluate(
+        """() => {
+          const key = "chessfen.analysis.llm.profile.v1";
+          const profile = JSON.parse(localStorage.getItem(key));
+          profile.audience = "beginner";
+          localStorage.setItem(key, JSON.stringify(profile));
+        }"""
+    )
+    page.reload()
+    expect(page.locator("[data-explanation-stale]")).to_be_visible()
+    page.unroute("https://api.openai.test/**", provider)

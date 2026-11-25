@@ -101,7 +101,7 @@ ANALYSIS_CSP = (
     "script-src 'self' 'wasm-unsafe-eval'; "
     "style-src 'self'; "
     "img-src 'self' data:; "
-    "connect-src 'self'; "
+    "connect-src 'self' https:; "
     "worker-src 'self'; "
     "base-uri 'none'; "
     "form-action 'self'; "

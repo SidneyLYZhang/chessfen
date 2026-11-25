@@ -1075,3 +1075,20 @@ def test_game_analysis_page_rejects_more_than_400_plies(
 
     assert response.status_code == 400
     assert "Analysis supports Games up to 400 Ply." in response.text
+
+
+def test_settings_page_exposes_secure_llm_profile_controls(
+    client: TestClient,
+) -> None:
+    page = client.get("/settings", headers=_EN)
+
+    assert page.status_code == 200
+    assert "LLM Profile" in page.text
+    assert 'data-llm-api-key' in page.text
+    assert 'data-llm-passphrase' in page.text
+    assert 'data-llm-provider' in page.text
+    assert "Reasoning effort" in page.text
+    assert 'value="16384"' in page.text
+    assert page.headers["content-security-policy"].find(
+        "connect-src 'self' https:"
+    ) >= 0

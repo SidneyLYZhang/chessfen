@@ -1035,3 +1035,27 @@ msgstr "Aus dem lokalen Analyse-Arbeitsbereich wiederhergestellt."
 
 msgid "Analysis results are not being saved locally."
 msgstr "Analyseergebnisse werden nicht lokal gespeichert."
+
+msgid "Analysis settings"
+msgstr "Analyseeinstellungen"
+
+msgid "Configure an LLM Profile"
+msgstr "LLM-Profil konfigurieren"
+
+msgid "Explanation"
+msgstr "Erklärung"
+
+msgid "Configure LLM Profile"
+msgstr "LLM-Profil konfigurieren"
+
+msgid "Generate Explanation"
+msgstr "Erklärung erzeugen"
+
+msgid "Lock LLM"
+msgstr "LLM sperren"
+
+msgid "Passphrase"
+msgstr "Passphrase"
+
+msgid "Settings"
+msgstr "Einstellungen"

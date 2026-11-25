@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% block title %}ChessFEN · {% trans %}Analysis settings{% endtrans %}{% endblock %}
+{% block description %}{% trans %}Configure a locally encrypted LLM Profile for Analysis Explanations.{% endtrans %}{% endblock %}
+{% block content %}
+<header class="tool-header">
+  <div>
+    <p class="eyebrow" aria-hidden="true">SETTINGS / ANALYSIS</p>
+    <h1>{% trans %}Analysis settings{% endtrans %}</h1>
+    <p class="tool-lead">{% trans %}Stockfish stays local. Your LLM credential is encrypted in this browser and sent only to your configured Provider.{% endtrans %}</p>
+  </div>
+  <div class="tool-header-links">
+    <a class="text-icon-button" href="/tools/analysis">{% trans %}Position analysis{% endtrans %} <span aria-hidden="true">→</span></a>
+  </div>
+</header>
+
+<p class="form-error" data-llm-insecure hidden>{% trans %}LLM credentials require HTTPS or localhost.{% endtrans %}</p>
+
+<div class="workspace-grid">
+  <section class="tool-panel">
+    <p class="eyebrow" aria-hidden="true">01 / LLM PROFILE</p>
+    <h2>{% trans %}LLM Profile{% endtrans %}</h2>
+    <form class="analysis-form" data-llm-form>
+      <div class="field">
+        <label class="field-label" for="llm-provider">{% trans %}Provider{% endtrans %}</label>
+        <select class="select-input" id="llm-provider" data-llm-provider>
+          <option value="openai">OpenAI</option>
+        </select>
+      </div>
+      <div class="field">
+        <label class="field-label" for="llm-base-url">{% trans %}Base URL{% endtrans %}</label>
+        <input class="text-input code-input" id="llm-base-url" data-llm-base-url value="https://api.openai.com/v1" spellcheck="false">
+      </div>
+      <div class="field">
+        <label class="field-label" for="llm-model">{% trans %}Model{% endtrans %}</label>
+        <input class="text-input code-input" id="llm-model" data-llm-model list="llm-models" spellcheck="false">
+        <datalist id="llm-models" data-llm-models></datalist>
+      </div>
+      <div class="analysis-settings-grid">
+        <div class="field">
+          <label class="field-label" for="llm-language">{% trans %}Explanation language{% endtrans %}</label>
+          <select class="select-input" id="llm-language" data-llm-language>
+            <option value="zh">中文</option>
+            <option value="en">English</option>
+            <option value="de">Deutsch</option>
+          </select>
+        </div>
+        <div class="field">
+          <label class="field-label" for="llm-audience">{% trans %}Audience{% endtrans %}</label>
+          <select class="select-input" id="llm-audience" data-llm-audience>
+            <option value="beginner">{% trans %}Beginner{% endtrans %}</option>
+            <option value="club">{% trans %}Club{% endtrans %}</option>
+            <option value="advanced">{% trans %}Advanced{% endtrans %}</option>
+          </select>
+        </div>
+        <div class="field">
+          <label class="field-label" for="llm-effort">{% trans %}Reasoning effort{% endtrans %}</label>
+          <select class="select-input" id="llm-effort" data-llm-effort>
+            <option value="max">max</option>
+            <option value="xhigh">xhigh</option>
+            <option value="high">high</option>
+            <option value="medium">medium</option>
+            <option value="low">low</option>
+            <option value="minimal">minimal</option>
+            <option value="none">none</option>
+          </select>
+        </div>
+      </div>
+      <label class="check-field"><input type="checkbox" data-llm-reasoning checked> {% trans %}Enable model reasoning{% endtrans %}</label>
+      <div class="field">
+        <label class="field-label" for="llm-budget">{% trans %}Generation budget (tokens){% endtrans %}</label>
+        <input class="text-input" type="number" id="llm-budget" data-llm-budget min="1024" max="131072" value="16384">
+      </div>
+      <label class="check-field"><input type="checkbox" data-llm-consent> {% trans %}I understand this Base URL receives my PGN/FEN, engine facts, and explanations.{% endtrans %}</label>
+      <label class="check-field"><input type="checkbox" data-llm-confirm> {% trans %}I confirm the exact request parameters shown below.{% endtrans %}</label>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-block-label">{% trans %}Request parameters (credential excluded){% endtrans %}</span></div>
+        <pre><code data-llm-preview></code></pre>
+      </div>
+      <div class="form-actions">
+        <button class="primary-button" type="submit">{% trans %}Save LLM Profile{% endtrans %}</button>
+        <button class="secondary-button" type="button" data-llm-models-button>{% trans %}Fetch Models{% endtrans %}</button>
+        <button class="ghost-button" type="button" data-llm-test>{% trans %}Test Connection{% endtrans %}</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="result-panel">
+    <p class="eyebrow" aria-hidden="true">02 / LOCAL CREDENTIAL</p>
+    <h2>{% trans %}Encrypted credential{% endtrans %}</h2>
+    <p class="field-hint">{% trans %}AES-GCM with a PBKDF2-derived key. Only ciphertext is stored in IndexedDB.{% endtrans %}</p>
+    <div class="field">
+      <label class="field-label" for="llm-api-key">{% trans %}LLM API key{% endtrans %}</label>
+      <input class="text-input code-input" id="llm-api-key" type="password" autocomplete="new-password" data-llm-api-key>
+    </div>
+    <div class="field">
+      <label class="field-label" for="llm-passphrase">{% trans %}Passphrase (12+ characters){% endtrans %}</label>
+      <input class="text-input" id="llm-passphrase" type="password" autocomplete="new-password" data-llm-passphrase>
+    </div>
+    <div class="field">
+      <label class="field-label" for="llm-passphrase-confirm">{% trans %}Confirm passphrase{% endtrans %}</label>
+      <input class="text-input" id="llm-passphrase-confirm" type="password" autocomplete="new-password" data-llm-passphrase-confirm>
+    </div>
+    <div class="form-actions">
+      <button class="secondary-button" type="button" data-llm-unlock>{% trans %}Unlock{% endtrans %}</button>
+      <button class="ghost-button" type="button" data-llm-lock>{% trans %}Lock{% endtrans %}</button>
+      <button class="danger-button" type="button" data-llm-delete>{% trans %}Delete credential{% endtrans %}</button>
+    </div>
+    <p class="analysis-status" data-llm-status role="status" aria-live="polite"></p>
+    <p class="field-hint" data-llm-credential-meta></p>
+  </section>
+</div>
+{% endblock %}
+{% block body_scripts %}
+<script type="module" src="/static/js/settings.js"></script>
+{% endblock %}
