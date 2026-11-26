@@ -5,7 +5,7 @@ Scope: Analysis workbench, settings, LLM Providers, exports, and regressions.
 
 ## Automated gates
 
-- `uv run pytest -q`: 301 passed (final integrated suite).
+- `uv run pytest -q`: 310 passed (final integrated suite).
 - `uv run mypy`: src, tests, and scripts; no issues.
 - JavaScript syntax checks: `node --check` on all changed ES modules.
 - CI installs and exercises Chromium, Firefox, and WebKit Playwright runtimes.
@@ -16,6 +16,9 @@ Scope: Analysis workbench, settings, LLM Providers, exports, and regressions.
 
 - Critical Analysis workbench, settings, provider, export controls, and downloaded
   Markdown reports are checked in Chinese, English, and German.
+- Dynamic statuses, batch plans, token usage, workspace confirmations, and
+  credential summaries are read from localized message catalogs instead of
+  hardcoded English.
 - PGN annotations use portable English quality comments plus standard NAGs so
   external chess tools can interpret them consistently.
 - Export download tests run in all three UI languages.
@@ -28,11 +31,15 @@ Automated checks cover:
   critical controls;
 - keyboard-visible focus using the shared `:focus-visible` outline;
 - `role="status"` and `aria-live="polite"` engine status updates;
-- keyboard activation of Game Analysis, text Move quality labels in addition to
-  color;
+- accessible workbench tabs (`role="tablist"`, roving `tabindex`, Arrow/Home/End
+  keys, labelled `tabpanel`s) for Plies, Candidate Lines, and Explanations;
+- the Evaluation graph as an accessible group with labelled per-Ply hit targets;
+- keyboard activation of Game Analysis, text Move quality labels plus Evaluation
+  in addition to color;
 - no horizontal page overflow at a 390×844 mobile viewport in English,
   Chinese, and German;
-- critical start/export controls remain reachable at that viewport.
+- once Analysis results exist, the mobile single-column order is board-first,
+  before the source panel.
 
 These checks do not replace a formal assistive-technology audit. No screen-reader
 release check is claimed here.
@@ -51,7 +58,7 @@ release check is claimed here.
 
 | Provider | Sanitized/browser tests | Real low-cost browser check | Claim |
 | --- | --- | --- | --- |
-| OpenAI | Pass | Not run: no real key in this environment/CI | Normal preset, fixture-verified only |
+| OpenAI | Pass | Not run: no real key in this environment/CI | Normal preset, fixture-verified only; `max` resolves to the highest documented reasoning effort, GPT-5.1 disables Reasoning with an explicit `none`, mandatory-reasoning Models force it on, and unverified Models are blocked before generation |
 | OpenRouter | Pass | Not run: no real key | Normal preset, fixture-verified only |
 | DeepSeek | Pass | Not run: no real key | Browser-direct unverified |
 | Kimi China | Pass | Not run: no real key | Browser-direct unverified |
@@ -60,6 +67,17 @@ release check is claimed here.
 
 No real credential enters CI. No ChessFEN server LLM proxy exists. DeepSeek and
 Kimi retain the in-product unverified label.
+
+## Structured facts
+
+python-chess supplies before/after Full FEN, SAN/UCI, material and castling-rights
+changes, legal-move counts, and attacked pieces. Candidate Lines carry ordered
+tactical events (Ply, SAN, capture, en passant, promotion, castling, check,
+checkmate) and are normalized before Game batch requests, so LLM prompts receive
+the same enriched lines as the workbench. Doubled, isolated, and passed pawns,
+open files, king-zone attackers, and their per-Ply changes remain explicitly
+labelled heuristic indicators; none of these replace engine Evaluation or
+Candidate Lines.
 
 ## Privacy and credential boundary
 

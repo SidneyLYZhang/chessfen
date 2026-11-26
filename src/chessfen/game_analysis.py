@@ -33,6 +33,24 @@ class PositionIndicators:
 
 
 @dataclass(frozen=True)
+class PawnStructureChange:
+    doubled_pawns: int
+    isolated_pawns: int
+    passed_pawns: int
+    open_files: int
+
+
+@dataclass(frozen=True)
+class PlyIndicators:
+    doubled_pawns: int
+    isolated_pawns: int
+    passed_pawns: int
+    open_files: int
+    king_zone_attackers: int
+    pawn_structure_change: PawnStructureChange
+
+
+@dataclass(frozen=True)
 class GamePly:
     ply: int
     number: int
@@ -50,7 +68,7 @@ class GamePly:
     evaluation_before: Evaluation
     evaluation_after: Evaluation
     exact_facts: Mapping[str, object]
-    indicators: PositionIndicators
+    indicators: PlyIndicators
 
 
 @dataclass(frozen=True)
@@ -192,6 +210,10 @@ def analyze_game(
         )
         evaluations.append(before_lines[0].evaluation)
         exact = assess_actual_move(board, uci)
+        before_indicators = position_indicators(board)
+        after_indicators = position_indicators(
+            parse_analysis_fen(exact.after_fen)
+        )
         facts = {
             "before_fen": exact.before_fen,
             "after_fen": exact.after_fen,
@@ -205,8 +227,32 @@ def analyze_game(
             "is_castling": exact.is_castling,
             "material_change": asdict(exact.material_change),
             "legal_move_count": exact.before.legal_move_count,
+            "castling_rights_before": exact.before.castling_rights,
             "castling_rights": exact.after.castling_rights,
+            "attacked_before": [
+                asdict(item) for item in exact.before.attacked
+            ],
+            "attacked_after": [
+                asdict(item) for item in exact.after.attacked
+            ],
         }
+        indicators = PlyIndicators(
+            doubled_pawns=after_indicators.doubled_pawns,
+            isolated_pawns=after_indicators.isolated_pawns,
+            passed_pawns=after_indicators.passed_pawns,
+            open_files=after_indicators.open_files,
+            king_zone_attackers=after_indicators.king_zone_attackers,
+            pawn_structure_change=PawnStructureChange(
+                doubled_pawns=after_indicators.doubled_pawns
+                - before_indicators.doubled_pawns,
+                isolated_pawns=after_indicators.isolated_pawns
+                - before_indicators.isolated_pawns,
+                passed_pawns=after_indicators.passed_pawns
+                - before_indicators.passed_pawns,
+                open_files=after_indicators.open_files
+                - before_indicators.open_files,
+            ),
+        )
         reasons = _key_reasons(assessment, before_lines, board)
         plies.append(
             GamePly(
@@ -229,9 +275,7 @@ def analyze_game(
                     or assessment.best_evaluation
                 ),
                 exact_facts=facts,
-                indicators=position_indicators(
-                    parse_analysis_fen(exact.after_fen)
-                ),
+                indicators=indicators,
             )
         )
         quality_counts[assessment.quality] += 1

@@ -70,6 +70,14 @@ class MaterialChange:
 
 
 @dataclass(frozen=True)
+class AttackedPiece:
+    square: str
+    piece: str
+    color: str
+    attackers: int
+
+
+@dataclass(frozen=True)
 class PositionFacts:
     fen: str
     side_to_move: str
@@ -77,6 +85,7 @@ class PositionFacts:
     check: bool
     castling_rights: str
     material: MaterialSummary
+    attacked: tuple[AttackedPiece, ...]
 
 
 @dataclass(frozen=True)
@@ -132,11 +141,19 @@ class LineMove:
 
 
 @dataclass(frozen=True)
+class TacticalEvent:
+    ply: int
+    san: str
+    event: str
+
+
+@dataclass(frozen=True)
 class CandidateLine:
     rank: int
     depth: int
     evaluation: Evaluation
     moves: tuple[LineMove, ...]
+    tactical_events: tuple[TacticalEvent, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -188,6 +205,27 @@ def _material_summary(board: chess.Board) -> MaterialSummary:
     )
 
 
+def _attacked_pieces(board: chess.Board) -> tuple[AttackedPiece, ...]:
+    pieces: list[AttackedPiece] = []
+    for square, piece in board.piece_map().items():
+        if piece.piece_type == chess.KING:
+            continue
+        attackers = board.attackers(not piece.color, square)
+        if not attackers:
+            continue
+        pieces.append(
+            AttackedPiece(
+                square=chess.square_name(square),
+                piece=_PIECE_ROLES[piece.piece_type],
+                color="white" if piece.color == chess.WHITE else "black",
+                attackers=len(attackers),
+            )
+        )
+    return tuple(
+        sorted(pieces, key=lambda item: (item.color, item.piece, item.square))
+    )
+
+
 def _position_facts(board: chess.Board) -> PositionFacts:
     return PositionFacts(
         fen=board.fen(),
@@ -196,6 +234,7 @@ def _position_facts(board: chess.Board) -> PositionFacts:
         check=board.is_check(),
         castling_rights=board.castling_xfen(),
         material=_material_summary(board),
+        attacked=_attacked_pieces(board),
     )
 
 
@@ -354,14 +393,32 @@ def candidate_lines(
     for candidate in sorted(candidates, key=lambda item: item.multipv):
         board = root.copy(stack=False)
         moves: list[LineMove] = []
+        events: list[TacticalEvent] = []
         try:
-            for uci in candidate.pv:
+            for ply, uci in enumerate(candidate.pv, start=1):
                 move = chess.Move.from_uci(uci)
                 if move not in board.legal_moves:
                     raise ValueError(uci)
+                move_events: list[str] = []
+                if board.is_capture(move):
+                    move_events.append("capture")
+                if board.is_en_passant(move):
+                    move_events.append("en_passant")
+                if move.promotion is not None:
+                    move_events.append("promotion")
+                if board.is_castling(move):
+                    move_events.append("castling")
                 san = board.san(move)
                 board.push(move)
                 moves.append(LineMove(uci=uci, san=san, fen=board.fen()))
+                if board.is_checkmate():
+                    move_events.append("checkmate")
+                elif board.is_check():
+                    move_events.append("check")
+                events.extend(
+                    TacticalEvent(ply=ply, san=san, event=event)
+                    for event in move_events
+                )
         except ValueError as exc:
             raise AnalysisInputError("invalid_candidate_line") from exc
         if not moves:
@@ -376,6 +433,7 @@ def candidate_lines(
                     candidate.score_value,
                 ),
                 moves=tuple(moves),
+                tactical_events=tuple(events),
             )
         )
     return tuple(lines)

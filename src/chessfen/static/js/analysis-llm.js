@@ -147,17 +147,25 @@ function explanationPrompt(payload, profile) {
   ];
 }
 
-export async function requestExplanation(profile, payload) {
-  const result = await chatJson(
-    profile,
-    explanationPrompt(payload, profile)
-  );
-  if (!result.ok) return result;
-  const explanation = proseShape(result.parsed);
-  if (!explanation) {
-    return { ok: false, code: "invalid_llm_response" };
+export async function requestExplanation(profile, payload, signal = null) {
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const result = await chatJson(
+      profile,
+      explanationPrompt(payload, profile),
+      signal
+    );
+    if (!result.ok) {
+      if (result.code === "invalid_llm_response" && attempt === 0) continue;
+      return result;
+    }
+    const explanation = proseShape(result.parsed);
+    if (!explanation) {
+      if (attempt === 0) continue;
+      return { ok: false, code: "invalid_llm_response" };
+    }
+    return { ok: true, explanation, usage: result.usage };
   }
-  return { ok: true, explanation, usage: result.usage };
+  return { ok: false, code: "invalid_llm_response" };
 }
 
 function usageSummary(usage) {
@@ -188,6 +196,38 @@ export function modelReasoningCapabilities(model) {
   return {
     supportsReasoning,
     supportedEfforts: Array.isArray(efforts) ? efforts : null,
+  };
+}
+
+const OPENAI_CAPABILITY_SOURCE =
+  "https://platform.openai.com/docs/api-reference/chat/create";
+const OPENAI_CAPABILITY_VERIFIED = "2026-11-26";
+const OPENAI_MAX_EFFORT = "high";
+
+export function openaiReasoningCapabilities(model) {
+  const normalized = String(model || "").trim();
+  let supportedEfforts = [];
+  let canDisableReasoning = true;
+  let disableEffort = null;
+  if (/^gpt-5\.1(?:[.-]|$)/i.test(normalized)) {
+    supportedEfforts = ["low", "medium", "high"];
+    disableEffort = "none";
+  } else if (/^gpt-5(?:[.-]|$)/i.test(normalized)) {
+    supportedEfforts = ["minimal", "low", "medium", "high"];
+    canDisableReasoning = false;
+  } else if (/^o[134](?:[.-]|$)/i.test(normalized)) {
+    supportedEfforts = ["low", "medium", "high"];
+    canDisableReasoning = false;
+  }
+  return {
+    model: normalized,
+    known: supportedEfforts.length > 0,
+    supportedEfforts,
+    canDisableReasoning,
+    disableEffort,
+    maxEffort: OPENAI_MAX_EFFORT,
+    source: OPENAI_CAPABILITY_SOURCE,
+    verified: OPENAI_CAPABILITY_VERIFIED,
   };
 }
 
@@ -286,6 +326,7 @@ export function llmFailureMessage(code, messages) {
   const key = {
     reasoning_mandatory: "reasoning_mandatory",
     reasoning_unverified: "reasoning_unverified",
+    reasoning_model_unknown: "reasoning_model_unknown",
     reasoning_effort_unsupported: "reasoning_unsupported",
     reasoning_effort_unknown: "reasoning_unsupported",
     reasoning_capabilities_unknown: "reasoning_unknown",
@@ -403,6 +444,32 @@ function resolveDeepSeekReasoning(profile) {
   };
 }
 
+function resolveOpenAiReasoning(profile) {
+  const capabilities = openaiReasoningCapabilities(profile.model);
+  if (!capabilities.known) {
+    return { ok: false, code: "reasoning_model_unknown" };
+  }
+  if (!profile.reasoningEnabled) {
+    if (!capabilities.canDisableReasoning) {
+      return { ok: false, code: "reasoning_mandatory" };
+    }
+    return {
+      ok: true,
+      parameters: capabilities.disableEffort
+        ? { reasoning_effort: capabilities.disableEffort }
+        : {},
+    };
+  }
+  const effort =
+    profile.reasoningEffort === "max"
+      ? capabilities.maxEffort
+      : profile.reasoningEffort;
+  if (!capabilities.supportedEfforts.includes(effort)) {
+    return { ok: false, code: "reasoning_effort_unsupported" };
+  }
+  return { ok: true, parameters: { reasoning_effort: effort } };
+}
+
 function resolveReasoningForProfile(profile) {
   if (profile.provider !== "openrouter") {
     return { ok: true };
@@ -487,15 +554,19 @@ export function providerRequestParameters(profile) {
   if (profile.provider === "custom") {
     return resolveCustomRequest(profile);
   }
-  const body = {
-    model: profile.model,
-    response_format: { type: "json_object" },
-    max_completion_tokens: profile.maxTokens,
-  };
-  if (profile.reasoningEnabled) {
-    body.reasoning_effort = profile.reasoningEffort;
+  const reasoning = resolveOpenAiReasoning(profile);
+  if (!reasoning.ok) {
+    return { ok: false, code: reasoning.code };
   }
-  return { ok: true, body };
+  return {
+    ok: true,
+    body: {
+      model: profile.model,
+      response_format: { type: "json_object" },
+      max_completion_tokens: profile.maxTokens,
+      ...reasoning.parameters,
+    },
+  };
 }
 
 async function chatJson(profile, messages, signal = null) {

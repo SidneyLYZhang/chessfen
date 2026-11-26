@@ -26,6 +26,8 @@ import {
   exportPgn,
 } from "/static/js/analysis-export.js";
 import { EngineSupervisor, engineCandidates } from "/static/js/analysis.js";
+import { credentialSecurityAvailable } from "/static/js/analysis-credential.js";
+import { readMessages } from "/static/js/ui-messages.js";
 
 function initializeGameAnalysis() {
   const root = document.querySelector("[data-game-root]");
@@ -45,6 +47,11 @@ function initializeGameAnalysis() {
   const evaluation = document.querySelector("[data-game-evaluation]");
   const quality = document.querySelector("[data-game-quality]");
   const linesElement = document.querySelector("[data-game-lines]");
+  const playback = document.querySelector("[data-game-playback]");
+  const playbackStatus = document.querySelector("[data-game-playback-status]");
+  const playbackPrev = document.querySelector("[data-game-playback-prev]");
+  const playbackNext = document.querySelector("[data-game-playback-next]");
+  const playbackReset = document.querySelector("[data-game-playback-reset]");
   const exactElement = document.querySelector("[data-game-exact]");
   const indicatorsElement = document.querySelector("[data-game-indicators]");
   const ribbon = document.querySelector("[data-game-ribbon]");
@@ -68,13 +75,13 @@ function initializeGameAnalysis() {
   let hasStarted = false;
   let activePly = 0;
   let activeCandidateLines = [];
+  let selectedLineIndex = null;
+  let playbackStep = 0;
+  let playbackToken = 0;
+  const normalizedLines = new Map();
   let explanationBusy = false;
-  const llmText = Object.fromEntries(
-    [...document.querySelectorAll("[data-llm-message]")].map((node) => [
-      node.dataset.llmMessage,
-      node.textContent,
-    ])
-  );
+  const llmText = readMessages("llm-message");
+  const uiText = readMessages("ui-message");
   const failureMessage = (code, fallback) =>
     llmFailureMessage(code, llmText) || fallback;
   const explanations = {};
@@ -98,6 +105,8 @@ function initializeGameAnalysis() {
     board: root.dataset.errorBoard,
     graph: root.dataset.labelGraph,
     key: root.dataset.labelKey,
+    mateWhite: root.dataset.mateWhite,
+    mateBlack: root.dataset.mateBlack,
   };
   const boardCache = new Map();
   const stored = (() => {
@@ -175,6 +184,7 @@ function initializeGameAnalysis() {
       ` · ${analysisSettings.preset}`;
   }
   paintRuntime("checking");
+  const credentialFeaturesAvailable = credentialSecurityAvailable();
   const engine = new EngineSupervisor(
     engineCandidatesForSettings,
     (info) => {
@@ -241,11 +251,7 @@ function initializeGameAnalysis() {
     const saved = await saveWorkspace(gameRecord(status, result));
     if (!saved.ok) {
       setWorkspaceStatus(
-        document.documentElement.lang === "de"
-          ? "Analyseergebnisse werden nicht lokal gespeichert."
-          : document.documentElement.lang === "zh"
-            ? "分析结果未能保存到本地。"
-            : "Analysis results are not being saved locally.",
+        uiText.workspace_unsaved,
         true
       );
     } else if (workspaceStatus?.dataset.error === "true") {
@@ -292,6 +298,13 @@ function initializeGameAnalysis() {
   }
 
   function renderGameExplanation(ply) {
+    if (!credentialFeaturesAvailable) {
+      explanationSection.hidden = true;
+      explanationOutput.hidden = true;
+      explanationStale.hidden = true;
+      explanationUsage.textContent = "";
+      return;
+    }
     if (ply <= 0) {
       explanationSection.hidden = !analysis;
       explanationOutput.hidden = true;
@@ -320,13 +333,69 @@ function initializeGameAnalysis() {
         profile.audience === stored.meta.audience);
   }
 
+  function evaluationLabel(evaluation) {
+    if (evaluation.kind !== "mate" || evaluation.value === 0) {
+      return evaluation.text;
+    }
+    return (
+      `${evaluation.text} · ` +
+      (evaluation.value > 0 ? labels.mateWhite : labels.mateBlack)
+    );
+  }
+
+  async function renderPlaybackStep() {
+    if (selectedLineIndex === null) {
+      return;
+    }
+    const line = activeCandidateLines[selectedLineIndex];
+    if (!line) {
+      return;
+    }
+    const token = (playbackToken += 1);
+    const fen =
+      playbackStep === 0
+        ? game.positions[activePly - 1]
+        : line.moves[playbackStep - 1].fen;
+    await showBoard(fen);
+    if (token !== playbackToken) {
+      return;
+    }
+    evaluation.textContent = evaluationLabel(line.evaluation);
+    quality.textContent = "";
+    playbackStatus.textContent =
+      `#${line.rank} · ${playbackStep}/${line.moves.length}`;
+    playbackPrev.disabled = playbackStep === 0;
+    playbackNext.disabled = playbackStep >= line.moves.length;
+  }
+
+  async function startCandidatePlayback(index) {
+    if (!activeCandidateLines[index] || activePly <= 0) {
+      return;
+    }
+    selectedLineIndex = index;
+    playbackStep = 0;
+    playback.hidden = false;
+    for (const item of linesElement.querySelectorAll("[data-line-index]")) {
+      item.setAttribute(
+        "aria-pressed",
+        item.dataset.lineIndex === String(index) ? "true" : "false"
+      );
+    }
+    await renderPlaybackStep();
+  }
+
   async function selectPly(ply) {
     activePly = ply;
     activeCandidateLines = [];
+    selectedLineIndex = null;
+    playbackStep = 0;
+    playbackToken += 1;
+    playback.hidden = true;
+    playbackStatus.textContent = "";
     renderGameExplanation(ply);
     const index = Math.max(0, ply);
     await showBoard(game.positions[index]);
-    evaluation.textContent = analysis.evaluations[index].text;
+    evaluation.textContent = evaluationLabel(analysis.evaluations[index]);
     quality.textContent = "";
     linesElement.replaceChildren();
     exactElement.textContent = "";
@@ -341,17 +410,24 @@ function initializeGameAnalysis() {
         lines: completed[index - 1].lines,
       });
       activeCandidateLines = normalized.lines;
-      for (const line of normalized.lines) {
+      normalizedLines.set(ply, activeCandidateLines);
+      normalized.lines.forEach((line, lineIndex) => {
         const item = document.createElement("li");
         item.className = "candidate-line";
+        const select = document.createElement("button");
+        select.type = "button";
+        select.className = "candidate-line-select";
+        select.dataset.lineIndex = String(lineIndex);
+        select.setAttribute("aria-pressed", "false");
         const moves = document.createElement("p");
         moves.className = "candidate-line-moves";
         moves.textContent =
           `#${line.rank} ${line.evaluation.text} · ` +
           line.moves.map((move) => move.san).join(" ");
-        item.append(moves);
+        select.append(moves);
+        item.append(select);
         linesElement.append(item);
-      }
+      });
       renderGameExplanation(ply);
     }
     for (const button of moveList.querySelectorAll("[data-ply]")) {
@@ -361,6 +437,37 @@ function initializeGameAnalysis() {
       );
     }
   }
+
+  function lineIndexFromTarget(target) {
+    if (!(target instanceof Element)) {
+      return null;
+    }
+    const item = target.closest("[data-line-index]");
+    return item ? Number.parseInt(item.dataset.lineIndex, 10) : null;
+  }
+
+  linesElement.addEventListener("click", (event) => {
+    const index = lineIndexFromTarget(event.target);
+    if (index !== null) {
+      void startCandidatePlayback(index);
+    }
+  });
+  playbackPrev?.addEventListener("click", () => {
+    if (playbackStep === 0) return;
+    playbackStep -= 1;
+    void renderPlaybackStep();
+  });
+  playbackNext?.addEventListener("click", () => {
+    const line = activeCandidateLines[selectedLineIndex];
+    if (!line || playbackStep >= line.moves.length) return;
+    playbackStep += 1;
+    void renderPlaybackStep();
+  });
+  playbackReset?.addEventListener("click", () => {
+    if (activePly > 0) {
+      void selectPly(activePly);
+    }
+  });
 
   function renderGraph() {
     const ns = "http://www.w3.org/2000/svg";
@@ -400,6 +507,7 @@ function initializeGameAnalysis() {
       hit.setAttribute("data-graph-ply", String(index));
       hit.setAttribute("tabindex", "0");
       hit.setAttribute("role", "button");
+      hit.setAttribute("aria-label", `${labels.graph} ${index}`);
       svg.append(hit);
     });
     graph.replaceChildren(svg);
@@ -420,7 +528,8 @@ function initializeGameAnalysis() {
       button.dataset.ply = String(ply.ply);
       button.textContent =
         `${ply.number}${ply.side === "white" ? "." : "..."} ${ply.san} ` +
-        `[${(qualityLabels[ply.quality] || ply.quality)}` +
+        `[${(qualityLabels[ply.quality] || ply.quality)} · ` +
+        `${ply.evaluation_after.text}` +
         `${ply.is_key ? ` · ${labels.key}` : ""}]`;
       moveList.append(button);
     }
@@ -428,14 +537,16 @@ function initializeGameAnalysis() {
 
   function usageText(usage) {
     if (!usage) return "";
-    return (
-      `Tokens · prompt ${usage.prompt} · completion ${usage.completion}` +
-      ` · reasoning ${usage.reasoning} · total ${usage.total}`
-    );
+    return uiText.token_usage
+      .replace("{prompt}", String(usage.prompt))
+      .replace("{completion}", String(usage.completion))
+      .replace("{reasoning}", String(usage.reasoning))
+      .replace("{total}", String(usage.total));
   }
 
   function renderUsage() {
-    tokenUsage.textContent = usageText(usageTotals);
+    const used = Object.values(usageTotals).some((value) => value > 0);
+    tokenUsage.textContent = used ? usageText(usageTotals) : "";
   }
 
   function exportProvenance() {
@@ -541,10 +652,24 @@ function initializeGameAnalysis() {
         profile.audience === summaryMeta.audience);
   }
 
-  function gameTargets() {
-    return analysis.plies
-      .filter((ply) => ply.is_key)
-      .map((ply) => ({
+  async function gameTargets() {
+    const current = analysis;
+    const targets = [];
+    if (!current) {
+      return targets;
+    }
+    for (const ply of current.plies.filter((item) => item.is_key)) {
+      let candidateLines = normalizedLines.get(ply.ply);
+      const rawLines = completed[ply.ply - 1]?.lines || [];
+      if (!candidateLines && rawLines.length) {
+        const normalized = await postJson(root.dataset.linesEndpoint, {
+          fen: game.positions[ply.ply - 1],
+          lines: rawLines,
+        });
+        candidateLines = normalized.lines;
+        normalizedLines.set(ply.ply, candidateLines);
+      }
+      targets.push({
         ply: ply.ply,
         move: `${ply.number}${ply.side === "white" ? "." : "..."} ${ply.san}`,
         quality: ply.quality,
@@ -555,11 +680,13 @@ function initializeGameAnalysis() {
         indicators: ply.indicators,
         evaluation_before: ply.evaluation_before,
         evaluation_after: ply.evaluation_after,
-        candidate_lines: completed[ply.ply - 1]?.lines || [],
-        neighbors: analysis.plies
+        candidate_lines: candidateLines || [],
+        neighbors: current.plies
           .filter((item) => Math.abs(item.ply - ply.ply) === 1)
           .map((item) => ({ ply: item.ply, san: item.san, quality: item.quality })),
-      }));
+      });
+    }
+    return targets;
   }
 
   function compactGame() {
@@ -572,10 +699,16 @@ function initializeGameAnalysis() {
       .join(" ");
   }
 
-  function prepareBatch() {
-    const targets = gameTargets();
+  async function prepareBatch() {
+    let targets;
+    try {
+      targets = await gameTargets();
+    } catch (error) {
+      batchStatus.textContent = uiText.batch_prepare_failed;
+      return;
+    }
     if (!targets.length) {
-      batchStatus.textContent = "No Key Plies were selected.";
+      batchStatus.textContent = uiText.no_key_plies;
       return;
     }
     batchBatches = [];
@@ -583,11 +716,12 @@ function initializeGameAnalysis() {
       batchBatches.push(targets.slice(index, index + 5));
     }
     pendingBatchIndex = null;
-    batchPlan.textContent =
-      `${targets.length} Key Plies · ${batchBatches.length} batch requests + 1 summary request.`;
+    batchPlan.textContent = uiText.batch_plan
+      .replace("{keyPlies}", String(targets.length))
+      .replace("{batches}", String(batchBatches.length));
     batchGenerate.hidden = false;
     batchRetry.hidden = true;
-    batchStatus.textContent = "Review the request count, then confirm generation.";
+    batchStatus.textContent = uiText.review_batch_plan;
   }
 
   async function ensureLlmReady() {
@@ -633,7 +767,9 @@ function initializeGameAnalysis() {
     };
     try {
       for (let index = startIndex; index < batchBatches.length; index += 1) {
-        batchStatus.textContent = `Generating batch ${index + 1}/${batchBatches.length}…`;
+        batchStatus.textContent = uiText.generating_batch
+          .replace("{current}", String(index + 1))
+          .replace("{total}", String(batchBatches.length));
         const result = await requestKeyPlyBatch(
           profile,
           {
@@ -644,7 +780,7 @@ function initializeGameAnalysis() {
         );
         if (!result.ok) {
           if (result.code === "cancelled") {
-            batchStatus.textContent = "LLM generation cancelled. Submitted requests may still finish.";
+            batchStatus.textContent = uiText.batch_cancelled;
             return;
           }
           pendingBatchIndex = index;
@@ -652,8 +788,8 @@ function initializeGameAnalysis() {
           batchStatus.textContent = failureMessage(
             result.code,
             result.code === "budget_exhausted"
-              ? "The generation budget was exhausted. Prior results were preserved."
-              : `A batch failed (${result.code}). Retry this batch manually.`
+              ? uiText.generation_budget_exhausted
+              : uiText.batch_failed.replace("{code}", result.code)
           );
           return;
         }
@@ -663,9 +799,11 @@ function initializeGameAnalysis() {
         addUsage(result.usage);
         await persistGame(analysis ? "complete" : "incomplete", analysis);
         renderGameExplanation(activePly);
-        batchStatus.textContent = `Completed batch ${index + 1}/${batchBatches.length}.`;
+        batchStatus.textContent = uiText.completed_batch
+          .replace("{current}", String(index + 1))
+          .replace("{total}", String(batchBatches.length));
       }
-      batchStatus.textContent = "Generating overall summary…";
+      batchStatus.textContent = uiText.overall_summary_generating;
       lastSummaryProfile = profile;
       const summary = await requestOverallSummary(
         profile,
@@ -681,8 +819,8 @@ function initializeGameAnalysis() {
         batchStatus.textContent = failureMessage(
           summary.code,
           summary.code === "cancelled"
-            ? "LLM generation cancelled. Submitted requests may still finish."
-            : "Batches completed, but the overall summary failed. Retry it separately."
+            ? uiText.batch_cancelled
+            : uiText.summary_failed_after_batches
         );
         return;
       }
@@ -692,7 +830,7 @@ function initializeGameAnalysis() {
       addUsage(summary.usage);
       renderSummary();
       await persistGame(analysis ? "complete" : "incomplete", analysis);
-      batchStatus.textContent = "Key Ply explanations and summary complete.";
+      batchStatus.textContent = uiText.key_ply_summary_complete;
     } finally {
       batchController = null;
       batchCancel.hidden = true;
@@ -707,11 +845,11 @@ function initializeGameAnalysis() {
     renderGraph();
     renderMoveList();
     await selectPly(0);
-    explanationSection.hidden = false;
+    explanationSection.hidden = !credentialFeaturesAvailable;
     renderSummary();
     renderUsage();
     status.textContent = restored
-      ? "Restored from the local Analysis Workspace."
+      ? uiText.workspace_restored
       : labels.complete;
   }
 
@@ -725,13 +863,39 @@ function initializeGameAnalysis() {
     await renderGameAnalysis(payload);
   }
 
+  function clearDependentResults() {
+    for (const key of Object.keys(explanations)) {
+      delete explanations[key];
+    }
+    summaryExplanation = null;
+    summaryMeta = null;
+    lastSummaryProfile = null;
+    pendingBatchIndex = null;
+    batchBatches = null;
+    for (const key of Object.keys(usageTotals)) {
+      usageTotals[key] = 0;
+    }
+    explanationUsage.textContent = "";
+    explanationOutput.hidden = true;
+    explanationStale.hidden = true;
+    normalizedLines.clear();
+    summarySection.hidden = true;
+    summaryRetry.hidden = true;
+    batchPlan.textContent = "";
+    batchGenerate.hidden = true;
+    batchRetry.hidden = true;
+    batchCancel.hidden = true;
+    batchWarning.hidden = true;
+    batchStatus.textContent = "";
+    renderUsage();
+  }
+
   async function runQueue(reset) {
     hasStarted = true;
     if (reset) {
       completed.fill(null);
       analysis = null;
-      summaryExplanation = null;
-      summaryMeta = null;
+      clearDependentResults();
       result.hidden = true;
       ribbon.hidden = true;
       empty.hidden = false;
@@ -758,7 +922,9 @@ function initializeGameAnalysis() {
           completed[index] = { lines: [] };
           continue;
         }
-        status.textContent = `Analyzing Position ${index + 1}/${total}`;
+        status.textContent = uiText.analyzing_position
+          .replace("{current}", String(index + 1))
+          .replace("{total}", String(total));
         const result = await engine.analyze(game.positions[index]);
         if (token !== runToken) {
           return;
@@ -773,7 +939,7 @@ function initializeGameAnalysis() {
       await finish();
     } catch (exception) {
       showError(labels.generic);
-      status.textContent = "Analysis stopped.";
+      status.textContent = uiText.analysis_stopped;
     } finally {
       if (token === runToken) {
         setBusy(false);
@@ -784,7 +950,7 @@ function initializeGameAnalysis() {
   startButton.addEventListener("click", () => runQueue(true));
   continueButton.addEventListener("click", () => runQueue(false));
   restartButton.addEventListener("click", async () => {
-    if (!window.confirm("Restart analysis and clear saved engine results?")) {
+    if (!window.confirm(uiText.restart_game_confirm)) {
       return;
     }
     completed.fill(null);
@@ -799,7 +965,7 @@ function initializeGameAnalysis() {
       try {
         await engine.cancel();
       } catch (exception) {
-        showError("Stockfish could not be stopped.");
+        showError(uiText.engine_stop_failed);
       }
     }
   });
@@ -837,16 +1003,43 @@ function initializeGameAnalysis() {
   }
 
   const pgnForm = document.querySelector(".pgn-form");
-  pgnForm?.addEventListener("submit", (event) => {
-    if (hasStarted && !window.confirm("Replace the saved Analysis Workspace?")) {
-      event.preventDefault();
+  let confirmedSubmit = false;
+  pgnForm?.addEventListener("submit", async (event) => {
+    if (confirmedSubmit) {
+      confirmedSubmit = false;
+      return;
     }
+    const submitter =
+      event.submitter instanceof HTMLElement ? event.submitter : null;
+    if (submitter?.name !== "mode" || submitter.value !== "open") {
+      return;
+    }
+    event.preventDefault();
+    const loaded = await loadWorkspace();
+    const record = loaded.ok ? loaded.record : null;
+    const pgn = pgnForm.querySelector("#pgn")?.value || "";
+    const gameIndex = pgnForm.querySelector("#game_index")?.value || "";
+    const sameGame =
+      record?.kind === "game" &&
+      record.input?.pgn === pgn &&
+      (record.input?.gameIndex || "") === gameIndex;
+    if (record && !sameGame) {
+      const message =
+        record.kind === "position"
+          ? uiText.cross_kind_workspace_confirm
+          : uiText.replace_workspace_confirm;
+      if (!window.confirm(message)) {
+        return;
+      }
+    }
+    confirmedSubmit = true;
+    pgnForm.requestSubmit(submitter);
   });
 
   async function restoreGameWorkspace() {
     const loaded = await loadWorkspace();
     if (!loaded.ok) {
-      setWorkspaceStatus("The saved Analysis Workspace could not be read.", true);
+      setWorkspaceStatus(uiText.workspace_corrupt, true);
       return;
     }
     const record = loaded.record;
@@ -872,12 +1065,12 @@ function initializeGameAnalysis() {
       )
     ) {
       if (!window.confirm(
-        "Engine settings changed. Discard saved engine results and keep the Game?"
+        uiText.engine_changed_game_confirm
       )) {
         return;
       }
       await clearWorkspace();
-      setWorkspaceStatus("Saved engine results were invalidated.", true);
+      setWorkspaceStatus(uiText.workspace_invalidated, true);
       return;
     }
     if (record.engine?.mixed) {
@@ -913,8 +1106,12 @@ function initializeGameAnalysis() {
       setBusy(false);
     } else if (hasStarted) {
       setBusy(false);
-      status.textContent =
-        `Restored ${completed.filter(Boolean).length}/${total} Positions. Continue to resume.`;
+      status.textContent = uiText.restored_positions
+        .replace(
+          "{completed}",
+          String(completed.filter(Boolean).length)
+        )
+        .replace("{total}", String(total));
     }
     workspaceRestore.hidden = true;
   }
@@ -960,7 +1157,7 @@ function initializeGameAnalysis() {
         if (!result.ok) {
           explanationStatus.textContent = failureMessage(
             result.code,
-            "Explanation could not be generated. Confirm the Provider and Reasoning Settings."
+            uiText.explanation_failed_generic
           );
           return;
         }
@@ -1009,7 +1206,7 @@ function initializeGameAnalysis() {
     if (!result.ok) {
       batchStatus.textContent = failureMessage(
         result.code,
-        "The summary retry failed."
+        uiText.summary_retry_failed
       );
       return;
     }
@@ -1024,9 +1221,11 @@ function initializeGameAnalysis() {
     addUsage(result.usage);
     renderSummary();
     await persistGame(analysis ? "complete" : "incomplete", analysis);
-    batchStatus.textContent = "Overall summary complete.";
+    batchStatus.textContent = uiText.overall_summary_complete;
   });
-  batchPreview?.addEventListener("click", prepareBatch);
+  batchPreview?.addEventListener("click", () => {
+    void prepareBatch();
+  });
   batchGenerate?.addEventListener("click", async () => {
     const profile = await ensureLlmReady();
     if (profile) await generateBatches(profile);
@@ -1038,8 +1237,7 @@ function initializeGameAnalysis() {
   });
   batchCancel?.addEventListener("click", () => {
     batchController?.abort();
-    batchStatus.textContent =
-      "Cancelling… submitted requests may still finish and incur charges.";
+    batchStatus.textContent = uiText.summary_cancelling;
     batchWarning.hidden = false;
   });
 

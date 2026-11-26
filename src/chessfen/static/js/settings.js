@@ -14,12 +14,14 @@ import {
   kimiReasoningCapabilities,
   loadLlmProfile,
   lockLlm,
+  openaiReasoningCapabilities,
   profileRequestReady,
   providerRequestParameters,
   requestFingerprint,
   saveLlmProfile,
   unlockLlm,
 } from "/static/js/analysis-llm.js";
+import { readMessages } from "/static/js/ui-messages.js";
 
 const PROVIDER_BASE_URLS = {
   openai: "https://api.openai.com/v1",
@@ -75,12 +77,8 @@ function initializeSettings() {
   let capabilityMap = stored?.reasoningCapabilities
     ? { [capabilityModel]: stored.reasoningCapabilities }
     : {};
-  const text = Object.fromEntries(
-    [...document.querySelectorAll("[data-llm-message]")].map((node) => [
-      node.dataset.llmMessage,
-      node.textContent,
-    ])
-  );
+  const text = readMessages("llm-message");
+  const uiText = readMessages("ui-message");
   window.addEventListener("chessfen:llm-lock", () => {
     status.textContent = text.locked_timeout;
   });
@@ -122,6 +120,9 @@ function initializeSettings() {
   }
 
   function capabilitiesForModel() {
+    if (provider.value === "openai") {
+      return openaiReasoningCapabilities(model.value.trim());
+    }
     if (provider.value === "deepseek") {
       return deepseekReasoningCapabilities(model.value.trim());
     }
@@ -206,6 +207,39 @@ function initializeSettings() {
       effort.disabled = !needsEffort;
       if (needsEffort && !effort.value) {
         appendCapabilityText(text.reasoning_effort_unresolved);
+      }
+      return;
+    }
+
+    if (provider.value === "openai") {
+      const caps = capabilitiesForModel();
+      if (!caps.known) {
+        capabilitiesText.textContent = text.reasoning_model_unknown;
+        effort.disabled = true;
+        return;
+      }
+      if (!caps.canDisableReasoning) {
+        reasoning.checked = true;
+        reasoning.disabled = true;
+        appendCapabilityText(text.reasoning_always);
+      }
+      for (const option of effort.options) {
+        option.disabled =
+          option.value !== "max" &&
+          !caps.supportedEfforts.includes(option.value);
+      }
+      appendCapabilityText(
+        text.reasoning_supported.replace(
+          "{values}",
+          caps.supportedEfforts.join(", ")
+        )
+      );
+      if (effort.value === "max") {
+        appendCapabilityText(
+          text.reasoning_max_mapped.replace("{value}", caps.maxEffort)
+        );
+      } else if (!caps.supportedEfforts.includes(effort.value)) {
+        appendCapabilityText(text.reasoning_unsupported);
       }
       return;
     }
@@ -310,8 +344,10 @@ function initializeSettings() {
   async function paintCredential() {
     const info = await credentialMetadata();
     meta.textContent = info.exists
-      ? `Stored ciphertext: ${info.provider} · ${info.baseUrl || info.baseHost}`
-      : "No encrypted credential stored.";
+      ? uiText.stored_ciphertext
+          .replace("{provider}", info.provider)
+          .replace("{target}", info.baseUrl || info.baseHost)
+      : uiText.no_encrypted_credential;
   }
 
   function clearModelList() {

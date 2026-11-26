@@ -4,6 +4,7 @@ import {
   clearWorkspace,
   loadWorkspace,
 } from "/static/js/analysis-workspace.js";
+import { readMessages } from "/static/js/ui-messages.js";
 
 async function initializeWorkspaceRestore() {
   const banner = document.querySelector("[data-workspace-restore]");
@@ -11,17 +12,36 @@ async function initializeWorkspaceRestore() {
     return;
   }
   const status = document.querySelector("[data-workspace-status]");
+  const uiText = readMessages("ui-message");
   const loaded = await loadWorkspace();
   if (!loaded.ok) {
     if (status) {
-      status.textContent = "The saved Analysis Workspace could not be read.";
+      status.textContent = uiText.workspace_corrupt;
       status.hidden = false;
       status.dataset.error = "true";
     }
     return;
   }
   const record = loaded.record;
-  if (!record || record.kind !== "game" || !record.input?.pgn) {
+  if (!record) {
+    return;
+  }
+  if (record.kind === "position") {
+    document.querySelector(".pgn-form")?.addEventListener(
+      "submit",
+      (event) => {
+        const submitter = event.submitter;
+        if (submitter?.name !== "mode" || submitter.value !== "open") {
+          return;
+        }
+        if (!window.confirm(uiText.cross_kind_workspace_confirm)) {
+          event.preventDefault();
+        }
+      }
+    );
+    return;
+  }
+  if (record.kind !== "game" || !record.input?.pgn) {
     return;
   }
   banner.hidden = false;

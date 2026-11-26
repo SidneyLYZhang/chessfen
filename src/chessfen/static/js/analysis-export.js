@@ -1,12 +1,9 @@
 "use strict";
 
+import { readMessages } from "/static/js/ui-messages.js";
+
 export function collectExportText() {
-  return Object.fromEntries(
-    [...document.querySelectorAll("[data-export-message]")].map((node) => [
-      node.dataset.exportMessage,
-      node.textContent,
-    ])
-  );
+  return readMessages("export-message");
 }
 
 export function downloadText(filename, content, mediaType) {
@@ -215,7 +212,7 @@ export function buildPositionMarkdown({
   }
   if (includeExplanations && result.explanation) {
     lines.push(
-      `## ${text.overall_summary}`,
+      `## ${text.explanation}`,
       "",
       ...explanationBlock(result.explanation, text),
     );

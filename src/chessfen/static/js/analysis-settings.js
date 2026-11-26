@@ -1,6 +1,8 @@
 "use strict";
 
 import { workspaceIsActive } from "/static/js/analysis-workspace.js";
+import { loadLlmProfile } from "/static/js/analysis-llm.js";
+import { readMessages } from "/static/js/ui-messages.js";
 
 const STORAGE_KEY = "chessfen.analysis.settings.v1";
 const PRESETS = {
@@ -100,7 +102,21 @@ export function bindAnalysisSettings(root, onChange, beforeChange = null) {
 function initializeAnalysisSettings() {
   const root = document.querySelector("[data-analysis-settings]");
   if (!root) return;
+  const uiText = readMessages("ui-message");
   const isPositionPage = Boolean(document.querySelector("[data-analysis-root]"));
+  const profileSummary = document.querySelector(
+    "[data-llm-config-summary]"
+  );
+  const emptySummary = document.querySelector(
+    "[data-llm-summary-empty]"
+  );
+  const profile = loadLlmProfile();
+  if (profileSummary) {
+    profileSummary.textContent = profile
+      ? `${profile.provider} · ${profile.model} · ` +
+        `${profile.language}/${profile.audience}`
+      : emptySummary?.textContent || "";
+  }
   bindAnalysisSettings(
     root,
     () => {
@@ -109,15 +125,13 @@ function initializeAnalysisSettings() {
       } else {
         const runtime = document.querySelector("[data-engine-runtime]");
         if (runtime) {
-          runtime.textContent = "Settings saved. Reopen the Game to apply.";
+          runtime.textContent = uiText.settings_saved_reopen;
         }
       }
     },
     () =>
       !workspaceIsActive() ||
-      window.confirm(
-        "Changing engine settings will invalidate saved engine results. Continue?"
-      )
+      window.confirm(uiText.settings_reopen_confirm)
   );
 }
 if (document.readyState === "loading") {

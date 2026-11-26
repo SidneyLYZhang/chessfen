@@ -95,7 +95,7 @@ def test_pages_load_only_their_scoped_scripts(client: TestClient) -> None:
 
         assert '<script src="/static/js/app.js"></script>' in page.text, path
         if path == "/tools/analysis":
-            assert page.text.count("<script") == 3, path
+            assert page.text.count("<script") == 4, path
             assert (
                 '<script type="module" src="/static/js/analysis.js"></script>'
                 in page.text
@@ -104,17 +104,25 @@ def test_pages_load_only_their_scoped_scripts(client: TestClient) -> None:
                 '<script type="module" src="/static/js/analysis-settings.js"></script>'
                 in page.text
             ), path
+            assert (
+                '<script type="module" src="/static/js/analysis-tabs.js"></script>'
+                in page.text
+            ), path
         elif path == "/settings":
             assert page.text.count("<script") == 2, path
             assert '<script type="module" src="/static/js/settings.js"></script>' in page.text, path
         elif path == "/tools/analysis/pgn":
-            assert page.text.count("<script") == 4, path
+            assert page.text.count("<script") == 5, path
             assert (
                 '<script type="module" src="/static/js/analysis-game.js"></script>'
                 in page.text
             ), path
             assert (
                 '<script type="module" src="/static/js/analysis-settings.js"></script>'
+                in page.text
+            ), path
+            assert (
+                '<script type="module" src="/static/js/analysis-tabs.js"></script>'
                 in page.text
             ), path
         else:

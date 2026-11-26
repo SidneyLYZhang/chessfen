@@ -310,9 +310,6 @@ msgstr "理解 FEN"
 msgid "FEN (Forsyth–Edwards Notation) is the standard text format for a chess position. ChessFEN uses it to pass positions between board images, PGN games, and rendered boards."
 msgstr "FEN（Forsyth–Edwards 记谱法）是国际象棋局面的标准文本格式。ChessFEN 用它在上传棋盘图、PGN 对局与渲染图片之间传递局面。"
 
-msgid "Placement"
-msgstr "棋子摆放段"
-
 msgid "A FEN string starts with the Placement: eight ranks from rank 8 down to rank 1, separated by /."
 msgstr "FEN 字符串以棋子摆放段开头：从第 8 横排到第 1 横排共 8 段，用 / 分隔。"
 
@@ -838,9 +835,6 @@ msgstr "厘兵损失"
 msgid "Mate loss"
 msgstr "将杀损失"
 
-msgid "Yes"
-msgstr "是"
-
 msgid "After Position"
 msgstr "走法后的局面"
 
@@ -980,7 +974,7 @@ msgid "Analyze every Mainline Ply of a PGN Game in your browser."
 msgstr "在浏览器中分析 PGN 对局主线的每一步。"
 
 msgid "Key Ply"
-msgstr "关键 Ply"
+msgstr "关键半步"
 
 msgid "Analyzing Position"
 msgstr "正在分析局面"
@@ -1238,7 +1232,7 @@ msgid "Explanation language or audience changed; regenerate to refresh it."
 msgstr "讲解语言或受众已改变；重新生成可刷新内容。"
 
 msgid "Key Ply batch explanations"
-msgstr "关键 Ply 批量讲解"
+msgstr "关键半步批量讲解"
 
 msgid "Overall Position summary"
 msgstr "局面总体总结"
@@ -1250,7 +1244,7 @@ msgid "PGN"
 msgstr "PGN"
 
 msgid "Preview Key Ply Explanations"
-msgstr "预览关键 Ply 讲解"
+msgstr "预览关键半步讲解"
 
 msgid "Preview Position Summary"
 msgstr "预览局面总结"
@@ -1388,7 +1382,7 @@ msgid "Evaluation after"
 msgstr "走后评估"
 
 msgid "Key Ply explanations"
-msgstr "关键 Ply 讲解"
+msgstr "关键半步讲解"
 
 msgid "Provenance"
 msgstr "分析来源"
@@ -1461,3 +1455,151 @@ msgstr "多线程 Stockfish 在运行中失败；已完成局面已保留，分�
 
 msgid "Multithreaded Stockfish failed; analysis continued single-threaded."
 msgstr "多线程 Stockfish 失败；分析已改用单线程继续。"
+
+msgid "No LLM Profile configured."
+msgstr "尚未配置 LLM Profile。"
+
+msgid "The saved Analysis Workspace could not be read."
+msgstr "无法读取已保存的分析工作区。"
+
+msgid "Saved engine results were discarded because engine settings changed."
+msgstr "由于引擎设置已更改，已保存的引擎结果已丢弃。"
+
+msgid "Engine settings changed. Discard saved engine results and keep the input?"
+msgstr "引擎设置已更改。要丢弃已保存的引擎结果并保留输入吗？"
+
+msgid "Engine settings changed. Discard saved engine results and keep the Game?"
+msgstr "引擎设置已更改。要丢弃已保存的引擎结果并保留棋局吗？"
+
+msgid "Restart analysis and clear saved results?"
+msgstr "要重新开始分析并清除已保存的结果吗？"
+
+msgid "Restart analysis and clear saved engine results?"
+msgstr "要重新开始分析并清除已保存的引擎结果吗？"
+
+msgid "Replace the saved Analysis Workspace?"
+msgstr "要替换已保存的分析工作区吗？"
+
+msgid "Replace the saved Analysis Workspace with this input?"
+msgstr "要用此输入替换已保存的分析工作区吗？"
+
+msgid "Replace the saved Analysis Workspace from the other workbench?"
+msgstr "要替换另一个工作台已保存的分析工作区吗？"
+
+msgid "Changing engine settings will invalidate saved engine results. Continue?"
+msgstr "更改引擎设置会使已保存的引擎结果失效。要继续吗？"
+
+msgid "Settings saved. Reopen the Game to apply."
+msgstr "设置已保存。请重新打开棋局以应用。"
+
+msgid "Generating summary…"
+msgstr "正在生成总结…"
+
+msgid "Summary cancelled. Submitted requests may still finish."
+msgstr "总结已取消。已提交的请求仍可能完成。"
+
+msgid "Summary failed. You can retry this summary request manually."
+msgstr "总结失败。你可以手动重试此总结请求。"
+
+msgid "Summary ready."
+msgstr "总结已就绪。"
+
+msgid "Review the request count, then confirm the summary."
+msgstr "请核对请求数量，然后确认总结。"
+
+msgid "Cancelling… submitted requests may still finish and incur charges."
+msgstr "正在取消…已提交的请求仍可能完成并产生费用。"
+
+msgid "No Candidate Lines were returned."
+msgstr "未返回候选变化。"
+
+msgid "No Key Plies were selected."
+msgstr "未选择关键半步。"
+
+msgid "Review the request count, then confirm generation."
+msgstr "请核对请求数量，然后确认生成。"
+
+msgid "Generating batch {current}/{total}…"
+msgstr "正在生成批次 {current}/{total}…"
+
+msgid "Completed batch {current}/{total}."
+msgstr "已完成批次 {current}/{total}。"
+
+msgid "Generating overall summary…"
+msgstr "正在生成总体总结…"
+
+msgid "LLM generation cancelled. Submitted requests may still finish."
+msgstr "LLM 生成已取消。已提交的请求仍可能完成。"
+
+msgid "The generation budget was exhausted. Prior results were preserved."
+msgstr "生成长度预算已耗尽。之前的结果已保留。"
+
+msgid "A batch failed ({code}). Retry this batch manually."
+msgstr "批次失败（{code}）。请手动重试此批次。"
+
+msgid "Batches completed, but the overall summary failed. Retry it separately."
+msgstr "批次已完成，但总体总结失败。请单独重试。"
+
+msgid "Key Ply explanations and summary complete."
+msgstr "关键半步讲解和总结已完成。"
+
+msgid "Stockfish could not be stopped."
+msgstr "无法停止 Stockfish。"
+
+msgid "Explanation could not be generated."
+msgstr "无法生成讲解。"
+
+msgid "The Provider rejected the request. Confirm the Model and Reasoning settings."
+msgstr "Provider 拒绝了请求。请确认模型与思考设置。"
+
+msgid "The summary retry failed."
+msgstr "总结重试失败。"
+
+msgid "Overall summary complete."
+msgstr "总体总结已完成。"
+
+msgid "Analyzing Position {current}/{total}"
+msgstr "正在分析局面 {current}/{total}"
+
+msgid "Restored {completed}/{total} Positions. Continue to resume."
+msgstr "已恢复 {completed}/{total} 个局面。继续以恢复分析。"
+
+msgid "Stored ciphertext: {provider} · {target}"
+msgstr "已存密文：{provider} · {target}"
+
+msgid "No encrypted credential stored."
+msgstr "未存储加密凭据。"
+
+msgid "1 overall Position summary request. No batch requests."
+msgstr "1 个局面总体总结请求，无批量请求。"
+
+msgid "{keyPlies} Key Plies · {batches} batch requests + 1 summary request."
+msgstr "{keyPlies} 个关键半步 · {batches} 个批量请求 + 1 个总结请求。"
+
+msgid "Tokens · prompt {prompt} · completion {completion} · reasoning {reasoning} · total {total}"
+msgstr "Tokens · prompt {prompt} · completion {completion} · reasoning {reasoning} · total {total}"
+
+
+msgid "Analysis views"
+msgstr "分析视图"
+
+msgid "Assessment"
+msgstr "评估"
+
+msgid "Plies"
+msgstr "半步"
+
+msgid "Explanations"
+msgstr "讲解"
+
+msgid "Reasoning support is unverified for this Model. Enter a supported reasoning Model, disable Reasoning, or configure it through the Custom Provider."
+msgstr "该模型的推理支持尚未验证。请输入受支持的推理模型、关闭推理，或通过自定义 Provider 配置该模型。"
+
+msgid "OpenAI has no literal max effort; max is confirmed as {value}."
+msgstr "OpenAI 没有字面量 max 档位；max 将确认为 {value}。"
+
+msgid "Return to Mainline"
+msgstr "返回主线"
+
+msgid "Candidate Lines could not be prepared for the batch. Restart the analysis."
+msgstr "无法为批量请求准备候选变化。请重新开始分析。"

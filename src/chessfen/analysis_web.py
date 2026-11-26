@@ -150,6 +150,9 @@ def _lines_payload(lines: tuple[CandidateLine, ...]) -> list[dict[str, object]]:
             "depth": line.depth,
             "evaluation": asdict(line.evaluation),
             "moves": [asdict(move) for move in line.moves],
+            "tactical_events": [
+                asdict(event) for event in line.tactical_events
+            ],
         }
         for line in lines
     ]

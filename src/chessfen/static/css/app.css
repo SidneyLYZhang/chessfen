@@ -455,6 +455,15 @@ body.v2 {
   .v2 .workspace-grid {
     grid-template-columns: minmax(0, 1fr);
   }
+
+  .v2
+    .analysis-workspace:has(
+      .analysis-result:not([hidden]),
+      [data-game-result]:not([hidden])
+    )
+    .result-panel {
+    order: -1;
+  }
 }
 
 @media (max-width: 700px) {
@@ -2463,6 +2472,44 @@ html:has(body.v2) {
   overflow-wrap: anywhere;
 }
 
+.v2 .analysis-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin: var(--space-4) 0 var(--space-4);
+  border-bottom: 1px solid var(--ink-1);
+}
+
+.v2 .analysis-tabs [role="tab"] {
+  appearance: none;
+  border: 1px solid transparent;
+  border-bottom: none;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--ink-3);
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  padding: var(--space-2) var(--space-3);
+  text-transform: uppercase;
+}
+
+.v2 .analysis-tabs [role="tab"]:hover {
+  color: var(--ink-1);
+}
+
+.v2 .analysis-tabs [role="tab"][aria-selected="true"] {
+  border-color: var(--ink-1);
+  background: var(--paper-warm);
+  color: var(--ink-1);
+}
+
+.v2 .analysis-tabs ~ [role="tabpanel"] {
+  padding-top: var(--space-2);
+}
+
 .v2 .analysis-lines {
   padding-top: var(--space-5);
   border-top: 1px solid var(--ink-1);
@@ -2527,7 +2574,8 @@ html:has(body.v2) {
   }
 }
 
-.v2 .candidate-line-button {
+.v2 .candidate-line-button,
+.v2 .candidate-line-select {
   display: grid;
   gap: var(--space-2);
   width: 100%;
@@ -2540,7 +2588,8 @@ html:has(body.v2) {
   cursor: pointer;
 }
 
-.v2 .candidate-line-button:hover {
+.v2 .candidate-line-button:hover,
+.v2 .candidate-line-select:hover {
   background: var(--paper-warm);
 }
 
@@ -2612,7 +2661,8 @@ html:has(body.v2) {
   text-align: left;
 }
 
-.v2 .candidate-line-button[aria-pressed="true"] {
+.v2 .candidate-line-button[aria-pressed="true"],
+.v2 .candidate-line-select[aria-pressed="true"] {
   background: var(--paper-warm);
 }
 

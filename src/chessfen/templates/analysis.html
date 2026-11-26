@@ -18,6 +18,7 @@
 </header>
 
 {% include "analysis_llm_messages.html" %}
+{% include "analysis_ui_messages.html" %}
 {% include "analysis_export_messages.html" %}
 
 <noscript>
@@ -144,59 +145,82 @@
         <div><dt>{% trans %}Current root move{% endtrans %}</dt><dd data-analysis-root-move></dd></div>
       </dl>
 
-      <section class="analysis-assessment" data-analysis-assessment hidden aria-labelledby="assessment-title">
-        <h3 id="assessment-title">{% trans %}Move assessment{% endtrans %}</h3>
-        <dl class="analysis-assessment-facts">
-          <div><dt>{% trans %}Actual move{% endtrans %}</dt><dd data-assessment-actual></dd></div>
-          <div><dt>{% trans %}Best move{% endtrans %}</dt><dd data-assessment-best></dd></div>
-          <div><dt>{% trans %}Move quality{% endtrans %}</dt><dd data-assessment-quality></dd></div>
-          <div><dt data-assessment-loss-label>{% trans %}Centipawn loss{% endtrans %}</dt><dd data-assessment-cpl></dd></div>
-        </dl>
-        <p class="analysis-terminal" data-assessment-outcome hidden></p>
-        <p class="field-label">{% trans %}After Position{% endtrans %}</p>
-        <pre class="analysis-after-fen" data-assessment-after-fen></pre>
-      </section>
-
-      <section class="analysis-lines" data-explanation-section hidden aria-labelledby="explanation-title">
-        <h3 id="explanation-title">{% trans %}Explanation{% endtrans %}</h3>
-        <p class="field-hint"><a href="/settings">{% trans %}Configure LLM Profile{% endtrans %}</a></p>
-        <div data-explanation-output hidden>
-          <p data-explanation-summary></p>
-          <p data-explanation-why></p>
-          <p data-explanation-alternatives></p>
-          <p data-explanation-uncertainty></p>
-        </div>
-        <p class="form-error" data-explanation-stale hidden>{% trans %}Explanation language or audience changed; regenerate to refresh it.{% endtrans %}</p>
-        <div class="field">
-          <label class="field-label" for="explanation-passphrase">{% trans %}Passphrase{% endtrans %}</label>
-          <input class="text-input" id="explanation-passphrase" type="password" autocomplete="current-password" data-explanation-passphrase>
-        </div>
-        <div class="form-actions">
-          <button class="secondary-button" type="button" data-explanation-generate>{% trans %}Generate Explanation{% endtrans %}</button>
-          <button class="ghost-button" type="button" data-explanation-lock>{% trans %}Lock LLM{% endtrans %}</button>
-        </div>
-        <p class="analysis-status" data-explanation-status role="status" aria-live="polite"></p>
-        <p class="field-hint" data-explanation-usage></p>
-        <div class="analysis-playback" data-position-summary>
-          <p class="field-label">{% trans %}Overall Position summary{% endtrans %}</p>
-          <p class="field-hint" data-position-summary-plan></p>
-          <div class="form-actions">
-            <button class="secondary-button" type="button" data-position-summary-preview>{% trans %}Preview Position Summary{% endtrans %}</button>
-            <button class="primary-button" type="button" data-position-summary-confirm hidden>{% trans %}Confirm Summary Request{% endtrans %}</button>
-            <button class="danger-button" type="button" data-position-summary-cancel hidden>{% trans %}Cancel summary request{% endtrans %}</button>
+      <div class="analysis-tabs" role="tablist" aria-label="{% trans %}Analysis views{% endtrans %}" data-analysis-tablist>
+        <button type="button" role="tab" id="position-tab-lines" aria-controls="position-panel-lines" aria-selected="true" data-tab-name="lines">{% trans %}Candidate Lines{% endtrans %}</button>
+        <button type="button" role="tab" id="position-tab-assessment" aria-controls="position-panel-assessment" aria-selected="false" tabindex="-1" data-tab-name="assessment">{% trans %}Assessment{% endtrans %}</button>
+        <button type="button" role="tab" id="position-tab-explanations" aria-controls="position-panel-explanations" aria-selected="false" tabindex="-1" data-tab-name="explanations">{% trans %}Explanations{% endtrans %}</button>
+      </div>
+      <div id="position-panel-assessment" role="tabpanel" aria-labelledby="position-tab-assessment" data-analysis-panel="assessment" hidden>
+        <section class="analysis-assessment" data-analysis-assessment hidden aria-labelledby="assessment-title">
+          <h3 id="assessment-title">{% trans %}Move assessment{% endtrans %}</h3>
+          <dl class="analysis-assessment-facts">
+            <div><dt>{% trans %}Actual move{% endtrans %}</dt><dd data-assessment-actual></dd></div>
+            <div><dt>{% trans %}Best move{% endtrans %}</dt><dd data-assessment-best></dd></div>
+            <div><dt>{% trans %}Move quality{% endtrans %}</dt><dd data-assessment-quality></dd></div>
+            <div><dt data-assessment-loss-label>{% trans %}Centipawn loss{% endtrans %}</dt><dd data-assessment-cpl></dd></div>
+          </dl>
+          <p class="analysis-terminal" data-assessment-outcome hidden></p>
+          <p class="field-label">{% trans %}After Position{% endtrans %}</p>
+          <pre class="analysis-after-fen" data-assessment-after-fen></pre>
+        </section>
+      </div>
+      <div id="position-panel-lines" role="tabpanel" aria-labelledby="position-tab-lines" data-analysis-panel="lines">
+        <section class="analysis-lines" data-analysis-lines-section hidden aria-labelledby="candidate-lines-title">
+          <h3 id="candidate-lines-title">{% trans %}Candidate Lines{% endtrans %}</h3>
+          <ol class="candidate-lines" data-analysis-lines></ol>
+          <div class="analysis-playback" data-analysis-playback hidden>
+            <p class="field-label">{% trans %}Candidate Line playback{% endtrans %}</p>
+            <p class="analysis-playback-status" data-playback-status role="status" aria-live="polite"></p>
+            <div class="form-actions">
+              <button class="ghost-button small-button" type="button" data-playback-prev>{% trans %}Previous{% endtrans %}</button>
+              <button class="ghost-button small-button" type="button" data-playback-next>{% trans %}Next{% endtrans %}</button>
+              <button class="ghost-button small-button" type="button" data-playback-reset>{% trans %}Return to original Position{% endtrans %}</button>
+            </div>
           </div>
-          <p class="field-hint" data-position-summary-warning hidden>{% trans %}Already submitted requests may still finish and incur Provider charges.{% endtrans %}</p>
-          <p class="analysis-status" data-position-summary-status role="status" aria-live="polite"></p>
-          <p class="field-hint" data-position-summary-usage></p>
-        </div>
-      </section>
-      <section class="analysis-assessment" data-position-summary-result hidden>
-        <h3>{% trans %}Overall summary{% endtrans %}</h3>
-        <p data-position-summary-text></p>
-        <p class="field-hint" data-position-summary-uncertainty></p>
-        <p class="form-error" data-position-summary-stale hidden>{% trans %}Explanation language or audience changed; regenerate to refresh it.{% endtrans %}</p>
-        <button class="ghost-button small-button" type="button" data-position-summary-retry hidden>{% trans %}Retry summary{% endtrans %}</button>
-      </section>
+        </section>
+      </div>
+      <div id="position-panel-explanations" role="tabpanel" aria-labelledby="position-tab-explanations" data-analysis-panel="explanations" hidden>
+        <section class="analysis-lines" data-explanation-section hidden aria-labelledby="explanation-title">
+          <h3 id="explanation-title">{% trans %}Explanation{% endtrans %}</h3>
+          <p class="field-hint"><a href="/settings">{% trans %}Configure LLM Profile{% endtrans %}</a></p>
+          <div data-explanation-output hidden>
+            <p data-explanation-summary></p>
+            <p data-explanation-why></p>
+            <p data-explanation-alternatives></p>
+            <p data-explanation-uncertainty></p>
+          </div>
+          <p class="form-error" data-explanation-stale hidden>{% trans %}Explanation language or audience changed; regenerate to refresh it.{% endtrans %}</p>
+          <div class="field">
+            <label class="field-label" for="explanation-passphrase">{% trans %}Passphrase{% endtrans %}</label>
+            <input class="text-input" id="explanation-passphrase" type="password" autocomplete="current-password" data-explanation-passphrase>
+          </div>
+          <div class="form-actions">
+            <button class="secondary-button" type="button" data-explanation-generate>{% trans %}Generate Explanation{% endtrans %}</button>
+            <button class="ghost-button" type="button" data-explanation-lock>{% trans %}Lock LLM{% endtrans %}</button>
+          </div>
+          <p class="analysis-status" data-explanation-status role="status" aria-live="polite"></p>
+          <p class="field-hint" data-explanation-usage></p>
+          <div class="analysis-playback" data-position-summary>
+            <p class="field-label">{% trans %}Overall Position summary{% endtrans %}</p>
+            <p class="field-hint" data-position-summary-plan></p>
+            <div class="form-actions">
+              <button class="secondary-button" type="button" data-position-summary-preview>{% trans %}Preview Position Summary{% endtrans %}</button>
+              <button class="primary-button" type="button" data-position-summary-confirm hidden>{% trans %}Confirm Summary Request{% endtrans %}</button>
+              <button class="danger-button" type="button" data-position-summary-cancel hidden>{% trans %}Cancel summary request{% endtrans %}</button>
+            </div>
+            <p class="field-hint" data-position-summary-warning hidden>{% trans %}Already submitted requests may still finish and incur Provider charges.{% endtrans %}</p>
+            <p class="analysis-status" data-position-summary-status role="status" aria-live="polite"></p>
+            <p class="field-hint" data-position-summary-usage></p>
+          </div>
+        </section>
+        <section class="analysis-assessment" data-position-summary-result hidden>
+          <h3>{% trans %}Overall summary{% endtrans %}</h3>
+          <p data-position-summary-text></p>
+          <p class="field-hint" data-position-summary-uncertainty></p>
+          <p class="form-error" data-position-summary-stale hidden>{% trans %}Explanation language or audience changed; regenerate to refresh it.{% endtrans %}</p>
+          <button class="ghost-button small-button" type="button" data-position-summary-retry hidden>{% trans %}Retry summary{% endtrans %}</button>
+        </section>
+      </div>
       <section class="analysis-assessment" data-position-export>
         <h3>{% trans %}Export analysis{% endtrans %}</h3>
         <label class="check-field"><input type="checkbox" data-position-export-explanations checked> {% trans %}Include generated Explanations{% endtrans %}</label>
@@ -206,19 +230,6 @@
         </div>
         <p class="analysis-status" data-position-export-status role="status" aria-live="polite"></p>
       </section>
-      <section class="analysis-lines" data-analysis-lines-section hidden aria-labelledby="candidate-lines-title">
-        <h3 id="candidate-lines-title">{% trans %}Candidate Lines{% endtrans %}</h3>
-        <ol class="candidate-lines" data-analysis-lines></ol>
-        <div class="analysis-playback" data-analysis-playback hidden>
-          <p class="field-label">{% trans %}Candidate Line playback{% endtrans %}</p>
-          <p class="analysis-playback-status" data-playback-status role="status" aria-live="polite"></p>
-          <div class="form-actions">
-            <button class="ghost-button small-button" type="button" data-playback-prev>{% trans %}Previous{% endtrans %}</button>
-            <button class="ghost-button small-button" type="button" data-playback-next>{% trans %}Next{% endtrans %}</button>
-            <button class="ghost-button small-button" type="button" data-playback-reset>{% trans %}Return to original Position{% endtrans %}</button>
-          </div>
-        </div>
-      </section>
     </div>
   </section>
 </div>
@@ -226,5 +237,6 @@
 
 {% block body_scripts %}
 <script type="module" src="/static/js/analysis-settings.js"></script>
+<script type="module" src="/static/js/analysis-tabs.js"></script>
 <script type="module" src="/static/js/analysis.js"></script>
 {% endblock %}

@@ -310,9 +310,6 @@ msgstr "FEN verstehen"
 msgid "FEN (Forsyth–Edwards Notation) is the standard text format for a chess position. ChessFEN uses it to pass positions between board images, PGN games, and rendered boards."
 msgstr "FEN (Forsyth–Edwards Notation) ist das Standard-Textformat für eine Schachstellung. ChessFEN nutzt es, um Stellungen zwischen Brettbildern, PGN-Partien und gerenderten Brettern auszutauschen."
 
-msgid "Placement"
-msgstr "Figurenstellung"
-
 msgid "A FEN string starts with the Placement: eight ranks from rank 8 down to rank 1, separated by /."
 msgstr "Ein FEN-String beginnt mit der Figurenstellung: acht Reihen von Reihe 8 bis Reihe 1, getrennt durch /."
 
@@ -837,9 +834,6 @@ msgstr "Centipawn-Verlust"
 
 msgid "Mate loss"
 msgstr "Mattverlust"
-
-msgid "Yes"
-msgstr "Ja"
 
 msgid "After Position"
 msgstr "Stellung nach dem Zug"
@@ -1461,3 +1455,151 @@ msgstr "Mehrthreadiges Stockfish ist während des Laufs fehlgeschlagen; abgeschl
 
 msgid "Multithreaded Stockfish failed; analysis continued single-threaded."
 msgstr "Mehrthreadiges Stockfish ist fehlgeschlagen; die Analyse wurde einzelthreadig fortgesetzt."
+
+msgid "No LLM Profile configured."
+msgstr "Kein LLM-Profil konfiguriert."
+
+msgid "The saved Analysis Workspace could not be read."
+msgstr "Der gespeicherte Analyse-Arbeitsbereich konnte nicht gelesen werden."
+
+msgid "Saved engine results were discarded because engine settings changed."
+msgstr "Gespeicherte Engine-Ergebnisse wurden verworfen, weil sich die Engine-Einstellungen geändert haben."
+
+msgid "Engine settings changed. Discard saved engine results and keep the input?"
+msgstr "Engine-Einstellungen geändert. Gespeicherte Engine-Ergebnisse verwerfen und die Eingabe behalten?"
+
+msgid "Engine settings changed. Discard saved engine results and keep the Game?"
+msgstr "Engine-Einstellungen geändert. Gespeicherte Engine-Ergebnisse verwerfen und die Partie behalten?"
+
+msgid "Restart analysis and clear saved results?"
+msgstr "Analyse neu starten und gespeicherte Ergebnisse löschen?"
+
+msgid "Restart analysis and clear saved engine results?"
+msgstr "Analyse neu starten und gespeicherte Engine-Ergebnisse löschen?"
+
+msgid "Replace the saved Analysis Workspace?"
+msgstr "Den gespeicherten Analyse-Arbeitsbereich ersetzen?"
+
+msgid "Replace the saved Analysis Workspace with this input?"
+msgstr "Den gespeicherten Analyse-Arbeitsbereich durch diese Eingabe ersetzen?"
+
+msgid "Replace the saved Analysis Workspace from the other workbench?"
+msgstr "Den gespeicherten Analyse-Arbeitsbereich der anderen Werkbank ersetzen?"
+
+msgid "Changing engine settings will invalidate saved engine results. Continue?"
+msgstr "Änderungen der Engine-Einstellungen machen gespeicherte Engine-Ergebnisse ungültig. Fortfahren?"
+
+msgid "Settings saved. Reopen the Game to apply."
+msgstr "Einstellungen gespeichert. Öffne die Partie erneut, um sie anzuwenden."
+
+msgid "Generating summary…"
+msgstr "Zusammenfassung wird erstellt…"
+
+msgid "Summary cancelled. Submitted requests may still finish."
+msgstr "Zusammenfassung abgebrochen. Bereits gesendete Anfragen können noch abgeschlossen werden."
+
+msgid "Summary failed. You can retry this summary request manually."
+msgstr "Zusammenfassung fehlgeschlagen. Du kannst diese Anfrage manuell wiederholen."
+
+msgid "Summary ready."
+msgstr "Zusammenfassung bereit."
+
+msgid "Review the request count, then confirm the summary."
+msgstr "Prüfe die Anzahl der Anfragen und bestätige dann die Zusammenfassung."
+
+msgid "Cancelling… submitted requests may still finish and incur charges."
+msgstr "Wird abgebrochen… bereits gesendete Anfragen können noch abgeschlossen werden und Kosten verursachen."
+
+msgid "No Candidate Lines were returned."
+msgstr "Es wurden keine Kandidatenvarianten zurückgegeben."
+
+msgid "No Key Plies were selected."
+msgstr "Es wurden keine Schlüssel-Plies ausgewählt."
+
+msgid "Review the request count, then confirm generation."
+msgstr "Prüfe die Anzahl der Anfragen und bestätige dann die Generierung."
+
+msgid "Generating batch {current}/{total}…"
+msgstr "Stapel {current}/{total} wird erstellt…"
+
+msgid "Completed batch {current}/{total}."
+msgstr "Stapel {current}/{total} abgeschlossen."
+
+msgid "Generating overall summary…"
+msgstr "Gesamtzusammenfassung wird erstellt…"
+
+msgid "LLM generation cancelled. Submitted requests may still finish."
+msgstr "LLM-Generierung abgebrochen. Bereits gesendete Anfragen können noch abgeschlossen werden."
+
+msgid "The generation budget was exhausted. Prior results were preserved."
+msgstr "Das Generierungsbudget wurde erschöpft. Frühere Ergebnisse wurden behalten."
+
+msgid "A batch failed ({code}). Retry this batch manually."
+msgstr "Ein Stapel ist fehlgeschlagen ({code}). Wiederhole ihn manuell."
+
+msgid "Batches completed, but the overall summary failed. Retry it separately."
+msgstr "Stapel abgeschlossen, aber die Gesamtzusammenfassung ist fehlgeschlagen. Wiederhole sie separat."
+
+msgid "Key Ply explanations and summary complete."
+msgstr "Schlüssel-Ply-Erklärungen und Zusammenfassung abgeschlossen."
+
+msgid "Stockfish could not be stopped."
+msgstr "Stockfish konnte nicht gestoppt werden."
+
+msgid "Explanation could not be generated."
+msgstr "Erklärung konnte nicht erstellt werden."
+
+msgid "The Provider rejected the request. Confirm the Model and Reasoning settings."
+msgstr "Der Provider hat die Anfrage abgelehnt. Prüfe Modell- und Reasoning-Einstellungen."
+
+msgid "The summary retry failed."
+msgstr "Der erneute Zusammenfassungsversuch ist fehlgeschlagen."
+
+msgid "Overall summary complete."
+msgstr "Gesamtzusammenfassung abgeschlossen."
+
+msgid "Analyzing Position {current}/{total}"
+msgstr "Stellung {current}/{total} wird analysiert"
+
+msgid "Restored {completed}/{total} Positions. Continue to resume."
+msgstr "{completed}/{total} Stellungen wiederhergestellt. Mit Fortsetzen weiterarbeiten."
+
+msgid "Stored ciphertext: {provider} · {target}"
+msgstr "Gespeicherter Geheimtext: {provider} · {target}"
+
+msgid "No encrypted credential stored."
+msgstr "Kein verschlüsselter Schlüssel gespeichert."
+
+msgid "1 overall Position summary request. No batch requests."
+msgstr "1 Gesamt-Stellungszusammenfassungs-Anfrage. Keine Stapelanfragen."
+
+msgid "{keyPlies} Key Plies · {batches} batch requests + 1 summary request."
+msgstr "{keyPlies} Schlüssel-Plies · {batches} Stapelanfragen + 1 Zusammenfassungsanfrage."
+
+msgid "Tokens · prompt {prompt} · completion {completion} · reasoning {reasoning} · total {total}"
+msgstr "Tokens · Prompt {prompt} · Completion {completion} · Reasoning {reasoning} · Gesamt {total}"
+
+
+msgid "Analysis views"
+msgstr "Analyseansichten"
+
+msgid "Assessment"
+msgstr "Bewertung"
+
+msgid "Plies"
+msgstr "Halbzüge"
+
+msgid "Explanations"
+msgstr "Erklärungen"
+
+msgid "Reasoning support is unverified for this Model. Enter a supported reasoning Model, disable Reasoning, or configure it through the Custom Provider."
+msgstr "Die Reasoning-Unterstützung dieses Modells ist ungeprüft. Gib ein unterstütztes Reasoning-Modell ein, deaktiviere Reasoning oder konfiguriere das Modell über den benutzerdefinierten Provider."
+
+msgid "OpenAI has no literal max effort; max is confirmed as {value}."
+msgstr "OpenAI kennt keinen wörtlichen max-Aufwand; max wird als {value} bestätigt."
+
+msgid "Return to Mainline"
+msgstr "Zur Hauptvariante zurück"
+
+msgid "Candidate Lines could not be prepared for the batch. Restart the analysis."
+msgstr "Kandidatenlinien konnten nicht für den Stapel vorbereitet werden. Starte die Analyse neu."

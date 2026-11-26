@@ -30,9 +30,10 @@ ChessFEN incorporates or depends on the following components:
   IBM Plex Mono by IBM, both licensed under the SIL Open Font License 1.1.
   License texts ship in src/chessfen/static/fonts/.
 
-* Browser Position Analysis bundles the lite single-threaded stockfish.js
-  19.0.1 WebAssembly build of Stockfish 19, by Nathan Rugg and the Stockfish
-  contributors, licensed under GPL-3.0.
+* Browser Analysis bundles the stockfish.js 19.0.1 WebAssembly builds of
+  Stockfish 19: lite single-threaded, lite multithreaded, and full
+  single-threaded, by Nathan Rugg and the Stockfish contributors, licensed
+  under GPL-3.0.
   https://github.com/nmrugg/stockfish.js
   https://github.com/official-stockfish/Stockfish
   The upstream license, file checksums, and source locations ship in

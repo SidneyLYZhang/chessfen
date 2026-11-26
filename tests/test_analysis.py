@@ -56,7 +56,7 @@ def test_analysis_workbench_is_localized_and_uses_scoped_assets(
     page = client.get("/tools/analysis", headers=_EN)
     assert '<script src="/static/js/app.js"></script>' in page.text
     assert '<script type="module" src="/static/js/analysis.js"></script>' in page.text
-    assert page.text.count("<script") == 3
+    assert page.text.count("<script") == 4
     assert "<script>" not in page.text
     assert "Full FEN" in page.text
     assert "Placement only is not enough for analysis." in page.text
@@ -300,6 +300,85 @@ def test_analysis_position_reports_castling_promotion_and_check(
     }
     assert check["is_check"] is True
     assert check["after"]["check"] is True
+
+
+def test_analysis_position_reports_attacked_pieces(client: TestClient) -> None:
+    fen = "7k/8/8/4n3/8/8/8/4R1K1 w - - 0 1"
+    response = _analysis_post(
+        client,
+        "/tools/analysis/position",
+        {"fen": fen, "move": "Rxe5"},
+    )
+
+    assert response.status_code == 200
+    actual = response.json()["actual_move"]
+    assert actual["before"]["attacked"] == [
+        {
+            "square": "e5",
+            "piece": "knight",
+            "color": "black",
+            "attackers": 1,
+        }
+    ]
+    assert actual["after"]["attacked"] == []
+
+
+def test_analysis_lines_report_tactical_events(client: TestClient) -> None:
+    capture = _analysis_post(
+        client,
+        "/tools/analysis/lines",
+        {
+            "fen": _START_FEN,
+            "lines": [
+                {
+                    "multipv": 1,
+                    "depth": 18,
+                    "score": {"kind": "cp", "value": 35},
+                    "pv": ["e2e4", "d7d5", "e4d5"],
+                }
+            ],
+        },
+    ).json()["lines"][0]
+    checkmate = _analysis_post(
+        client,
+        "/tools/analysis/lines",
+        {
+            "fen": "rnbqkbnr/pppp1ppp/8/4p3/6P1/5P2/PPPPP2P/RNBQKBNR b KQkq g3 0 2",
+            "lines": [
+                {
+                    "multipv": 1,
+                    "depth": 18,
+                    "score": {"kind": "mate", "value": -1},
+                    "pv": ["d8h4"],
+                }
+            ],
+        },
+    ).json()["lines"][0]
+    promotion = _analysis_post(
+        client,
+        "/tools/analysis/lines",
+        {
+            "fen": _PROMOTION_FEN,
+            "lines": [
+                {
+                    "multipv": 1,
+                    "depth": 18,
+                    "score": {"kind": "cp", "value": 800},
+                    "pv": ["a7a8q"],
+                }
+            ],
+        },
+    ).json()["lines"][0]
+
+    assert capture["tactical_events"] == [
+        {"ply": 3, "san": "exd5", "event": "capture"}
+    ]
+    assert checkmate["tactical_events"] == [
+        {"ply": 1, "san": "Qh4#", "event": "checkmate"}
+    ]
+    assert promotion["tactical_events"] == [
+        {"ply": 1, "san": "a8=Q", "event": "promotion"}
+    ]
 
 
 @pytest.mark.parametrize(
@@ -1073,6 +1152,16 @@ def test_game_results_compute_n_plus_one_evaluations_and_key_plies(
     assert ply["is_key"] is True
     assert "only_best" in ply["key_reasons"]
     assert ply["exact_facts"]["is_capture"] is False
+    assert "attacked_before" in ply["exact_facts"]
+    assert "attacked_after" in ply["exact_facts"]
+    assert ply["exact_facts"]["castling_rights_before"] == "KQkq"
+    assert ply["exact_facts"]["castling_rights"] == "KQkq"
+    assert ply["indicators"]["pawn_structure_change"] == {
+        "doubled_pawns": 0,
+        "isolated_pawns": 0,
+        "passed_pawns": 0,
+        "open_files": 0,
+    }
     assert "doubled_pawns" in ply["indicators"]
     assert payload["key_plies"] == [1]
 

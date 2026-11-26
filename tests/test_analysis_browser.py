@@ -424,6 +424,7 @@ def test_browser_labels_a_mate_loss_without_a_fake_centipawn_value(
         expect(page.locator("[data-analysis-status]")).to_contain_text(
             "Analysis complete", timeout=30_000
         )
+        _select_analysis_tab(page, "assessment")
         expect(page.locator("[data-assessment-loss-label]")).to_have_text(
             "Mate loss"
         )
@@ -468,6 +469,7 @@ def test_browser_assesses_an_actual_move_and_shows_its_facts(
     expect(page.locator("[data-analysis-status]")).to_contain_text(
         "Analysis complete", timeout=30_000
     )
+    _select_analysis_tab(page, "assessment")
     assessment = page.locator("[data-analysis-assessment]")
     expect(assessment).to_be_visible()
     expect(page.locator("[data-assessment-actual]")).to_have_text("e4 (e2e4)")
@@ -478,7 +480,9 @@ def test_browser_assesses_an_actual_move_and_shows_its_facts(
         _AFTER_E4_FEN
     )
     expect(page.locator("[data-candidate-line]")).to_have_count(3)
-    expect(page.locator("[data-analysis-root-move]")).to_have_text("e2e4")
+    expect(page.locator("[data-analysis-root-move]")).to_have_text(
+        re.compile(r"^[a-h][1-8][a-h][1-8][qrbn]?$")
+    )
     assert page.locator("#analysis-fen").input_value() == _START_FEN
     assert page.locator("#analysis-move").input_value() == "e4"
 
@@ -495,6 +499,7 @@ def test_browser_shows_terminal_outcome_for_an_actual_move(
     expect(page.locator("[data-analysis-status]")).to_contain_text(
         "Analysis complete", timeout=30_000
     )
+    _select_analysis_tab(page, "assessment")
     expect(page.locator("[data-assessment-actual]")).to_have_text(
         "Qh4# (d8h4)"
     )
@@ -517,6 +522,7 @@ def test_browser_marks_a_forced_actual_move(
     expect(page.locator("[data-analysis-status]")).to_contain_text(
         "Analysis complete", timeout=30_000
     )
+    _select_analysis_tab(page, "assessment")
     expect(page.locator("[data-assessment-quality]")).to_have_text("Forced")
     expect(page.locator("[data-assessment-cpl]")).to_have_text("0")
     expect(page.locator("[data-assessment-outcome]")).to_have_text(
@@ -556,6 +562,7 @@ def test_browser_steps_through_candidate_lines_without_mutating_input(
     board = page.locator("[data-analysis-board]")
     original_board = board.get_attribute("src")
     assert original_board is not None
+    _select_analysis_tab(page, "lines")
 
     page.locator("[data-candidate-line-button]").first.click()
     playback = page.locator("[data-analysis-playback]")
@@ -672,6 +679,56 @@ def test_browser_analyzes_a_complete_pgn_mainline(
     page.locator("[data-game-moves] [data-ply='1']").click()
     expect(page.locator("[data-game-quality]")).not_to_be_empty()
     expect(page.locator("[data-game-lines] .candidate-line")).not_to_have_count(0)
+    _select_analysis_tab(page, "lines")
+    first_line = page.locator("[data-game-lines] .candidate-line").first
+    line_button = first_line.locator("button.candidate-line-select")
+    expect(line_button).to_contain_text("#1")
+    line_button.click()
+    expect(line_button).to_have_attribute("aria-pressed", "true")
+    playback = page.locator("[data-game-playback]")
+    playback_status = page.locator("[data-game-playback-status]")
+    expect(playback).to_be_visible()
+    expect(playback_status).to_contain_text("#1 · 0/")
+    page.locator("[data-game-playback-next]").click()
+    expect(playback_status).to_contain_text("#1 · 1/")
+    page.locator("[data-game-playback-prev]").click()
+    expect(playback_status).to_contain_text("#1 · 0/")
+    page.locator("[data-game-playback-reset]").click()
+    expect(playback).to_be_hidden()
+    expect(page.locator("[data-game-quality]")).not_to_be_empty()
+    _select_analysis_tab(page, "plies")
+    expect(page.locator("[data-game-exact]")).not_to_be_empty()
+    expect(page.locator("[data-game-indicators]")).not_to_be_empty()
+    expect(page.locator("#pgn")).to_have_value(
+        '[Event "Short"]\n[White "Alice"]\n[Black "Bob"]\n[Result "*"]\n\n1. e4 *\n'
+    )
+
+
+def test_browser_analyzes_a_game_from_a_fen_position_with_mate_side(
+    browser_page: Page, live_analysis_url: str
+) -> None:
+    page = browser_page
+    page.goto(f"{live_analysis_url}/tools/analysis/pgn")
+    page.locator("#pgn").fill(
+        '[SetUp "1"]\n'
+        f'[FEN "{_FOOLS_MATE_SETUP_FEN}"]\n'
+        '[White "A"]\n[Black "B"]\n[Result "0-1"]\n\n'
+        "2... Qh4# 0-1\n"
+    )
+    page.get_by_role("button", name="Parse PGN").click()
+    page.get_by_role("button", name="Open Game").click()
+    page.wait_for_load_state("load")
+    page.wait_for_selector("[data-game-root][data-game-ready='true']")
+    page.get_by_role("button", name="Start Game Analysis").click()
+    expect(page.locator("[data-game-status]")).to_contain_text(
+        "Analysis complete", timeout=30_000
+    )
+    move = page.locator("[data-game-moves] [data-ply='1']")
+    expect(move).to_contain_text("2... Qh4#")
+    evaluation = page.locator("[data-game-evaluation]")
+    expect(evaluation).to_contain_text("Black has a forced mate.")
+    expect(evaluation).not_to_contain_text("0.00")
+    move.click()
     expect(page.locator("[data-game-exact]")).not_to_be_empty()
     expect(page.locator("[data-game-indicators]")).not_to_be_empty()
 
@@ -934,6 +991,157 @@ def test_browser_requires_confirmation_before_restart(
     assert any("Restart analysis" in message for message in dialogs)
 
 
+def test_browser_confirms_cross_kind_workspace_replacement(
+    browser, live_analysis_url: str
+) -> None:
+    context = browser.new_context(locale="en-US")
+    page = context.new_page()
+    page.set_default_timeout(30_000)
+    dialogs: list[str] = []
+    accept = {"value": False}
+
+    def handle(dialog) -> None:
+        dialogs.append(dialog.message)
+        if accept["value"]:
+            dialog.accept()
+        else:
+            dialog.dismiss()
+
+    page.on("dialog", handle)
+    try:
+        page.goto(f"{live_analysis_url}/tools/analysis")
+        _seed_workspace(page, "game")
+        page.locator("#analysis-fen").fill(_START_FEN)
+        with page.expect_event("dialog") as dismissed:
+            page.get_by_role("button", name="Start analysis").click()
+        assert "other workbench" in dismissed.value.message
+        expect(page.locator("[data-analysis-status]")).to_have_text(
+            "Enter a Full FEN to begin."
+        )
+        accept["value"] = True
+        with page.expect_event("dialog") as accepted:
+            page.get_by_role("button", name="Start analysis").click()
+        assert "other workbench" in accepted.value.message
+        expect(page.locator("[data-analysis-status]")).to_contain_text(
+            "Analysis complete", timeout=30_000
+        )
+
+        _seed_workspace(page, "position")
+        page.goto(f"{live_analysis_url}/tools/analysis/pgn")
+        page.locator("#pgn").fill('[White "A"]\n[Black "B"]\n\n1. e4 *')
+        page.get_by_role("button", name="Parse PGN").click()
+        expect(page.locator("#game_index")).to_be_visible()
+        assert len(dialogs) == 2
+        accept["value"] = False
+        with page.expect_event("dialog") as dismissed:
+            page.get_by_role("button", name="Open Game").click()
+        assert "other workbench" in dismissed.value.message
+        expect(page.locator("#game_index")).to_be_visible()
+        assert page.locator("[data-game-root]").count() == 0
+        accept["value"] = True
+        with page.expect_event("dialog") as accepted:
+            page.get_by_role("button", name="Open Game").click()
+        assert "other workbench" in accepted.value.message
+        page.wait_for_load_state("load")
+        page.wait_for_selector("[data-game-root][data-game-ready='true']")
+
+        _seed_workspace(page, "position")
+        page.locator("#pgn").fill('[White "C"]\n[Black "D"]\n\n1. d4 *')
+        accept["value"] = False
+        before_url = page.url
+        with page.expect_event("dialog") as dismissed:
+            page.get_by_role("button", name="Open Game").click()
+        assert "other workbench" in dismissed.value.message
+        assert page.url == before_url
+        accept["value"] = True
+        with page.expect_event("dialog") as accepted:
+            page.get_by_role("button", name="Open Game").click()
+        assert "other workbench" in accepted.value.message
+        page.wait_for_load_state("load")
+        page.wait_for_selector("[data-game-root][data-game-ready='true']")
+    finally:
+        context.close()
+
+
+def test_browser_parses_new_pgn_from_a_loaded_game_page(
+    browser_page: Page, live_analysis_url: str
+) -> None:
+    page = browser_page
+    page.goto(f"{live_analysis_url}/tools/analysis/pgn")
+    page.locator("#pgn").fill('[White "A"]\n[Black "B"]\n\n1. e4 *')
+    page.get_by_role("button", name="Parse PGN").click()
+    page.get_by_role("button", name="Open Game").click()
+    page.wait_for_load_state("load")
+    page.wait_for_selector("[data-game-root][data-game-ready='true']")
+
+    page.locator("#pgn").fill(
+        '[White "C"]\n[Black "D"]\n\n1. d4 *\n\n'
+        '[White "E"]\n[Black "F"]\n\n1. c4 *'
+    )
+    page.get_by_role("button", name="Parse PGN").click()
+    page.wait_for_load_state("load")
+    expect(page.locator("#game_index")).to_be_visible()
+    expect(page.locator("#game_index option")).to_have_count(2)
+    assert page.locator("[data-game-root]").count() == 0
+
+
+def test_browser_hides_credential_features_in_an_insecure_context(
+    browser, live_analysis_url: str
+) -> None:
+    context = browser.new_context(locale="en-US")
+    page = context.new_page()
+    page.set_default_timeout(30_000)
+    page.add_init_script(
+        'Object.defineProperty(window, "isSecureContext", '
+        "{ configurable: true, get: () => false });"
+    )
+    page.on("dialog", lambda dialog: dialog.accept())
+    try:
+        page.goto(f"{live_analysis_url}/settings")
+        expect(page.locator("[data-llm-insecure]")).to_be_visible()
+        expect(page.locator("[data-llm-provider]")).to_be_disabled()
+        expect(page.get_by_role("button", name="Save LLM Profile")).to_be_disabled()
+
+        page.goto(f"{live_analysis_url}/tools/analysis")
+        assert page.evaluate("() => window.isSecureContext") is False
+        page.locator("#analysis-fen").fill(_START_FEN)
+        page.get_by_role("button", name="Start analysis").click()
+        expect(page.locator("[data-analysis-status]")).to_contain_text(
+            "Analysis complete", timeout=30_000
+        )
+        expect(page.locator("[data-explanation-section]")).to_be_hidden()
+
+        page.goto(f"{live_analysis_url}/tools/analysis/pgn")
+        page.locator("#pgn").fill('[White "A"]\n[Black "B"]\n\n1. e4 *')
+        page.get_by_role("button", name="Parse PGN").click()
+        page.get_by_role("button", name="Open Game").click()
+        page.wait_for_load_state("load")
+        page.wait_for_selector("[data-game-root][data-game-ready='true']")
+        page.get_by_role("button", name="Start Game Analysis").click()
+        expect(page.locator("[data-game-status]")).to_contain_text(
+            "Analysis complete", timeout=30_000
+        )
+        expect(
+            page.locator("[data-game-explanation-section]")
+        ).to_be_hidden()
+    finally:
+        context.close()
+
+
+def test_browser_localizes_dynamic_analysis_settings_messages(
+    browser_page: Page, live_analysis_url: str
+) -> None:
+    page = browser_page
+    page.goto(f"{live_analysis_url}/lang/zh?next=/tools/analysis/pgn")
+    expect(page.locator("[data-llm-config-summary]")).to_have_text(
+        "尚未配置 LLM Profile。"
+    )
+    page.locator("[data-setting-preset]").select_option("fast")
+    expect(page.locator("[data-engine-runtime]")).to_have_text(
+        "设置已保存。请重新打开棋局以应用。"
+    )
+
+
 def test_browser_secures_profile_and_generates_grounded_explanation(
     browser_page: Page, live_analysis_url: str
 ) -> None:
@@ -955,7 +1163,7 @@ def test_browser_secures_profile_and_generates_grounded_explanation(
             route.fulfill(
                 status=200,
                 headers={**headers, "Content-Type": "application/json"},
-                body=json.dumps({"data": [{"id": "mock-model"}]}),
+                body=json.dumps({"data": [{"id": "gpt-5"}]}),
             )
             return
         captured.append(
@@ -992,7 +1200,7 @@ def test_browser_secures_profile_and_generates_grounded_explanation(
     page.route("https://api.openai.test/**", provider)
     page.goto(f"{live_analysis_url}/settings")
     page.locator("[data-llm-base-url]").fill("https://api.openai.test/v1")
-    page.locator("[data-llm-model]").fill("mock-model")
+    page.locator("[data-llm-model]").fill("gpt-5")
     page.locator("[data-llm-api-key]").fill("sk-test-secret-value")
     page.locator("[data-llm-passphrase]").fill("correct horse battery")
     page.locator("[data-llm-passphrase-confirm]").fill("correct horse battery")
@@ -1036,11 +1244,15 @@ def test_browser_secures_profile_and_generates_grounded_explanation(
     expect(page.locator("[data-llm-status]")).to_contain_text("unlocked")
 
     page.goto(f"{live_analysis_url}/tools/analysis")
+    expect(page.locator("[data-llm-config-summary]")).to_have_text(
+        "openai · gpt-5 · en/club"
+    )
     page.locator("#analysis-fen").fill(_START_FEN)
     page.get_by_role("button", name="Start analysis").click()
     expect(page.locator("[data-analysis-status]")).to_contain_text(
         "Analysis complete", timeout=30_000
     )
+    _select_analysis_tab(page, "explanations")
     expect(page.locator("[data-explanation-section]")).to_be_visible()
     page.locator("[data-explanation-passphrase]").fill("correct horse battery")
     page.get_by_role("button", name="Generate Explanation").click()
@@ -1050,7 +1262,7 @@ def test_browser_secures_profile_and_generates_grounded_explanation(
     assert captured
     assert captured[0]["authorization"] == "Bearer sk-test-secret-value"
     request_body = captured[0]["body"]
-    assert request_body["reasoning_effort"] == "max"
+    assert request_body["reasoning_effort"] == "high"
     assert request_body["max_completion_tokens"] == 16384
     assert request_body["response_format"] == {"type": "json_object"}
     assert "SECRET-RAW-REASONING" not in page.content()
@@ -1059,6 +1271,7 @@ def test_browser_secures_profile_and_generates_grounded_explanation(
     assert "sk-test-secret-value" not in workspace
 
     page.reload()
+    _select_analysis_tab(page, "explanations")
     expect(page.locator("[data-explanation-summary]")).to_have_text(
         "控制中心，稳步发展。"
     )
@@ -1071,8 +1284,120 @@ def test_browser_secures_profile_and_generates_grounded_explanation(
         }"""
     )
     page.reload()
+    _select_analysis_tab(page, "explanations")
     expect(page.locator("[data-explanation-stale]")).to_be_visible()
     page.unroute("https://api.openai.test/**", provider)
+
+
+def test_browser_retries_a_malformed_position_explanation_once(
+    browser_page: Page, live_analysis_url: str
+) -> None:
+    page = browser_page
+    attempts: list[int] = []
+
+    def provider(route) -> None:
+        headers = {
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Headers": "authorization,content-type",
+            "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+            "Access-Control-Max-Age": "0",
+        }
+        if route.request.method == "OPTIONS":
+            route.fulfill(status=204, headers=headers)
+            return
+        attempts.append(1)
+        content = (
+            "{not-json"
+            if len(attempts) == 1
+            else json.dumps(
+                {
+                    "summary": "Retried summary",
+                    "why": "facts",
+                    "alternatives": "lines",
+                    "uncertainty": "none",
+                }
+            )
+        )
+        route.fulfill(
+            status=200,
+            headers={**headers, "Content-Type": "application/json"},
+            body=json.dumps(
+                {"choices": [{"message": {"content": content}}]}
+            ),
+        )
+
+    page.route("https://api.openai.test/**", provider)
+    _configure_mock_profile(page, live_analysis_url)
+    page.goto(f"{live_analysis_url}/tools/analysis")
+    page.locator("#analysis-fen").fill(_START_FEN)
+    page.get_by_role("button", name="Start analysis").click()
+    expect(page.locator("[data-analysis-status]")).to_contain_text(
+        "Analysis complete", timeout=30_000
+    )
+    _select_analysis_tab(page, "explanations")
+    page.locator("[data-explanation-passphrase]").fill(
+        "correct horse battery"
+    )
+    page.get_by_role("button", name="Generate Explanation").click()
+    expect(page.locator("[data-explanation-summary]")).to_have_text(
+        "Retried summary"
+    )
+    assert len(attempts) == 2
+    page.unroute("https://api.openai.test/**", provider)
+
+
+def test_browser_resolves_openai_reasoning_effort(
+    browser_page: Page, live_analysis_url: str
+) -> None:
+    page = browser_page
+    page.goto(f"{live_analysis_url}/settings")
+    capabilities = page.locator("[data-llm-capabilities]")
+    effort = page.locator("[data-llm-effort]")
+    preview = page.locator("[data-llm-preview]")
+    reasoning = page.locator("[data-llm-reasoning]")
+    expect(capabilities).to_contain_text("unverified for this Model")
+    expect(effort).to_be_disabled()
+    assert json.loads(preview.inner_text()) == {
+        "error": "reasoning_model_unknown"
+    }
+    reasoning.click()
+    assert json.loads(preview.inner_text()) == {
+        "error": "reasoning_model_unknown"
+    }
+    reasoning.check()
+
+    page.locator("[data-llm-model]").fill("gpt-5")
+    expect(capabilities).to_contain_text("max is confirmed as high")
+    expect(effort).to_be_enabled()
+    expect(reasoning).to_be_checked()
+    expect(reasoning).to_be_disabled()
+    expect(capabilities).to_contain_text("always enabled")
+    body = json.loads(preview.inner_text())
+    assert body["reasoning_effort"] == "high"
+    assert body["max_completion_tokens"] == 16384
+
+    effort.select_option("minimal")
+    body = json.loads(preview.inner_text())
+    assert body["reasoning_effort"] == "minimal"
+
+    page.locator("[data-llm-model]").fill("gpt-5.1")
+    expect(reasoning).to_be_enabled()
+    expect(capabilities).to_contain_text("not supported by this Model")
+    assert json.loads(preview.inner_text()) == {
+        "error": "reasoning_effort_unsupported"
+    }
+    effort.select_option("high")
+    reasoning.click()
+    body = json.loads(preview.inner_text())
+    assert body["reasoning_effort"] == "none"
+    reasoning.check()
+    body = json.loads(preview.inner_text())
+    assert body["reasoning_effort"] == "high"
+
+    page.locator("[data-llm-model]").fill("o3-mini")
+    expect(effort.locator("option[value='minimal']")).to_be_disabled()
+    body = json.loads(preview.inner_text())
+    assert body["reasoning_effort"] == "high"
 
 
 def _configure_mock_profile(
@@ -1080,7 +1405,7 @@ def _configure_mock_profile(
 ) -> None:
     page.goto(f"{live_analysis_url}/settings")
     page.locator("[data-llm-base-url]").fill(base_url)
-    page.locator("[data-llm-model]").fill("mock-model")
+    page.locator("[data-llm-model]").fill("gpt-5")
     page.locator("[data-llm-api-key]").fill("sk-test-secret-value")
     page.locator("[data-llm-passphrase]").fill("correct horse battery")
     page.locator("[data-llm-passphrase-confirm]").fill("correct horse battery")
@@ -1210,6 +1535,51 @@ def _workspace_record_text(page: Page) -> str:
           db.close();
           return JSON.stringify(record);
         }"""
+    )
+
+
+def _select_analysis_tab(page: Page, name: str) -> None:
+    page.locator(
+        f'[data-analysis-tablist] [data-tab-name="{name}"]'
+    ).click()
+    expect(page.locator(f'[data-analysis-panel="{name}"]')).to_be_visible()
+
+
+def _seed_workspace(page: Page, kind: str) -> None:
+    page.evaluate(
+        """async ({ kind, startFen }) => {
+          const open = indexedDB.open("chessfen-analysis", 1);
+          const db = await new Promise((resolve, reject) => {
+            open.onupgradeneeded = () => {
+              const database = open.result;
+              if (!database.objectStoreNames.contains("workspaces")) {
+                database.createObjectStore("workspaces", { keyPath: "id" });
+              }
+            };
+            open.onsuccess = () => resolve(open.result);
+            open.onerror = () => reject(open.error);
+          });
+          await new Promise((resolve, reject) => {
+            const tx = db.transaction("workspaces", "readwrite");
+            tx.objectStore("workspaces").put({
+              id: "current",
+              version: 1,
+              kind,
+              updatedAt: Date.now(),
+              input:
+                kind === "game"
+                  ? {
+                      pgn: '[White "X"]\\n[Black "Y"]\\n\\n1. e4 *',
+                      gameIndex: "0",
+                    }
+                  : { fen: startFen },
+            });
+            tx.oncomplete = resolve;
+            tx.onerror = () => reject(tx.error);
+          });
+          db.close();
+        }""",
+        {"kind": kind, "startFen": _START_FEN},
     )
 
 
@@ -1388,6 +1758,7 @@ def test_browser_generates_a_selected_game_ply_explanation(
         "Analysis complete", timeout=30_000
     )
     page.locator("[data-game-moves] [data-ply='1']").click()
+    _select_analysis_tab(page, "explanations")
     expect(page.locator("[data-game-explanation-section]")).to_be_visible()
     page.locator("[data-game-explanation-passphrase]").fill(
         "correct horse battery"
@@ -1551,6 +1922,7 @@ def test_browser_batches_key_ply_explanations_and_summary(
     expect(page.locator("[data-game-status]")).to_contain_text(
         "Analysis complete", timeout=60_000
     )
+    _select_analysis_tab(page, "explanations")
     page.locator("[data-game-batch-preview]").click()
     expect(page.locator("[data-game-batch-plan]")).to_contain_text(
         "6 Key Plies · 2 batch requests + 1 summary request"
@@ -1584,13 +1956,33 @@ def test_browser_batches_key_ply_explanations_and_summary(
     assert len(requests) == 6
     payloads = [json.loads(item["messages"][1]["content"]) for item in requests]
     assert [len(p.get("targets", [])) for p in payloads] == [5, 5, 1, 1, 0, 0]
+    first_target = payloads[0]["targets"][0]
+    assert first_target["candidate_lines"]
+    assert "tactical_events" in first_target["candidate_lines"][0]
+    assert first_target["candidate_lines"][0]["moves"][0]["san"]
     with page.expect_download() as download_info:
         page.locator("[data-game-export-markdown]").click()
     markdown = Path(download_info.value.path()).read_text(encoding="utf-8")
     assert "## Overall summary" in markdown
     assert "**Summary:** Overall" in markdown
     assert "**Provider:** openai" in markdown
-    assert "**Model:** mock-model" in markdown
+    assert "**Model:** gpt-5" in markdown
+
+    page.locator("[data-game-restart]").click()
+    expect(page.locator("[data-game-overall-summary]")).to_be_hidden()
+    expect(page.locator("[data-game-token-usage]")).to_have_text("")
+    expect(page.locator("[data-game-batch-status]")).to_have_text("")
+    expect(page.locator("[data-game-status]")).to_contain_text(
+        "Analysis complete", timeout=60_000
+    )
+    _select_analysis_tab(page, "plies")
+    page.locator("[data-game-moves] [data-ply='1']").click()
+    _select_analysis_tab(page, "explanations")
+    expect(page.locator("[data-game-explanation-output]")).to_be_hidden()
+    expect(page.locator("[data-game-explanation-usage]")).to_have_text("")
+    workspace = _workspace_record_text(page)
+    assert "Overall" not in workspace
+    assert "Key 1" not in workspace
 
 
 def test_browser_generates_a_position_overall_summary(
@@ -1619,6 +2011,8 @@ def test_browser_generates_a_position_overall_summary(
                                 "content": json.dumps(
                                     {
                                         "summary": "局面总结",
+                                        "why": "引擎事实",
+                                        "alternatives": "候选变化",
                                         "uncertainty": "依据有限",
                                     }
                                 )
@@ -1643,6 +2037,7 @@ def test_browser_generates_a_position_overall_summary(
     expect(page.locator("[data-analysis-status]")).to_contain_text(
         "Analysis complete", timeout=30_000
     )
+    _select_analysis_tab(page, "explanations")
     page.locator("[data-position-summary-preview]").click()
     expect(page.locator("[data-position-summary-plan]")).to_contain_text(
         "1 overall Position summary request"
@@ -1653,13 +2048,17 @@ def test_browser_generates_a_position_overall_summary(
     expect(page.locator("[data-position-summary-usage]")).to_contain_text(
         "total 7"
     )
+    page.get_by_role("button", name="Generate Explanation").click()
+    expect(page.locator("[data-explanation-summary]")).to_have_text("局面总结")
     with page.expect_download() as download_info:
         page.locator("[data-position-export-markdown]").click()
     markdown = Path(download_info.value.path()).read_text(encoding="utf-8")
+    assert "## Explanation" in markdown
+    assert "**Why:** 引擎事实" in markdown
     assert "## Position summary" in markdown
     assert "**Summary:** 局面总结" in markdown
     assert "**Provider:** openai" in markdown
-    assert "**Model:** mock-model" in markdown
+    assert "**Model:** gpt-5" in markdown
     page.unroute("https://api.openai.test/**", provider)
 
 
@@ -1801,6 +2200,7 @@ def test_browser_openrouter_requires_reasoning_capabilities_and_routes_directly(
     expect(page.locator("[data-analysis-status]")).to_contain_text(
         "Analysis complete", timeout=30_000
     )
+    _select_analysis_tab(page, "explanations")
     page.locator("[data-explanation-passphrase]").fill("correct horse battery")
     page.get_by_role("button", name="Generate Explanation").click()
     expect(page.locator("[data-explanation-summary]")).to_have_text(
@@ -1862,7 +2262,9 @@ def test_browser_openrouter_requires_reasoning_capabilities_and_routes_directly(
         "cors": "could not be reached from this browser",
         "abort": "could not be reached from this browser",
     }
-    for index, mode in enumerate(("routing", "malformed", "cors", "abort")):
+    attempts = 0
+    increments = {"routing": 1, "malformed": 2, "cors": 1, "abort": 1}
+    for mode in ("routing", "malformed", "cors", "abort"):
         fail_mode["mode"] = mode
         page.get_by_role("button", name="Generate Explanation").click()
         expect(page.locator("[data-explanation-status]")).to_contain_text(
@@ -1874,7 +2276,8 @@ def test_browser_openrouter_requires_reasoning_capabilities_and_routes_directly(
         expect(page.locator("[data-position-summary-text]")).to_have_text(
             "OpenRouter summary"
         )
-        assert len(chat_attempts) == before_attempts + index + 1
+        attempts += increments[mode]
+        assert len(chat_attempts) == before_attempts + attempts
         assert len(chat_bodies) == before_bodies
         assert len(same_origin_posts) == before_posts
     page.unroute("https://openrouter.ai/**", provider)
@@ -1915,6 +2318,7 @@ def test_browser_blocks_openrouter_without_confirmed_reasoning_capabilities(
     expect(page.locator("[data-analysis-status]")).to_contain_text(
         "Analysis complete", timeout=30_000
     )
+    _select_analysis_tab(page, "explanations")
     page.locator("[data-explanation-passphrase]").fill("correct horse battery")
     page.get_by_role("button", name="Generate Explanation").click()
     expect(page.locator("[data-explanation-status]")).to_contain_text(
@@ -2139,6 +2543,7 @@ def test_browser_openrouter_batches_and_summarizes_game_with_malformed_retry(
         "Analysis complete", timeout=30_000
     )
     page.locator("[data-game-moves] [data-ply='1']").click()
+    _select_analysis_tab(page, "explanations")
     page.locator("[data-game-explanation-passphrase]").fill(
         "correct horse battery"
     )
@@ -2197,7 +2602,9 @@ def test_browser_openrouter_batches_and_summarizes_game_with_malformed_retry(
         }
         assert body["provider"] == {"require_parameters": True}
         assert body["max_tokens"] == 16384
+    _select_analysis_tab(page, "plies")
     page.locator("[data-game-moves] [data-ply='1']").click()
+    _select_analysis_tab(page, "explanations")
     expect(page.locator("[data-game-explanation-summary]")).to_have_text(
         "OpenRouter key ply"
     )
@@ -2360,6 +2767,7 @@ def test_browser_deepseek_preset_serializes_reasoning_usage_and_failures(
     expect(page.locator("[data-analysis-status]")).to_contain_text(
         "Analysis complete", timeout=30_000
     )
+    _select_analysis_tab(page, "explanations")
     page.locator("[data-explanation-passphrase]").fill("correct horse battery")
     page.get_by_role("button", name="Generate Explanation").click()
     expect(page.locator("[data-explanation-summary]")).to_have_text(
@@ -2387,9 +2795,16 @@ def test_browser_deepseek_preset_serializes_reasoning_usage_and_failures(
     before_attempts = len(chat_attempts)
     before_bodies = len(chat_bodies)
     before_posts = len(same_origin_posts)
-    for index, mode in enumerate(
-        ("malformed", "empty", "length", "incomplete", "cors", "abort")
-    ):
+    increments = {
+        "malformed": 2,
+        "empty": 2,
+        "length": 1,
+        "incomplete": 1,
+        "cors": 1,
+        "abort": 1,
+    }
+    attempts = 0
+    for mode in increments:
         fail_mode["value"] = mode
         page.get_by_role("button", name="Generate Explanation").click()
         expect(page.locator("[data-explanation-status]")).to_contain_text(
@@ -2400,7 +2815,8 @@ def test_browser_deepseek_preset_serializes_reasoning_usage_and_failures(
         expect(page.locator("[data-explanation-summary]")).to_have_text(
             "DeepSeek summary"
         )
-        assert len(chat_attempts) == before_attempts + index + 1
+        attempts += increments[mode]
+        assert len(chat_attempts) == before_attempts + attempts
         assert len(chat_bodies) == before_bodies
         assert len(same_origin_posts) == before_posts
     page.unroute("https://api.deepseek.com/**", provider)
@@ -2484,6 +2900,7 @@ def test_browser_deepseek_disables_optional_reasoning_and_blocks_unverified_off(
     expect(page.locator("[data-analysis-status]")).to_contain_text(
         "Analysis complete", timeout=30_000
     )
+    _select_analysis_tab(page, "explanations")
     page.locator("[data-explanation-passphrase]").fill("correct horse battery")
     page.get_by_role("button", name="Generate Explanation").click()
     expect(page.locator("[data-explanation-summary]")).to_have_text(
@@ -2507,6 +2924,7 @@ def test_browser_deepseek_disables_optional_reasoning_and_blocks_unverified_off(
 
     page.goto(f"{live_analysis_url}/tools/analysis")
     expect(page.locator("[data-analysis-status]")).to_contain_text("Restored")
+    _select_analysis_tab(page, "explanations")
     page.locator("[data-explanation-passphrase]").fill("correct horse battery")
     page.get_by_role("button", name="Generate Explanation").click()
     expect(page.locator("[data-explanation-status]")).to_contain_text(
@@ -2615,6 +3033,7 @@ def test_browser_deepseek_batches_summarizes_and_restores_game(
     expect(page.locator("[data-game-status]")).to_contain_text(
         "Analysis complete", timeout=30_000
     )
+    _select_analysis_tab(page, "explanations")
     page.locator("[data-game-batch-preview]").click()
     page.locator("[data-game-explanation-passphrase]").fill(
         "correct horse battery"
@@ -2656,6 +3075,7 @@ def test_browser_deepseek_batches_summarizes_and_restores_game(
         "Restored from the local Analysis Workspace."
     )
     page.locator("[data-game-moves] [data-ply='1']").click()
+    _select_analysis_tab(page, "explanations")
     expect(page.locator("[data-game-explanation-summary]")).to_have_text(
         "DeepSeek key ply"
     )
@@ -2667,7 +3087,9 @@ def test_browser_deepseek_batches_summarizes_and_restores_game(
           localStorage.setItem(key, JSON.stringify(profile));
         }"""
     )
+    _select_analysis_tab(page, "plies")
     page.locator("[data-game-moves] [data-ply='1']").click()
+    _select_analysis_tab(page, "explanations")
     expect(page.locator("[data-game-explanation-stale]")).to_be_visible()
     page.unroute("https://api.deepseek.com/**", provider)
     page.unroute("**/tools/analysis/game/results", game_results)
@@ -2835,6 +3257,7 @@ def test_browser_kimi_preset_regions_and_k3_request_contract(
     expect(page.locator("[data-analysis-status]")).to_contain_text(
         "Analysis complete", timeout=30_000
     )
+    _select_analysis_tab(page, "explanations")
     page.locator("[data-explanation-passphrase]").fill("correct horse battery")
     page.get_by_role("button", name="Generate Explanation").click()
     expect(page.locator("[data-explanation-summary]")).to_have_text(
@@ -2857,7 +3280,15 @@ def test_browser_kimi_preset_regions_and_k3_request_contract(
     before_attempts = len(chat_attempts)
     before_bodies = len(chat_bodies)
     before_posts = len(same_origin_posts)
-    for index, mode in enumerate(("malformed", "empty", "length", "cors", "abort")):
+    increments = {
+        "malformed": 2,
+        "empty": 2,
+        "length": 1,
+        "cors": 1,
+        "abort": 1,
+    }
+    attempts = 0
+    for mode in increments:
         fail_mode["value"] = mode
         page.get_by_role("button", name="Generate Explanation").click()
         expect(page.locator("[data-explanation-status]")).to_contain_text(
@@ -2868,7 +3299,8 @@ def test_browser_kimi_preset_regions_and_k3_request_contract(
         expect(page.locator("[data-explanation-summary]")).to_have_text(
             "Kimi summary"
         )
-        assert len(chat_attempts) == before_attempts + index + 1
+        attempts += increments[mode]
+        assert len(chat_attempts) == before_attempts + attempts
         assert len(chat_bodies) == before_bodies
         assert len(same_origin_posts) == before_posts
     page.unroute("https://api.moonshot.ai/**", provider)
@@ -3248,6 +3680,7 @@ def test_browser_kimi_batches_and_summarizes_in_both_regions(
     expect(page.locator("[data-game-status]")).to_contain_text(
         "Analysis complete", timeout=30_000
     )
+    _select_analysis_tab(page, "explanations")
     page.locator("[data-game-batch-preview]").click()
     page.locator("[data-game-explanation-passphrase]").fill(
         "correct horse battery"
@@ -3284,7 +3717,9 @@ def test_browser_kimi_batches_and_summarizes_in_both_regions(
     assert "SECRET-KIMI-BATCH-REASONING" not in workspace
     assert "SECRET-KIMI-SUMMARY-REASONING" not in workspace
     assert "Kimi game summary" in workspace
+    _select_analysis_tab(page, "plies")
     page.locator("[data-game-moves] [data-ply='1']").click()
+    _select_analysis_tab(page, "explanations")
     expect(page.locator("[data-game-explanation-summary]")).to_have_text(
         "Kimi key ply"
     )
@@ -3465,6 +3900,7 @@ def test_browser_custom_provider_complete_path_and_endpoint_isolation(
     expect(page.locator("[data-analysis-status]")).to_contain_text(
         "Analysis complete", timeout=30_000
     )
+    _select_analysis_tab(page, "explanations")
     page.locator("[data-explanation-passphrase]").fill("correct horse battery")
     before_posts = len(same_origin_posts)
     before_attempts = len(chat_attempts)
@@ -3673,6 +4109,7 @@ def test_browser_custom_blocks_unresolved_generation(
     expect(page.locator("[data-analysis-status]")).to_contain_text(
         "Analysis complete", timeout=30_000
     )
+    _select_analysis_tab(page, "explanations")
     page.locator("[data-explanation-passphrase]").fill("correct horse battery")
     page.get_by_role("button", name="Generate Explanation").click()
     expect(page.locator("[data-explanation-status]")).to_contain_text(
@@ -3710,6 +4147,7 @@ def test_browser_custom_uses_real_cross_origin_provider(
     expect(page.locator("[data-analysis-status]")).to_contain_text(
         "Analysis complete", timeout=30_000
     )
+    _select_analysis_tab(page, "explanations")
     page.locator("[data-explanation-passphrase]").fill("correct horse battery")
     before_posts = len(same_origin_posts)
     page.get_by_role("button", name="Generate Explanation").click()
@@ -3993,6 +4431,7 @@ def test_browser_export_includes_optional_explanations_without_secrets(
         "Analysis complete", timeout=30_000
     )
     page.locator("[data-game-moves] [data-ply='1']").click()
+    _select_analysis_tab(page, "explanations")
     page.locator("[data-game-explanation-passphrase]").fill(
         "correct horse battery"
     )
@@ -4024,7 +4463,7 @@ def test_browser_export_includes_optional_explanations_without_secrets(
     markdown = Path(download_info.value.path()).read_text(encoding="utf-8")
     assert "Export explanation summary." in markdown
     assert "**Provider:** openai" in markdown
-    assert "**Model:** mock-model" in markdown
+    assert "**Model:** gpt-5" in markdown
     assert "sk-test-secret-value" not in markdown
     assert "correct horse battery" not in markdown
     assert "SECRET-EXPORT-REASONING" not in markdown
@@ -4139,6 +4578,7 @@ def test_browser_custom_batches_and_summarizes_game(
     expect(page.locator("[data-game-status]")).to_contain_text(
         "Analysis complete", timeout=30_000
     )
+    _select_analysis_tab(page, "explanations")
     page.locator("[data-game-batch-preview]").click()
     page.locator("[data-game-explanation-passphrase]").fill(
         "correct horse battery"
@@ -4165,7 +4605,9 @@ def test_browser_custom_batches_and_summarizes_game(
     assert "SECRET-CUSTOM-BATCH-REASONING" not in workspace
     assert "SECRET-CUSTOM-SUMMARY-REASONING" not in workspace
     assert "Custom game summary" in workspace
+    _select_analysis_tab(page, "plies")
     page.locator("[data-game-moves] [data-ply='1']").click()
+    _select_analysis_tab(page, "explanations")
     expect(page.locator("[data-game-explanation-summary]")).to_have_text(
         "Custom key ply"
     )
@@ -4489,6 +4931,9 @@ def test_browser_analysis_accessibility_and_mobile_layout(
     expect(page.get_by_label("Search preset")).to_be_visible()
     expect(page.locator("#analysis-multipv")).to_be_visible()
     expect(page.get_by_label("Engine resource")).to_be_visible()
+    expect(page.locator("[data-llm-config-summary]")).to_have_text(
+        "No LLM Profile configured."
+    )
     status = page.locator("[data-analysis-status]")
     expect(status).to_have_attribute("role", "status")
     expect(status).to_have_attribute("aria-live", "polite")
@@ -4536,10 +4981,47 @@ def test_browser_analysis_accessibility_and_mobile_layout(
         "Analysis complete", timeout=30_000
     )
     move = page.locator("[data-game-moves] [data-ply='1']")
+    move_text = move.inner_text()
     assert re.search(
         "Best|Excellent|Good|Inaccuracy|Mistake|Blunder|Forced",
-        move.inner_text(),
+        move_text,
     )
+    assert re.search(r"\[[^\]·]+ · [+-]?(?:\d+\.\d+|M\d+)", move_text)
+    assert page.evaluate(
+        """() => {
+          const result = document.querySelector(
+            ".analysis-workspace .result-panel"
+          ).getBoundingClientRect();
+          const source = document.querySelector(
+            ".analysis-workspace .tool-panel"
+          ).getBoundingClientRect();
+          return result.top < source.top;
+        }"""
+    )
+    tablist = page.get_by_role("tablist")
+    expect(tablist).to_be_visible()
+    plies_tab = page.get_by_role("tab", name="Plies")
+    lines_tab = page.get_by_role("tab", name="Candidate Lines")
+    explanations_tab = page.get_by_role("tab", name="Explanations")
+    expect(plies_tab).to_have_attribute("aria-selected", "true")
+    expect(page.locator('[data-analysis-panel="plies"]')).to_be_visible()
+    lines_tab.click()
+    expect(lines_tab).to_have_attribute("aria-selected", "true")
+    expect(page.locator('[data-analysis-panel="lines"]')).to_be_visible()
+    expect(page.locator('[data-analysis-panel="plies"]')).to_be_hidden()
+    plies_tab.focus()
+    page.keyboard.press("ArrowRight")
+    expect(lines_tab).to_have_attribute("aria-selected", "true")
+    explanations_tab.click()
+    expect(page.locator('[data-analysis-panel="explanations"]')).to_be_visible()
+    plies_tab.click()
+    expect(page.locator('[data-analysis-panel="plies"]')).to_be_visible()
+    graph = page.locator("[data-game-graph] svg")
+    expect(graph).to_have_attribute("role", "group")
+    expect(graph).to_have_attribute("aria-label", "Evaluation graph")
+    expect(
+        page.locator('[data-game-graph] [data-graph-ply="1"]')
+    ).to_have_attribute("aria-label", "Evaluation graph 1")
     page.locator("[data-game-export-pgn]").scroll_into_view_if_needed()
     expect(page.locator("[data-game-export-pgn]")).to_be_in_viewport()
     assert page.evaluate(

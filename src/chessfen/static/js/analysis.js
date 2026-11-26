@@ -23,6 +23,8 @@ import {
   downloadText,
   exportPgn,
 } from "/static/js/analysis-export.js";
+import { credentialSecurityAvailable } from "/static/js/analysis-credential.js";
+import { readMessages } from "/static/js/ui-messages.js";
 
 const PRESETS = {
   fast: { depth: 14, movetime: 1000 },
@@ -483,6 +485,15 @@ function initializeAnalysis() {
   if (!root) {
     return;
   }
+  const uiText = readMessages("ui-message");
+  const usageText = (usage) =>
+    usage
+      ? uiText.token_usage
+          .replace("{prompt}", String(usage.prompt))
+          .replace("{completion}", String(usage.completion))
+          .replace("{reasoning}", String(usage.reasoning))
+          .replace("{total}", String(usage.total))
+      : "";
 
   const form = root.querySelector("[data-analysis-form]");
   const fenInput = root.querySelector("#analysis-fen");
@@ -571,11 +582,10 @@ function initializeAnalysis() {
     cancelled: root.dataset.labelCancelled,
     stopped: root.dataset.labelStopped,
     ready: root.dataset.labelReady,
-    restored: "Restored from the local Analysis Workspace.",
-    workspaceUnsaved: "Analysis results are not being saved locally.",
-    workspaceCorrupt: "The saved Analysis Workspace could not be read.",
-    workspaceInvalidated:
-      "Saved engine results were discarded because engine settings changed.",
+    restored: uiText.workspace_restored,
+    workspaceUnsaved: uiText.workspace_unsaved,
+    workspaceCorrupt: uiText.workspace_corrupt,
+    workspaceInvalidated: uiText.workspace_invalidated,
     errors: {
       placement_only: root.dataset.errorPlacementOnly,
       invalid_fen: root.dataset.errorInvalidFen,
@@ -676,6 +686,7 @@ function initializeAnalysis() {
       },
     }
   );
+  const credentialFeaturesAvailable = credentialSecurityAvailable();
 
   let runSequence = 0;
   let activeAbort = null;
@@ -772,7 +783,7 @@ function initializeAnalysis() {
       activeAssessment = result.assessment;
       renderAssessment(result.assessment);
     }
-    explanationSection.hidden = false;
+    explanationSection.hidden = !credentialFeaturesAvailable;
     renderExplanation(result.explanation, result.explanationMeta);
     renderPositionSummary(result.summaryExplanation, result.summaryMeta);
     setStatus("restored");
@@ -797,7 +808,7 @@ function initializeAnalysis() {
       )
     ) {
       const accepted = window.confirm(
-        "Engine settings changed. Discard saved engine results and keep the input?"
+        uiText.engine_changed_input_confirm
       );
       if (!accepted) {
         return;
@@ -965,6 +976,12 @@ function initializeAnalysis() {
   }
 
   function renderExplanation(explanation, meta) {
+    if (!credentialFeaturesAvailable) {
+      explanationSection.hidden = true;
+      explanationOutput.hidden = true;
+      explanationStale.hidden = true;
+      return;
+    }
     if (!explanation) {
       explanationSection.hidden = Boolean(
         !activePosition || activePosition.terminal
@@ -1109,7 +1126,7 @@ function initializeAnalysis() {
     positionSummaryConfirm.hidden = true;
     positionSummaryCancel.hidden = false;
     positionSummaryWarning.hidden = false;
-    positionSummaryStatus.textContent = "Generating summary…";
+    positionSummaryStatus.textContent = uiText.summary_generating;
     try {
       const result = await requestOverallSummary(
         profile,
@@ -1127,8 +1144,8 @@ function initializeAnalysis() {
         positionSummaryStatus.textContent = failureMessage(
           result.code,
           result.code === "cancelled"
-            ? "Summary cancelled. Submitted requests may still finish."
-            : "Summary failed. You can retry this summary request manually."
+            ? uiText.summary_cancelled
+            : uiText.summary_failed
         );
         positionSummaryConfirm.hidden = false;
         positionSummaryRetry.hidden = false;
@@ -1140,9 +1157,7 @@ function initializeAnalysis() {
         provider: profile.provider,
         model: profile.model,
       };
-      positionSummaryUsage.textContent = result.usage
-        ? `Tokens · prompt ${result.usage.prompt} · completion ${result.usage.completion} · reasoning ${result.usage.reasoning} · total ${result.usage.total}`
-        : "";
+      positionSummaryUsage.textContent = usageText(result.usage);
       renderPositionSummary(result.summary, meta);
       if (activeResult) {
         activeResult = {
@@ -1152,7 +1167,7 @@ function initializeAnalysis() {
         };
         await persistPosition("complete", activeResult);
       }
-      positionSummaryStatus.textContent = "Summary ready.";
+      positionSummaryStatus.textContent = uiText.summary_ready;
     } finally {
       summaryBusy = false;
       summaryController = null;
@@ -1422,7 +1437,7 @@ function initializeAnalysis() {
           },
         };
         await persistPosition("complete", activeResult);
-        explanationSection.hidden = false;
+        explanationSection.hidden = !credentialFeaturesAvailable;
         renderExplanation(null, null);
       } else {
         const normalized = await postJson(
@@ -1447,7 +1462,7 @@ function initializeAnalysis() {
           },
         };
         await persistPosition("complete", activeResult);
-        explanationSection.hidden = false;
+        explanationSection.hidden = !credentialFeaturesAvailable;
         renderExplanation(null, null);
       }
       setStatus("complete");
@@ -1504,7 +1519,7 @@ function initializeAnalysis() {
     if (!activePosition) {
       return;
     }
-    if (!window.confirm("Restart analysis and clear saved results?")) {
+    if (!window.confirm(uiText.restart_position_confirm)) {
       return;
     }
     const fen = activePosition.fen;
@@ -1526,7 +1541,7 @@ function initializeAnalysis() {
     await startRun(fen, actualMove);
   }
 
-  form.addEventListener("submit", (event) => {
+  form.addEventListener("submit", async (event) => {
     event.preventDefault();
     const fen = fenInput.value.trim();
     if (!fen) {
@@ -1537,9 +1552,26 @@ function initializeAnalysis() {
     if (
       lastRunInput &&
       (lastRunInput.fen !== fen || lastRunInput.move !== move) &&
-      !window.confirm("Replace the saved Analysis Workspace with this input?")
+      !window.confirm(uiText.replace_input_confirm)
     ) {
       return;
+    }
+    const loaded = await loadWorkspace();
+    if (loaded.ok && loaded.record) {
+      if (
+        loaded.record.kind === "game" &&
+        !window.confirm(uiText.cross_kind_workspace_confirm)
+      ) {
+        return;
+      }
+      const saved = loaded.record.input || {};
+      if (
+        loaded.record.kind === "position" &&
+        (saved.fen !== fen || (saved.move || "") !== move) &&
+        !window.confirm(uiText.replace_input_confirm)
+      ) {
+        return;
+      }
     }
     startRun(fen, move);
   });
@@ -1588,12 +1620,7 @@ function initializeAnalysis() {
     void updatePlayback();
   });
 
-  const llmText = Object.fromEntries(
-    [...document.querySelectorAll("[data-llm-message]")].map((node) => [
-      node.dataset.llmMessage,
-      node.textContent,
-    ])
-  );
+  const llmText = readMessages("llm-message");
   const failureMessage = (code, fallback) =>
     llmFailureMessage(code, llmText) || fallback;
   let explanationBusy = false;
@@ -1640,8 +1667,8 @@ function initializeAnalysis() {
         explanationStatus.textContent = failureMessage(
           result.code,
           result.code === "provider_error"
-            ? "The Provider rejected the request. Confirm the Model and Reasoning settings."
-            : "Explanation could not be generated."
+            ? uiText.provider_rejected
+            : uiText.explanation_failed_generic
         );
         return;
       }
@@ -1660,9 +1687,7 @@ function initializeAnalysis() {
         };
         await persistPosition("complete", activeResult);
       }
-        explanationUsage.textContent = result.usage
-        ? `Tokens · prompt ${result.usage.prompt} · completion ${result.usage.completion} · reasoning ${result.usage.reasoning} · total ${result.usage.total}`
-        : "";
+        explanationUsage.textContent = usageText(result.usage);
       explanationStatus.textContent = llmText.explanation_ready;
       } finally {
         explanationBusy = false;
@@ -1676,17 +1701,17 @@ function initializeAnalysis() {
 
   positionSummaryPreview?.addEventListener("click", () => {
     positionSummaryPlan.textContent =
-      "1 overall Position summary request. No batch requests.";
+      uiText.position_summary_plan;
     positionSummaryConfirm.hidden = false;
     positionSummaryStatus.textContent =
-      "Review the request count, then confirm the summary.";
+      uiText.summary_plan;
   });
   positionSummaryConfirm?.addEventListener("click", generatePositionSummary);
   positionSummaryRetry?.addEventListener("click", generatePositionSummary);
   positionSummaryCancel?.addEventListener("click", () => {
     summaryController?.abort();
     positionSummaryStatus.textContent =
-      "Cancelling… submitted requests may still finish and incur charges.";
+      uiText.summary_cancelling;
     positionSummaryWarning.hidden = false;
   });
   exportPgnButton?.addEventListener("click", handlePositionPgnExport);
