@@ -1027,8 +1027,8 @@ msgstr "丢弃分析工作区"
 msgid "Restored from the local Analysis Workspace."
 msgstr "已从本地分析工作区恢复。"
 
-msgid "Analysis results are not being saved locally."
-msgstr "分析结果未能保存到本地。"
+msgid "Analysis results are not being saved locally. Export them to keep a copy."
+msgstr "分析结果未保存到本地。请导出以保留副本。"
 
 msgid "Analysis settings"
 msgstr "分析设置"
@@ -1171,8 +1171,8 @@ msgstr "启用模型思考"
 msgid "Generation budget (tokens)"
 msgstr "生成长度预算（tokens）"
 
-msgid "I understand this Base URL receives my PGN/FEN, engine facts, and explanations."
-msgstr "我了解此 Base URL 会接收我的 PGN/FEN、引擎事实与讲解文本。"
+msgid "I understand this Base URL receives my PGN/FEN, Game metadata, Evaluations, Candidate Lines, engine facts, and explanations."
+msgstr "我了解此 Base URL 会接收我的 PGN/FEN、对局元数据、评估、候选变化、引擎事实与讲解文本。"
 
 msgid "I confirm the exact request parameters shown below."
 msgstr "我确认下方显示的准确请求参数。"
@@ -1603,3 +1603,21 @@ msgstr "返回主线"
 
 msgid "Candidate Lines could not be prepared for the batch. Restart the analysis."
 msgstr "无法为批量请求准备候选变化。请重新开始分析。"
+
+msgid "Discard the saved Analysis Workspace and its engine results?"
+msgstr "要丢弃已保存的分析工作区及其引擎结果吗？"
+
+msgid "Saved Analysis Workspace discarded."
+msgstr "已丢弃保存的分析工作区。"
+
+msgid "PGN Game analysis needs JavaScript because Stockfish runs in your browser."
+msgstr "PGN 对局分析需要 JavaScript，因为 Stockfish 在您的浏览器中运行。"
+
+msgid "This request was rejected. Reload the page and try again."
+msgstr "该请求已被拒绝。请重新加载页面后重试。"
+
+msgid "Full"
+msgstr "完整版"
+
+msgid "Lite"
+msgstr "精简版"

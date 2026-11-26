@@ -2472,6 +2472,12 @@ html:has(body.v2) {
   overflow-wrap: anywhere;
 }
 
+.v2 .analysis-graph-line {
+  fill: none;
+  stroke: var(--ink-1);
+  stroke-width: 2;
+}
+
 .v2 .analysis-tabs {
   display: flex;
   flex-wrap: wrap;

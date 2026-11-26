@@ -41,6 +41,10 @@ function initializeGameAnalysis() {
   const restartButton = root.querySelector("[data-game-restart]");
   const status = root.querySelector("[data-game-status]");
   const error = root.querySelector("[data-game-error]");
+  const telemetry = document.querySelector("[data-game-telemetry]");
+  const depth = document.querySelector("[data-game-depth]");
+  const nps = document.querySelector("[data-game-nps]");
+  const rootMove = document.querySelector("[data-game-root-move]");
   const empty = document.querySelector("[data-game-empty]");
   const result = document.querySelector("[data-game-result]");
   const board = document.querySelector("[data-game-board]");
@@ -78,6 +82,8 @@ function initializeGameAnalysis() {
   let selectedLineIndex = null;
   let playbackStep = 0;
   let playbackToken = 0;
+  let boardRequest = 0;
+  let selectRequest = 0;
   const normalizedLines = new Map();
   let explanationBusy = false;
   const llmText = readMessages("llm-message");
@@ -89,6 +95,7 @@ function initializeGameAnalysis() {
   let summaryMeta = null;
   let batchController = null;
   let batchBatches = null;
+  let batchBusy = false;
   let pendingBatchIndex = null;
   let lastSummaryProfile = null;
   const usageTotals = { prompt: 0, completion: 0, reasoning: 0, total: 0 };
@@ -178,11 +185,28 @@ function initializeGameAnalysis() {
         : value === "checking"
           ? runtimeText.checking
           : runtimeText.single;
+    const resourceLabel =
+      analysisSettings.resource === "full"
+        ? root.dataset.resourceFull || "Full"
+        : root.dataset.resourceLite || "Lite";
     runtime.textContent =
-      `${analysisSettings.resource === "full" ? "Full" : "Lite"} · ${label}` +
+      `${resourceLabel} · ${label}` +
       (mixed ? ` · ${runtimeText.mixed}` : "") +
       ` · ${analysisSettings.preset}`;
   }
+  function updateGameTelemetry(info) {
+    if (info.depth !== null && info.depth !== undefined) {
+      depth.textContent = String(info.depth);
+    }
+    if (info.nps) {
+      nps.textContent = String(info.nps);
+    }
+    if (info.rootMove) {
+      rootMove.textContent = info.rootMove;
+    }
+    telemetry.hidden = false;
+  }
+
   paintRuntime("checking");
   const credentialFeaturesAvailable = credentialSecurityAvailable();
   const engine = new EngineSupervisor(
@@ -192,6 +216,7 @@ function initializeGameAnalysis() {
         status.textContent =
           `${labels.analyzing} ${completed.filter(Boolean).length + 1}/${total}` +
           ` · depth ${info.depth}`;
+        updateGameTelemetry(info);
       }
     },
     {
@@ -288,11 +313,15 @@ function initializeGameAnalysis() {
   }
 
   async function showBoard(fen) {
+    const token = ++boardRequest;
     if (boardCache.has(fen)) {
       board.src = boardCache.get(fen);
       return;
     }
     const position = await postJson(root.dataset.positionEndpoint, { fen });
+    if (token !== boardRequest) {
+      return;
+    }
     boardCache.set(fen, position.board_uri);
     board.src = position.board_uri;
   }
@@ -385,6 +414,7 @@ function initializeGameAnalysis() {
   }
 
   async function selectPly(ply) {
+    const token = (selectRequest += 1);
     activePly = ply;
     activeCandidateLines = [];
     selectedLineIndex = null;
@@ -395,6 +425,9 @@ function initializeGameAnalysis() {
     renderGameExplanation(ply);
     const index = Math.max(0, ply);
     await showBoard(game.positions[index]);
+    if (token !== selectRequest) {
+      return;
+    }
     evaluation.textContent = evaluationLabel(analysis.evaluations[index]);
     quality.textContent = "";
     linesElement.replaceChildren();
@@ -409,6 +442,9 @@ function initializeGameAnalysis() {
         fen: game.positions[index - 1],
         lines: completed[index - 1].lines,
       });
+      if (token !== selectRequest) {
+        return;
+      }
       activeCandidateLines = normalized.lines;
       normalizedLines.set(ply, activeCandidateLines);
       normalized.lines.forEach((line, lineIndex) => {
@@ -492,9 +528,7 @@ function initializeGameAnalysis() {
       "points",
       points.map((point) => point.join(",")).join(" ")
     );
-    polyline.setAttribute("fill", "none");
-    polyline.setAttribute("stroke", "#3B2A17");
-    polyline.setAttribute("stroke-width", "2");
+    polyline.setAttribute("class", "analysis-graph-line");
     svg.append(polyline);
     const step = width / Math.max(1, total);
     points.forEach((point, index) => {
@@ -604,19 +638,28 @@ function initializeGameAnalysis() {
     }
   }
 
-  function handleGameMarkdownExport() {
+  async function handleGameMarkdownExport() {
     if (!analysis) return;
+    try {
+      await ensureGameLines();
+    } catch (error) {
+      exportStatus.textContent = exportText.export_failed;
+      return;
+    }
     const includeExplanations = exportExplanations.checked;
     const form = document.querySelector(".pgn-form");
     const inputPgn =
       game.pgn || form?.querySelector("#pgn")?.value || "";
+    const exportLines = analysis.plies.map((ply) => ({
+      lines: normalizedLines.get(ply.ply) || [],
+    }));
     const markdown = buildGameMarkdown({
       text: exportText,
       qualityLabels,
       game,
       inputPgn,
       analysis,
-      completed,
+      completed: exportLines,
       explanations,
       summaryExplanation,
       includeExplanations,
@@ -650,6 +693,20 @@ function initializeGameAnalysis() {
       !summaryMeta ||
       (profile.language === summaryMeta.language &&
         profile.audience === summaryMeta.audience);
+  }
+
+  async function ensureGameLines() {
+    if (!analysis) return;
+    for (const ply of analysis.plies) {
+      if (normalizedLines.has(ply.ply)) continue;
+      const rawLines = completed[ply.ply - 1]?.lines || [];
+      if (!rawLines.length) continue;
+      const normalized = await postJson(root.dataset.linesEndpoint, {
+        fen: game.positions[ply.ply - 1],
+        lines: rawLines,
+      });
+      normalizedLines.set(ply.ply, normalized.lines);
+    }
   }
 
   async function gameTargets() {
@@ -700,6 +757,7 @@ function initializeGameAnalysis() {
   }
 
   async function prepareBatch() {
+    if (batchBusy) return;
     let targets;
     try {
       targets = await gameTargets();
@@ -753,7 +811,9 @@ function initializeGameAnalysis() {
   }
 
   async function generateBatches(profile, startIndex = 0) {
-    if (!batchBatches) return;
+    if (batchBusy || !batchBatches) return;
+    batchBusy = true;
+    batchPreview.disabled = true;
     batchController = new AbortController();
     batchGenerate.hidden = true;
     batchCancel.hidden = false;
@@ -832,8 +892,11 @@ function initializeGameAnalysis() {
       await persistGame(analysis ? "complete" : "incomplete", analysis);
       batchStatus.textContent = uiText.key_ply_summary_complete;
     } finally {
+      batchBusy = false;
+      batchPreview.disabled = false;
       batchController = null;
       batchCancel.hidden = true;
+      batchWarning.hidden = true;
     }
   }
 
@@ -896,6 +959,10 @@ function initializeGameAnalysis() {
       completed.fill(null);
       analysis = null;
       clearDependentResults();
+      telemetry.hidden = true;
+      depth.textContent = "";
+      nps.textContent = "";
+      rootMove.textContent = "";
       result.hidden = true;
       ribbon.hidden = true;
       empty.hidden = false;
@@ -929,6 +996,7 @@ function initializeGameAnalysis() {
         if (token !== runToken) {
           return;
         }
+        updateGameTelemetry(result);
         if (result.cancelled || cancelled) {
           status.textContent = labels.cancelled;
           return;
@@ -947,12 +1015,22 @@ function initializeGameAnalysis() {
     }
   }
 
-  startButton.addEventListener("click", () => runQueue(true));
-  continueButton.addEventListener("click", () => runQueue(false));
+  startButton.addEventListener("click", () => {
+    if (batchBusy) return;
+    if (hasStarted && !window.confirm(uiText.restart_game_confirm)) {
+      return;
+    }
+    void runQueue(true);
+  });
+  continueButton.addEventListener("click", () => {
+    if (batchBusy) return;
+    void runQueue(false);
+  });
   restartButton.addEventListener("click", async () => {
     if (!window.confirm(uiText.restart_game_confirm)) {
       return;
     }
+    batchController?.abort();
     completed.fill(null);
     analysis = null;
     await persistGame("incomplete", null);
@@ -1044,7 +1122,9 @@ function initializeGameAnalysis() {
     }
     const record = loaded.record;
     if (!record || record.kind !== "game") {
-      workspaceRestore?.hide?.();
+      if (workspaceRestore) {
+        workspaceRestore.hidden = true;
+      }
       return;
     }
     const sameGame =
@@ -1174,6 +1254,8 @@ function initializeGameAnalysis() {
         renderGameExplanation(activePly);
         await persistGame(analysis ? "complete" : "incomplete", analysis);
         explanationStatus.textContent = llmText.explanation_ready;
+      } catch (error) {
+        explanationStatus.textContent = uiText.explanation_failed_generic;
       } finally {
         explanationBusy = false;
       }
@@ -1240,6 +1322,44 @@ function initializeGameAnalysis() {
     batchStatus.textContent = uiText.summary_cancelling;
     batchWarning.hidden = false;
   });
+
+  function openSavedWorkspace(record) {
+    const form = document.createElement("form");
+    form.method = "post";
+    form.action = "/tools/analysis/pgn";
+    form.enctype = "multipart/form-data";
+    form.hidden = true;
+    for (const [name, value] of [
+      ["pgn", record.input.pgn],
+      ["game_index", record.input.gameIndex || ""],
+      ["mode", "open"],
+    ]) {
+      const input = document.createElement("input");
+      input.type = "hidden";
+      input.name = name;
+      input.value = value;
+      form.append(input);
+    }
+    document.body.append(form);
+    form.submit();
+  }
+
+  workspaceRestore
+    ?.querySelector("[data-workspace-restore-button]")
+    ?.addEventListener("click", async () => {
+      const loaded = await loadWorkspace();
+      const record = loaded.ok ? loaded.record : null;
+      if (!record?.input?.pgn) return;
+      openSavedWorkspace(record);
+    });
+  workspaceRestore
+    ?.querySelector("[data-workspace-discard-button]")
+    ?.addEventListener("click", async () => {
+      if (!window.confirm(uiText.workspace_discard_confirm)) return;
+      await clearWorkspace();
+      workspaceRestore.hidden = true;
+      setWorkspaceStatus(uiText.workspace_discarded, false);
+    });
 
   showBoard(game.start_fen).catch(() => showError(labels.board));
   root.dataset.gameReady = "true";

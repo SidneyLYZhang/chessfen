@@ -106,6 +106,12 @@ export function workspaceIsActive() {
   return window.localStorage.getItem(ACTIVE_MARKER) === "1";
 }
 
+export const SEARCH_PRESETS = {
+  fast: { depth: 14, movetime: 1000 },
+  standard: { depth: 18, movetime: 2000 },
+  deep: { depth: 22, movetime: 4000 },
+};
+
 export function engineSnapshot(
   settings,
   runtime = "single-threaded",

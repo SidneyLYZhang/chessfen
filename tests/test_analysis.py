@@ -1080,12 +1080,27 @@ def test_game_analysis_page_parses_and_opens_a_selected_game(
     )
 
     assert parsed.status_code == 200
+    assert "<noscript>" in parsed.text
+    assert "PGN Game analysis needs JavaScript" in parsed.text
     assert "Alice vs Bob" in parsed.text
     assert "Carol vs Dave" in parsed.text
     assert opened.status_code == 200
     assert "data-game-root" in opened.text
     assert '"total_plies": 2' in opened.text
     assert '"d2d4"' in opened.text or '"d4"' in opened.text
+
+
+def test_game_analysis_page_rejects_cross_origin_post(
+    client: TestClient,
+) -> None:
+    response = client.post(
+        "/tools/analysis/pgn",
+        data={"pgn": _PGN_TWO_GAMES, "mode": "parse"},
+        headers={**_EN, "Origin": "https://evil.example"},
+    )
+
+    assert response.status_code == 403
+    assert "This request was rejected." in response.text
 
 
 def test_game_analysis_page_rejects_invalid_pgn_and_long_games(
@@ -1202,9 +1217,10 @@ def test_settings_page_exposes_secure_llm_profile_controls(
     assert 'data-llm-provider' in page.text
     assert "Reasoning effort" in page.text
     assert 'value="16384"' in page.text
-    assert page.headers["content-security-policy"].find(
-        "connect-src 'self' https:"
-    ) >= 0
+    csp = page.headers["content-security-policy"]
+    assert "connect-src 'self' https:" in csp
+    assert "wasm-unsafe-eval" not in csp
+    assert "worker-src" not in csp
 
 
 def test_settings_and_export_controls_are_localized(

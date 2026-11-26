@@ -18,6 +18,10 @@
 {% include "analysis_ui_messages.html" %}
 {% include "analysis_export_messages.html" %}
 
+<noscript>
+  <p class="form-error">{% trans %}PGN Game analysis needs JavaScript because Stockfish runs in your browser.{% endtrans %}</p>
+</noscript>
+
 <div class="workspace-grid analysis-workspace">
   <section class="tool-panel">
     <p class="eyebrow" aria-hidden="true">01 / SOURCE</p>
@@ -27,6 +31,7 @@
       {% if error == "invalid_game" %}<p class="form-error" role="alert">{% trans %}Game not found{% endtrans %}</p>{% endif %}
       {% if error == "pgn_too_large" %}<p class="form-error" role="alert">{% trans %}The PGN must be 1 MB or smaller.{% endtrans %}</p>{% endif %}
       {% if error == "analysis_too_long" %}<p class="form-error" role="alert">{% trans %}Analysis supports Games up to 400 Ply.{% endtrans %}</p>{% endif %}
+      {% if error == "invalid_origin" %}<p class="form-error" role="alert">{% trans %}This request was rejected. Reload the page and try again.{% endtrans %}</p>{% endif %}
       <div class="field">
         <label class="field-label" for="pgn">PGN</label>
         <textarea id="pgn" name="pgn" class="text-area code-input pgn-input" spellcheck="false">{{ pgn }}</textarea>
@@ -65,6 +70,8 @@
       data-position-endpoint="/tools/analysis/position"
       data-export-pgn-endpoint="/tools/analysis/export/game/pgn"
       data-engine-version="Stockfish 19"
+      data-resource-full="{% trans %}Full{% endtrans %}"
+      data-resource-lite="{% trans %}Lite{% endtrans %}"
       data-runtime-checking="{% trans %}checking runtime{% endtrans %}"
       data-runtime-multithreaded="{% trans %}multithreaded{% endtrans %}"
       data-runtime-single="{% trans %}single-threaded{% endtrans %}"
@@ -98,6 +105,11 @@
       </div>
       <p class="analysis-status" data-game-status role="status" aria-live="polite">{% trans %}Ready to analyze.{% endtrans %}</p>
       <p class="form-error" data-game-error role="alert" hidden></p>
+      <dl class="analysis-telemetry" data-game-telemetry hidden aria-label="{% trans %}Engine details{% endtrans %}">
+        <div><dt>{% trans %}Depth{% endtrans %}</dt><dd data-game-depth></dd></div>
+        <div><dt>NPS</dt><dd data-game-nps></dd></div>
+        <div><dt>{% trans %}Current root move{% endtrans %}</dt><dd data-game-root-move></dd></div>
+      </dl>
     </div>
     {% endif %}
   </section>

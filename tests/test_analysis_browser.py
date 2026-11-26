@@ -675,6 +675,10 @@ def test_browser_analyzes_a_complete_pgn_mainline(
         "Analysis complete", timeout=30_000
     )
     expect(page.locator("[data-game-ribbon]")).to_be_visible()
+    expect(page.locator("[data-game-telemetry]")).to_be_visible()
+    expect(page.locator("[data-game-depth]")).not_to_be_empty()
+    expect(page.locator("[data-game-nps]")).not_to_be_empty()
+    expect(page.locator("[data-game-root-move]")).not_to_be_empty()
     expect(page.locator("[data-game-moves] [data-ply='1']")).to_be_visible()
     page.locator("[data-game-moves] [data-ply='1']").click()
     expect(page.locator("[data-game-quality]")).not_to_be_empty()
@@ -830,6 +834,16 @@ def test_browser_restores_a_position_workspace_after_reload_and_new_page(
     expect(second_page.locator("[data-candidate-line]")).to_have_count(3)
     second_page.close()
 
+    discard = page.locator("[data-workspace-discard]")
+    expect(discard).to_be_visible()
+    discard.click()
+    expect(discard).to_be_hidden()
+    page.reload()
+    expect(page.locator("[data-analysis-status]")).to_have_text(
+        "Enter a Full FEN to begin."
+    )
+    expect(page.locator("[data-analysis-result]")).to_be_hidden()
+
 
 def test_browser_restores_a_game_workspace_from_the_get_page(
     browser_page: Page, live_analysis_url: str
@@ -859,6 +873,56 @@ def test_browser_restores_a_game_workspace_from_the_get_page(
     expect(page.locator("[data-game-moves] [data-ply='1']")).to_be_visible()
 
 
+def test_browser_game_page_workspace_banner_restores_and_discards(
+    browser_page: Page, live_analysis_url: str
+) -> None:
+    page = browser_page
+    page.goto(f"{live_analysis_url}/tools/analysis/pgn")
+    page.locator("#pgn").fill(
+        '[White "A"]\n[Black "B"]\n\n1. e4 *'
+    )
+    page.get_by_role("button", name="Parse PGN").click()
+    page.get_by_role("button", name="Open Game").click()
+    page.wait_for_load_state("load")
+    page.wait_for_selector("[data-game-root][data-game-ready='true']")
+    page.get_by_role("button", name="Start Game Analysis").click()
+    expect(page.locator("[data-game-status]")).to_contain_text(
+        "Analysis complete", timeout=30_000
+    )
+
+    page.goto(f"{live_analysis_url}/tools/analysis/pgn")
+    page.locator("#pgn").fill('[White "C"]\n[Black "D"]\n\n1. d4 *')
+    page.get_by_role("button", name="Parse PGN").click()
+    page.get_by_role("button", name="Open Game").click()
+    page.wait_for_load_state("load")
+    page.wait_for_selector("[data-game-root][data-game-ready='true']")
+    banner = page.locator("[data-workspace-restore]")
+    expect(banner).to_be_visible()
+    with page.expect_navigation():
+        page.locator("[data-workspace-restore-button]").click()
+    page.wait_for_selector("[data-game-root][data-game-ready='true']")
+    assert (
+        page.evaluate(
+            """() => JSON.parse(
+              document.querySelector("[data-game-root]").dataset.game
+            ).white"""
+        )
+        == "A"
+    )
+
+    page.goto(f"{live_analysis_url}/tools/analysis/pgn")
+    page.locator("#pgn").fill('[White "C"]\n[Black "D"]\n\n1. d4 *')
+    page.get_by_role("button", name="Parse PGN").click()
+    page.get_by_role("button", name="Open Game").click()
+    page.wait_for_load_state("load")
+    page.wait_for_selector("[data-game-root][data-game-ready='true']")
+    expect(banner).to_be_visible()
+    page.locator("[data-workspace-discard-button]").click()
+    expect(banner).to_be_hidden()
+    page.goto(f"{live_analysis_url}/tools/analysis/pgn")
+    expect(page.locator("[data-workspace-restore]")).to_be_hidden()
+
+
 def test_browser_reports_storage_failure_and_still_exports(
     browser_page: Page, live_analysis_url: str
 ) -> None:
@@ -878,6 +942,9 @@ def test_browser_reports_storage_failure_and_still_exports(
     )
     expect(page.locator("[data-workspace-status]")).to_contain_text(
         "not being saved locally"
+    )
+    expect(page.locator("[data-workspace-status]")).to_contain_text(
+        "Export them to keep a copy"
     )
     expect(page.locator("[data-candidate-line]")).to_have_count(3)
     with page.expect_download() as download_info:
@@ -970,6 +1037,40 @@ def test_browser_resumes_the_first_incomplete_game_position(
     expect(page.locator("[data-game-status]")).to_contain_text(
         "Analysis complete", timeout=30_000
     )
+
+
+def test_browser_confirms_start_over_existing_game_results(
+    browser_page: Page, live_analysis_url: str
+) -> None:
+    page = browser_page
+    fake_analysis = _single_ply_game_analysis()
+
+    def game_results(route) -> None:
+        route.fulfill(
+            status=200,
+            content_type="application/json",
+            body=json.dumps(fake_analysis),
+        )
+
+    page.route("**/tools/analysis/game/results", game_results)
+    page.goto(f"{live_analysis_url}/tools/analysis/pgn")
+    page.locator("#pgn").fill('[White "A"]\n[Black "B"]\n\n1. e4 *')
+    page.get_by_role("button", name="Parse PGN").click()
+    page.get_by_role("button", name="Open Game").click()
+    page.wait_for_load_state("load")
+    page.wait_for_selector("[data-game-root][data-game-ready='true']")
+    page.get_by_role("button", name="Start Game Analysis").click()
+    expect(page.locator("[data-game-status]")).to_contain_text(
+        "Analysis complete", timeout=30_000
+    )
+    dialogs: list[str] = []
+    page.on("dialog", lambda dialog: dialogs.append(dialog.message))
+    page.get_by_role("button", name="Start Game Analysis").click()
+    expect(page.locator("[data-game-status]")).to_contain_text(
+        "Analysis complete", timeout=30_000
+    )
+    assert any("Restart analysis" in message for message in dialogs)
+    page.unroute("**/tools/analysis/game/results", game_results)
 
 
 def test_browser_requires_confirmation_before_restart(
@@ -1335,6 +1436,11 @@ def test_browser_retries_a_malformed_position_explanation_once(
         "Analysis complete", timeout=30_000
     )
     _select_analysis_tab(page, "explanations")
+    page.locator("[data-explanation-passphrase]").fill("wrong passphrase")
+    page.get_by_role("button", name="Generate Explanation").click()
+    expect(page.locator("[data-explanation-status]")).to_contain_text(
+        "Unlock failed"
+    )
     page.locator("[data-explanation-passphrase]").fill(
         "correct horse battery"
     )
@@ -1824,6 +1930,7 @@ def test_browser_batches_key_ply_explanations_and_summary(
         if "targets" in request_payload:
             if not invalid_sent:
                 invalid_sent = True
+                time.sleep(0.3)
                 content = {"unexpected": True}
             elif len(request_payload["targets"]) == 1 and not second_batch_failed:
                 second_batch_failed = True
@@ -1931,6 +2038,7 @@ def test_browser_batches_key_ply_explanations_and_summary(
         "correct horse battery"
     )
     page.get_by_role("button", name="Confirm and Generate").click()
+    expect(page.locator("[data-game-batch-preview]")).to_be_disabled()
     expect(page.locator("[data-game-batch-status]")).to_contain_text(
         "batch failed", timeout=30_000
     )
@@ -1967,6 +2075,7 @@ def test_browser_batches_key_ply_explanations_and_summary(
     assert "**Summary:** Overall" in markdown
     assert "**Provider:** openai" in markdown
     assert "**Model:** gpt-5" in markdown
+    expect(page.locator("[data-game-batch-preview]")).to_be_enabled()
 
     page.locator("[data-game-restart]").click()
     expect(page.locator("[data-game-overall-summary]")).to_be_hidden()
@@ -4243,6 +4352,11 @@ def test_browser_game_exports_pgn_and_markdown(
     assert "## Input PGN" in markdown
     assert "## Mainline evaluation" in markdown
     assert "## Candidate Lines" in markdown
+    candidate_section = markdown.split("## Candidate Lines", 1)[1].split(
+        "## Provenance", 1
+    )[0]
+    assert "undefined" not in candidate_section
+    assert re.search(r"1\. .+ · \S+", candidate_section)
     assert "Stockfish 19" in markdown
     assert "keep me" in markdown
     assert "sk-" not in markdown

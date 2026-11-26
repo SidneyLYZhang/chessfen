@@ -33,6 +33,8 @@
   data-assess-endpoint="/tools/analysis/assess"
   data-export-pgn-endpoint="/tools/analysis/export/position/pgn"
   data-engine-version="Stockfish 19"
+  data-resource-full="{% trans %}Full{% endtrans %}"
+  data-resource-lite="{% trans %}Lite{% endtrans %}"
   data-runtime-checking="{% trans %}checking runtime{% endtrans %}"
   data-runtime-multithreaded="{% trans %}multithreaded{% endtrans %}"
   data-runtime-single="{% trans %}single-threaded{% endtrans %}"
@@ -109,6 +111,7 @@
     </form>
     {% include "analysis_settings.html" %}
     {% include "analysis_workspace.html" %}
+    <button class="ghost-button small-button" type="button" data-workspace-discard hidden>{% trans %}Discard Analysis Workspace{% endtrans %}</button>
   </section>
 
   <section class="result-panel">

@@ -1,15 +1,13 @@
 "use strict";
 
-import { workspaceIsActive } from "/static/js/analysis-workspace.js";
+import {
+  SEARCH_PRESETS,
+  workspaceIsActive,
+} from "/static/js/analysis-workspace.js";
 import { loadLlmProfile } from "/static/js/analysis-llm.js";
 import { readMessages } from "/static/js/ui-messages.js";
 
 const STORAGE_KEY = "chessfen.analysis.settings.v1";
-const PRESETS = {
-  fast: { depth: 14, movetime: 1000 },
-  standard: { depth: 18, movetime: 2000 },
-  deep: { depth: 22, movetime: 4000 },
-};
 const DEFAULTS = { preset: "standard", multipv: 3, resource: "lite" };
 
 function readStoredSettings() {
@@ -24,7 +22,7 @@ function readStoredSettings() {
 export function loadAnalysisSettings() {
   const stored = readStoredSettings();
   return {
-    preset: Object.hasOwn(PRESETS, stored.preset)
+    preset: Object.hasOwn(SEARCH_PRESETS, stored.preset)
       ? stored.preset
       : DEFAULTS.preset,
     multipv:
@@ -44,9 +42,9 @@ function saveSettings(settings) {
 }
 
 export function searchOptions(settings) {
-  const preset = Object.hasOwn(PRESETS, settings.preset)
-    ? PRESETS[settings.preset]
-    : PRESETS.standard;
+  const preset = Object.hasOwn(SEARCH_PRESETS, settings.preset)
+    ? SEARCH_PRESETS[settings.preset]
+    : SEARCH_PRESETS.standard;
   return {
     multipv: settings.multipv,
     depth: preset.depth,
@@ -70,8 +68,12 @@ export function bindAnalysisSettings(root, onChange, beforeChange = null) {
     multipv.value = String(settings.multipv);
     resource.value = settings.resource;
     warning.hidden = settings.resource !== "full";
+    const resourceLabel =
+      settings.resource === "full"
+        ? root.dataset.resourceFull || "Full"
+        : root.dataset.resourceLite || "Lite";
     provenance.textContent =
-      "Stockfish 19 · " + (settings.resource === "full" ? "Full" : "Lite");
+      `${root.dataset.engineVersion || "Stockfish 19"} · ${resourceLabel}`;
   }
 
   function changed() {

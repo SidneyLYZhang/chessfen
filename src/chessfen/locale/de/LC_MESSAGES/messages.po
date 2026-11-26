@@ -1027,8 +1027,8 @@ msgstr "Analyse-Arbeitsbereich verwerfen"
 msgid "Restored from the local Analysis Workspace."
 msgstr "Aus dem lokalen Analyse-Arbeitsbereich wiederhergestellt."
 
-msgid "Analysis results are not being saved locally."
-msgstr "Analyseergebnisse werden nicht lokal gespeichert."
+msgid "Analysis results are not being saved locally. Export them to keep a copy."
+msgstr "Analyseergebnisse werden nicht lokal gespeichert. Exportiere sie, um eine Kopie zu behalten."
 
 msgid "Analysis settings"
 msgstr "Analyseeinstellungen"
@@ -1171,8 +1171,8 @@ msgstr "Modell-Reasoning aktivieren"
 msgid "Generation budget (tokens)"
 msgstr "Generierungsbudget (Tokens)"
 
-msgid "I understand this Base URL receives my PGN/FEN, engine facts, and explanations."
-msgstr "Ich verstehe, dass diese Basis-URL PGN/FEN, Engine-Fakten und Erklärungen erhält."
+msgid "I understand this Base URL receives my PGN/FEN, Game metadata, Evaluations, Candidate Lines, engine facts, and explanations."
+msgstr "Ich verstehe, dass diese Basis-URL PGN/FEN, Partiemetadaten, Bewertungen, Kandidatenlinien, Engine-Fakten und Erklärungen erhält."
 
 msgid "I confirm the exact request parameters shown below."
 msgstr "Ich bestätige die unten gezeigten genauen Anfrageparameter."
@@ -1603,3 +1603,21 @@ msgstr "Zur Hauptvariante zurück"
 
 msgid "Candidate Lines could not be prepared for the batch. Restart the analysis."
 msgstr "Kandidatenlinien konnten nicht für den Stapel vorbereitet werden. Starte die Analyse neu."
+
+msgid "Discard the saved Analysis Workspace and its engine results?"
+msgstr "Den gespeicherten Analyse-Arbeitsbereich und seine Engine-Ergebnisse verwerfen?"
+
+msgid "Saved Analysis Workspace discarded."
+msgstr "Gespeicherter Analyse-Arbeitsbereich verworfen."
+
+msgid "PGN Game analysis needs JavaScript because Stockfish runs in your browser."
+msgstr "Die PGN-Partienanalyse benötigt JavaScript, weil Stockfish in deinem Browser läuft."
+
+msgid "This request was rejected. Reload the page and try again."
+msgstr "Diese Anfrage wurde abgelehnt. Lade die Seite neu und versuche es erneut."
+
+msgid "Full"
+msgstr "Vollständig"
+
+msgid "Lite"
+msgstr "Lite"

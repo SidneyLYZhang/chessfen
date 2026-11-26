@@ -5,7 +5,7 @@ Scope: Analysis workbench, settings, LLM Providers, exports, and regressions.
 
 ## Automated gates
 
-- `uv run pytest -q`: 310 passed (final integrated suite).
+- `uv run pytest -q`: 313 passed (final integrated suite).
 - `uv run mypy`: src, tests, and scripts; no issues.
 - JavaScript syntax checks: `node --check` on all changed ES modules.
 - CI installs and exercises Chromium, Firefox, and WebKit Playwright runtimes.
@@ -79,6 +79,19 @@ open files, king-zone attackers, and their per-Ply changes remain explicitly
 labelled heuristic indicators; none of these replace engine Evaluation or
 Candidate Lines.
 
+## Workspace and export integrity
+
+- The PGN page post requires a same-origin Origin header and rejects
+  cross-origin form posts.
+- Game Markdown Candidate Lines are normalized server-side before export, so
+  exported lines contain SAN, Evaluation, and tactical events rather than raw
+  engine fields.
+- Start over existing Game results and Restart both require confirmation;
+  workspace restore and discard are available on the Game page, and the Position
+  page exposes a discard control for its saved workspace.
+- LLM batch generation is non-reentrant: Preview is disabled while a batch runs,
+  and Start/Continue are blocked until it finishes.
+
 ## Privacy and credential boundary
 
 - Browser network tests confirm Provider requests go only to the confirmed
@@ -89,6 +102,12 @@ Candidate Lines.
   and Markdown exports.
 - Changing a Provider, Kimi region, or Custom endpoint invalidates the previous
   consent and credential binding.
+
+## Settings CSP
+
+The settings page uses a narrower CSP than the Analysis document: no
+`wasm-unsafe-eval` and no `worker-src`, while retaining `connect-src` for direct
+Provider calls.
 
 ## Performance
 

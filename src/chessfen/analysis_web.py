@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import io
 from dataclasses import asdict
 from urllib.parse import urlsplit
 
@@ -27,7 +26,11 @@ from chessfen.analysis_export import (
     annotated_game_pgn,
     position_pgn,
 )
-from chessfen.game_analysis import GameAnalysis, analyze_game
+from chessfen.game_analysis import (
+    MAX_GAME_PLIES,
+    GameAnalysis,
+    analyze_game,
+)
 from chessfen.limits import PGN_MAX_BYTES
 from chessfen.pgn import (
     PgnError,
@@ -76,8 +79,10 @@ class GameLineRequest(BaseModel):
 
 class GameResultsRequest(BaseModel):
     start_fen: str = Field(max_length=200)
-    moves: list[str] = Field(max_length=400)
-    positions: list[GameLineRequest] = Field(max_length=401)
+    moves: list[str] = Field(max_length=MAX_GAME_PLIES)
+    positions: list[GameLineRequest] = Field(
+        max_length=MAX_GAME_PLIES + 1
+    )
 
 
 class ExportExplanationRequest(BaseModel):
@@ -92,7 +97,7 @@ class ExportExplanationRequest(BaseModel):
 class PlyAnnotationRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    ply: int = Field(ge=1, le=400)
+    ply: int = Field(ge=1, le=MAX_GAME_PLIES)
     quality: MoveQuality
     score_kind: ScoreKind
     score_value: int = Field(ge=-100_000, le=100_000)
@@ -107,7 +112,9 @@ class GamePgnExportRequest(BaseModel):
     pgn: str = Field(max_length=PGN_MAX_BYTES)
     game_index: int = Field(ge=0)
     include_explanations: bool = True
-    annotations: list[PlyAnnotationRequest] = Field(max_length=400)
+    annotations: list[PlyAnnotationRequest] = Field(
+        max_length=MAX_GAME_PLIES
+    )
 
 
 class PositionCandidateRequest(BaseModel):
@@ -164,6 +171,17 @@ ANALYSIS_CSP = (
     "img-src 'self' data:; "
     "connect-src 'self' https:; "
     "worker-src 'self'; "
+    "base-uri 'none'; "
+    "form-action 'self'; "
+    "frame-ancestors 'none'"
+)
+
+SETTINGS_CSP = (
+    "default-src 'self'; "
+    "script-src 'self'; "
+    "style-src 'self'; "
+    "img-src 'self' data:; "
+    "connect-src 'self' https:; "
     "base-uri 'none'; "
     "form-action 'self'; "
     "frame-ancestors 'none'"
@@ -262,7 +280,7 @@ def _pgn_page(
 
 def _game_payload(game: chess.pgn.Game) -> dict[str, object]:
     count = count_plies(game)
-    if count > 400:
+    if count > MAX_GAME_PLIES:
         raise PgnError("analysis_too_long")
     board = game.board()
     start_fen = board.fen()
@@ -317,6 +335,10 @@ def analysis_pgn_submit(
     game_index: str = Form(""),
     mode: str = Form(""),
 ) -> HTMLResponse:
+    if not _is_same_origin(request):
+        return _pgn_page(
+            request, error="invalid_origin", status_code=403
+        )
     if pgn_file is not None and pgn_file.filename:
         raw = pgn_file.file.read()
         if len(raw) > PGN_MAX_BYTES:

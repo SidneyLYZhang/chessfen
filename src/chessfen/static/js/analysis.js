@@ -11,6 +11,7 @@ import {
   unlockLlm,
 } from "/static/js/analysis-llm.js";
 import {
+  SEARCH_PRESETS,
   clearWorkspace,
   engineSettingsCompatible,
   engineSnapshot,
@@ -26,11 +27,6 @@ import {
 import { credentialSecurityAvailable } from "/static/js/analysis-credential.js";
 import { readMessages } from "/static/js/ui-messages.js";
 
-const PRESETS = {
-  fast: { depth: 14, movetime: 1000 },
-  standard: { depth: 18, movetime: 2000 },
-  deep: { depth: 22, movetime: 4000 },
-};
 const STORED = (() => {
   try {
     return JSON.parse(
@@ -39,7 +35,7 @@ const STORED = (() => {
   } catch (error) { return {}; }
 })();
 const MULTIPV = Number.isInteger(STORED.multipv) && STORED.multipv >= 1 && STORED.multipv <= 5 ? STORED.multipv : 3;
-const PRESET = Object.hasOwn(PRESETS, STORED.preset) ? PRESETS[STORED.preset] : PRESETS.standard;
+const PRESET = Object.hasOwn(SEARCH_PRESETS, STORED.preset) ? SEARCH_PRESETS[STORED.preset] : SEARCH_PRESETS.standard;
 const SEARCH_DEPTH = PRESET.depth;
 const SEARCH_MOVETIME_MS = PRESET.movetime;
 const INIT_TIMEOUT_MS = 30000;
@@ -539,6 +535,7 @@ function initializeAnalysis() {
   const playbackReset = root.querySelector("[data-playback-reset]");
   const workspaceStatus = root.querySelector("[data-workspace-status]");
   const workspaceRestore = root.querySelector("[data-workspace-restore]");
+  const workspaceDiscard = root.querySelector("[data-workspace-discard]");
   const explanationSection = root.querySelector("[data-explanation-section]");
   const explanationOutput = root.querySelector("[data-explanation-output]");
   const explanationSummary = root.querySelector("[data-explanation-summary]");
@@ -629,12 +626,15 @@ function initializeAnalysis() {
 
   const numberFormat = new Intl.NumberFormat(document.documentElement.lang);
   const analysisSettings = {
-    preset: Object.hasOwn(PRESETS, STORED.preset) ? STORED.preset : "standard",
+    preset: Object.hasOwn(SEARCH_PRESETS, STORED.preset) ? STORED.preset : "standard",
     multipv: MULTIPV,
     resource: STORED.resource === "full" ? "full" : "lite",
   };
   const runtimeElement = root.querySelector("[data-engine-runtime]");
-  const resource = STORED.resource === "full" ? "Full" : "Lite";
+  const resource =
+    STORED.resource === "full"
+      ? root.dataset.resourceFull || "Full"
+      : root.dataset.resourceLite || "Lite";
   const runtimeText = {
     checking: root.dataset.runtimeChecking,
     multithreaded: root.dataset.runtimeMultithreaded,
@@ -762,8 +762,13 @@ function initializeAnalysis() {
     const saved = await saveWorkspace(positionRecord(status, result));
     if (!saved.ok) {
       setWorkspaceStatus(messages.workspaceUnsaved, true);
-    } else if (workspaceStatus?.dataset.error === "true") {
-      setWorkspaceStatus("");
+    } else {
+      if (workspaceDiscard) {
+        workspaceDiscard.hidden = false;
+      }
+      if (workspaceStatus?.dataset.error === "true") {
+        setWorkspaceStatus("");
+      }
     }
   }
 
@@ -844,7 +849,18 @@ function initializeAnalysis() {
     if (workspaceRestore) {
       workspaceRestore.hidden = true;
     }
+    if (workspaceDiscard) {
+      workspaceDiscard.hidden = false;
+    }
   }
+
+  workspaceDiscard?.addEventListener("click", async () => {
+    if (!window.confirm(uiText.workspace_discard_confirm)) return;
+    const result = await clearWorkspace();
+    if (!result.ok) return;
+    workspaceDiscard.hidden = true;
+    setWorkspaceStatus(uiText.workspace_discarded, false);
+  });
 
   function clearError() {
     errorElement.textContent = "";
@@ -1632,63 +1648,62 @@ function initializeAnalysis() {
     async () => {
       if (explanationBusy) return;
       explanationBusy = true;
-      const profile = loadLlmProfile();
-      if (!profile) {
-        explanationStatus.textContent =
-          llmText.configure_profile;
-        return;
-      }
-      if (!profileRequestReady(profile)) {
-        explanationStatus.textContent =
-          llmText.confirm_request;
-        return;
-      }
-      if (!llmUnlocked()) {
-        const unlocked = await unlockLlm(
-          explanationPassphrase.value,
-          profile
-        );
-        if (!unlocked.ok) {
-          explanationStatus.textContent =
-            llmText.unlock_failed;
+      try {
+        const profile = loadLlmProfile();
+        if (!profile) {
+          explanationStatus.textContent = llmText.configure_profile;
           return;
         }
-      }
-      explanationStatus.textContent = llmText.generating;
-      try {
+        if (!profileRequestReady(profile)) {
+          explanationStatus.textContent = llmText.confirm_request;
+          return;
+        }
+        if (!llmUnlocked()) {
+          const unlocked = await unlockLlm(
+            explanationPassphrase.value,
+            profile
+          );
+          if (!unlocked.ok) {
+            explanationStatus.textContent = llmText.unlock_failed;
+            return;
+          }
+        }
+        explanationStatus.textContent = llmText.generating;
         const result = await requestExplanation(profile, {
-        fen: activePosition.fen,
-        side_to_move: activePosition.side_to_move,
-        candidate_lines: currentLines,
-        assessment: activeAssessment,
-        actual_move: activePosition.actual_move,
-      });
-      if (!result.ok) {
-        explanationStatus.textContent = failureMessage(
-          result.code,
-          result.code === "provider_error"
-            ? uiText.provider_rejected
-            : uiText.explanation_failed_generic
-        );
-        return;
-      }
-      const meta = {
-        language: profile.language,
-        audience: profile.audience,
-        provider: profile.provider,
-        model: profile.model,
-      };
-      renderExplanation(result.explanation, meta);
-      if (activeResult) {
-        activeResult = {
-          ...activeResult,
-          explanation: result.explanation,
-          explanationMeta: meta,
+          fen: activePosition.fen,
+          side_to_move: activePosition.side_to_move,
+          candidate_lines: currentLines,
+          assessment: activeAssessment,
+          actual_move: activePosition.actual_move,
+        });
+        if (!result.ok) {
+          explanationStatus.textContent = failureMessage(
+            result.code,
+            result.code === "provider_error"
+              ? uiText.provider_rejected
+              : uiText.explanation_failed_generic
+          );
+          return;
+        }
+        const meta = {
+          language: profile.language,
+          audience: profile.audience,
+          provider: profile.provider,
+          model: profile.model,
         };
-        await persistPosition("complete", activeResult);
-      }
+        renderExplanation(result.explanation, meta);
+        if (activeResult) {
+          activeResult = {
+            ...activeResult,
+            explanation: result.explanation,
+            explanationMeta: meta,
+          };
+          await persistPosition("complete", activeResult);
+        }
         explanationUsage.textContent = usageText(result.usage);
-      explanationStatus.textContent = llmText.explanation_ready;
+        explanationStatus.textContent = llmText.explanation_ready;
+      } catch (error) {
+        explanationStatus.textContent = uiText.explanation_failed_generic;
       } finally {
         explanationBusy = false;
       }
