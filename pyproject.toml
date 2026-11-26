@@ -46,6 +46,6 @@ testpaths = ["tests"]
 
 [tool.mypy]
 python_version = "3.13"
-files = ["src", "tests"]
+files = ["src", "tests", "scripts"]
 check_untyped_defs = true
 ignore_missing_imports = true

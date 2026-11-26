@@ -18,7 +18,7 @@ import chess
 import chess.pgn
 import pytest
 import uvicorn
-from playwright.sync_api import Page, expect, sync_playwright
+from playwright.sync_api import Browser, Page, expect, sync_playwright
 
 from chessfen.app import create_app
 from chessfen.settings import Settings
@@ -237,11 +237,16 @@ def local_cross_origin_llm(
 
 
 @pytest.fixture(scope="module")
-def browser():
+def playwright_instance():
     with sync_playwright() as playwright:
-        instance = playwright.chromium.launch()
-        yield instance
-        instance.close()
+        yield playwright
+
+
+@pytest.fixture(scope="module")
+def browser(playwright_instance):
+    instance = playwright_instance.chromium.launch()
+    yield instance
+    instance.close()
 
 
 @pytest.fixture
@@ -251,6 +256,26 @@ def browser_page(browser) -> Iterator[Page]:
     page.set_default_timeout(30_000)
     page.on("dialog", lambda dialog: dialog.accept())
     yield page
+    context.close()
+
+
+@pytest.fixture(scope="module", params=["chromium", "firefox", "webkit"])
+def cross_browser(
+    playwright_instance, request
+) -> Iterator[tuple[str, Browser]]:
+    instance = getattr(playwright_instance, request.param).launch()
+    yield request.param, instance
+    instance.close()
+
+
+@pytest.fixture
+def cross_browser_page(cross_browser) -> Iterator[tuple[str, Page]]:
+    name, browser = cross_browser
+    context = browser.new_context(locale="en-US", ignore_https_errors=True)
+    page = context.new_page()
+    page.set_default_timeout(30_000)
+    page.on("dialog", lambda dialog: dialog.accept())
+    yield name, page
     context.close()
 
 
@@ -635,6 +660,8 @@ def test_browser_analyzes_a_complete_pgn_mainline(
     page.get_by_role("button", name="Parse PGN").click()
     expect(page.locator("#game_index")).to_be_visible()
     page.get_by_role("button", name="Open Game").click()
+    page.wait_for_load_state("load")
+    page.wait_for_selector("[data-game-root][data-game-ready='true']")
     expect(page.get_by_role("button", name="Start Game Analysis")).to_be_visible()
     page.get_by_role("button", name="Start Game Analysis").click()
     expect(page.locator("[data-game-status]")).to_contain_text(
@@ -659,6 +686,8 @@ def test_browser_cancels_and_continues_a_game_queue(
     )
     page.get_by_role("button", name="Parse PGN").click()
     page.get_by_role("button", name="Open Game").click()
+    page.wait_for_load_state("load")
+    page.wait_for_selector("[data-game-root][data-game-ready='true']")
     page.get_by_role("button", name="Start Game Analysis").click()
     expect(page.locator("[data-game-status]")).to_contain_text(
         "Analyzing Position", timeout=20_000
@@ -752,6 +781,8 @@ def test_browser_restores_a_game_workspace_from_the_get_page(
     )
     page.get_by_role("button", name="Parse PGN").click()
     page.get_by_role("button", name="Open Game").click()
+    page.wait_for_load_state("load")
+    page.wait_for_selector("[data-game-root][data-game-ready='true']")
     page.get_by_role("button", name="Start Game Analysis").click()
     expect(page.locator("[data-game-status]")).to_contain_text(
         "Analysis complete", timeout=30_000
@@ -857,6 +888,8 @@ def test_browser_resumes_the_first_incomplete_game_position(
     )
     page.get_by_role("button", name="Parse PGN").click()
     page.get_by_role("button", name="Open Game").click()
+    page.wait_for_load_state("load")
+    page.wait_for_selector("[data-game-root][data-game-ready='true']")
     page.get_by_role("button", name="Start Game Analysis").click()
     expect(page.locator("[data-game-status]")).to_contain_text(
         "Analyzing Position 2/", timeout=30_000
@@ -1345,6 +1378,8 @@ def test_browser_generates_a_selected_game_ply_explanation(
     )
     page.get_by_role("button", name="Parse PGN").click()
     page.get_by_role("button", name="Open Game").click()
+    page.wait_for_load_state("load")
+    page.wait_for_selector("[data-game-root][data-game-ready='true']")
     page.get_by_role("button", name="Start Game Analysis").click()
     expect(page.locator("[data-game-status]")).to_contain_text(
         "Analysis complete", timeout=30_000
@@ -1507,6 +1542,8 @@ def test_browser_batches_key_ply_explanations_and_summary(
     )
     page.get_by_role("button", name="Parse PGN").click()
     page.get_by_role("button", name="Open Game").click()
+    page.wait_for_load_state("load")
+    page.wait_for_selector("[data-game-root][data-game-ready='true']")
     page.get_by_role("button", name="Start Game Analysis").click()
     expect(page.locator("[data-game-status]")).to_contain_text(
         "Analysis complete", timeout=60_000
@@ -2092,6 +2129,8 @@ def test_browser_openrouter_batches_and_summarizes_game_with_malformed_retry(
     )
     page.get_by_role("button", name="Parse PGN").click()
     page.get_by_role("button", name="Open Game").click()
+    page.wait_for_load_state("load")
+    page.wait_for_selector("[data-game-root][data-game-ready='true']")
     page.get_by_role("button", name="Start Game Analysis").click()
     expect(page.locator("[data-game-status]")).to_contain_text(
         "Analysis complete", timeout=30_000
@@ -2567,6 +2606,8 @@ def test_browser_deepseek_batches_summarizes_and_restores_game(
     )
     page.get_by_role("button", name="Parse PGN").click()
     page.get_by_role("button", name="Open Game").click()
+    page.wait_for_load_state("load")
+    page.wait_for_selector("[data-game-root][data-game-ready='true']")
     page.get_by_role("button", name="Start Game Analysis").click()
     expect(page.locator("[data-game-status]")).to_contain_text(
         "Analysis complete", timeout=30_000
@@ -3196,6 +3237,7 @@ def test_browser_kimi_batches_and_summarizes_in_both_regions(
     page.get_by_role("button", name="Parse PGN").click()
     page.get_by_role("button", name="Open Game").click()
     page.wait_for_load_state("load")
+    page.wait_for_selector("[data-game-root][data-game-ready='true']")
     page.get_by_role("button", name="Start Game Analysis").click()
     expect(page.locator("[data-game-status]")).to_contain_text(
         "Analyzing", timeout=30_000
@@ -3727,6 +3769,7 @@ def test_browser_game_exports_pgn_and_markdown(
     page.get_by_role("button", name="Parse PGN").click()
     page.get_by_role("button", name="Open Game").click()
     page.wait_for_load_state("load")
+    page.wait_for_selector("[data-game-root][data-game-ready='true']")
     page.get_by_role("button", name="Start Game Analysis").click()
     expect(page.locator("[data-game-status]")).to_contain_text(
         "Analysis complete", timeout=30_000
@@ -3805,6 +3848,7 @@ def test_browser_markdown_export_is_localized(
     page.locator('.pgn-form button[name="mode"][value="parse"]').click()
     page.locator('.pgn-form button[name="mode"][value="open"]').click()
     page.wait_for_load_state("load")
+    page.wait_for_selector("[data-game-root][data-game-ready='true']")
     page.locator("[data-game-start]").click()
     expect(page.locator("[data-game-export-pgn]")).to_be_visible(
         timeout=30_000
@@ -3940,6 +3984,7 @@ def test_browser_export_includes_optional_explanations_without_secrets(
     page.get_by_role("button", name="Parse PGN").click()
     page.get_by_role("button", name="Open Game").click()
     page.wait_for_load_state("load")
+    page.wait_for_selector("[data-game-root][data-game-ready='true']")
     page.get_by_role("button", name="Start Game Analysis").click()
     expect(page.locator("[data-game-status]")).to_contain_text(
         "Analysis complete", timeout=30_000
@@ -4083,6 +4128,7 @@ def test_browser_custom_batches_and_summarizes_game(
     page.get_by_role("button", name="Parse PGN").click()
     page.get_by_role("button", name="Open Game").click()
     page.wait_for_load_state("load")
+    page.wait_for_selector("[data-game-root][data-game-ready='true']")
     page.get_by_role("button", name="Start Game Analysis").click()
     expect(page.locator("[data-game-status]")).to_contain_text(
         "Analyzing", timeout=30_000
@@ -4122,3 +4168,120 @@ def test_browser_custom_batches_and_summarizes_game(
     )
     page.unroute("https://custom.test/**", provider)
     page.unroute("**/tools/analysis/game/results", game_results)
+
+
+def test_browser_cross_browser_primary_workflows(
+    cross_browser_page: tuple[str, Page], live_analysis_url: str
+) -> None:
+    name, page = cross_browser_page
+    page.goto(f"{live_analysis_url}/settings")
+    expect(page.locator("[data-llm-provider]")).to_be_visible()
+    expect(page.get_by_role("button", name="Save LLM Profile")).to_be_visible()
+
+    page.goto(f"{live_analysis_url}/tools/analysis")
+    page.locator("#analysis-fen").fill(_START_FEN)
+    page.get_by_role("button", name="Start analysis").click()
+    expect(page.locator("[data-analysis-status]")).to_contain_text(
+        "Analysis complete", timeout=30_000
+    )
+    expect(page.locator("[data-candidate-line]")).to_have_count(3)
+    with page.expect_download() as download_info:
+        page.locator("[data-position-export-markdown]").click()
+    markdown = Path(download_info.value.path()).read_text(encoding="utf-8")
+    assert "# ChessFEN Position Analysis" in markdown, name
+
+    page.goto(f"{live_analysis_url}/tools/analysis/pgn")
+    page.locator("#pgn").fill('[White "A"]\n[Black "B"]\n\n1. e4 *')
+    page.get_by_role("button", name="Parse PGN").click()
+    page.get_by_role("button", name="Open Game").click()
+    page.wait_for_load_state("load")
+    page.wait_for_selector("[data-game-root][data-game-ready='true']")
+    page.get_by_role("button", name="Start Game Analysis").click()
+    expect(page.locator("[data-game-status]")).to_contain_text(
+        "Analysis complete", timeout=30_000
+    )
+    expect(page.locator("[data-game-moves] [data-ply='1']")).to_be_visible()
+    expect(page.locator("[data-game-export-pgn]")).to_be_visible()
+
+
+@pytest.mark.parametrize("language", ["zh", "de"])
+def test_browser_localized_mobile_layout_has_no_overflow(
+    browser_page: Page, live_analysis_url: str, language: str
+) -> None:
+    page = browser_page
+    page.set_viewport_size({"width": 390, "height": 844})
+    for path in ("/tools/analysis", "/settings", "/tools/analysis/pgn"):
+        page.goto(f"{live_analysis_url}/lang/{language}?next={path}")
+        expect(page.get_by_role("heading", level=1)).to_have_count(1)
+        assert page.evaluate(
+            "() => document.documentElement.scrollWidth <= window.innerWidth + 1"
+        ), f"{language} {path}"
+
+
+def test_browser_analysis_accessibility_and_mobile_layout(
+    browser_page: Page, live_analysis_url: str
+) -> None:
+    page = browser_page
+    page.goto(f"{live_analysis_url}/tools/analysis")
+    expect(page.get_by_role("heading", level=1)).to_have_count(1)
+    expect(page.get_by_label("Full FEN")).to_be_visible()
+    expect(page.get_by_label("Actual move")).to_be_visible()
+    expect(page.get_by_label("Search preset")).to_be_visible()
+    expect(page.locator("#analysis-multipv")).to_be_visible()
+    expect(page.get_by_label("Engine resource")).to_be_visible()
+    status = page.locator("[data-analysis-status]")
+    expect(status).to_have_attribute("role", "status")
+    expect(status).to_have_attribute("aria-live", "polite")
+    page.keyboard.press("Tab")
+    focus = page.evaluate(
+        """() => {
+          const element = document.activeElement;
+          const style = getComputedStyle(element);
+          return {
+            outlineStyle: style.outlineStyle,
+            outlineWidth: style.outlineWidth,
+            boxShadow: style.boxShadow,
+          };
+        }"""
+    )
+    assert focus["outlineStyle"] == "solid"
+    assert focus["outlineWidth"] != "0px"
+
+    page.set_viewport_size({"width": 390, "height": 844})
+    assert page.evaluate(
+        "() => document.documentElement.scrollWidth <= window.innerWidth + 1"
+    )
+    expect(page.locator("[data-analysis-start]")).to_be_in_viewport()
+
+    page.goto(f"{live_analysis_url}/settings")
+    expect(page.get_by_role("heading", level=1)).to_have_count(1)
+    expect(page.locator("#llm-provider")).to_be_visible()
+    expect(page.locator("#llm-base-url")).to_be_visible()
+    expect(page.locator("#llm-model")).to_be_visible()
+    assert page.evaluate(
+        "() => document.documentElement.scrollWidth <= window.innerWidth + 1"
+    )
+
+    page.goto(f"{live_analysis_url}/tools/analysis/pgn")
+    expect(page.get_by_role("heading", level=1)).to_have_count(1)
+    page.locator("#pgn").fill('[White "A"]\n[Black "B"]\n\n1. e4 *')
+    page.get_by_role("button", name="Parse PGN").click()
+    page.get_by_role("button", name="Open Game").click()
+    page.wait_for_load_state("load")
+    page.wait_for_selector("[data-game-root][data-game-ready='true']")
+    start = page.locator("[data-game-start]")
+    start.focus()
+    page.keyboard.press("Enter")
+    expect(page.locator("[data-game-status]")).to_contain_text(
+        "Analysis complete", timeout=30_000
+    )
+    move = page.locator("[data-game-moves] [data-ply='1']")
+    assert re.search(
+        "Best|Excellent|Good|Inaccuracy|Mistake|Blunder|Forced",
+        move.inner_text(),
+    )
+    page.locator("[data-game-export-pgn]").scroll_into_view_if_needed()
+    expect(page.locator("[data-game-export-pgn]")).to_be_in_viewport()
+    assert page.evaluate(
+        "() => document.documentElement.scrollWidth <= window.innerWidth + 1"
+    )

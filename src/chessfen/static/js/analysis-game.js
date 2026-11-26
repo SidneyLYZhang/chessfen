@@ -987,6 +987,7 @@ function initializeGameAnalysis() {
   });
 
   showBoard(game.start_fen).catch(() => showError(labels.board));
+  root.dataset.gameReady = "true";
   void restoreGameWorkspace();
 }
 

@@ -1092,3 +1092,39 @@ def test_settings_page_exposes_secure_llm_profile_controls(
     assert page.headers["content-security-policy"].find(
         "connect-src 'self' https:"
     ) >= 0
+
+
+def test_settings_and_export_controls_are_localized(
+    client: TestClient,
+) -> None:
+    expected = {
+        "zh": {
+            "settings": ["分析设置", "Kimi 区域", "思考方言"],
+            "analysis": ["导出分析", "导出注释 PGN", "导出 Markdown 报告"],
+        },
+        "de": {
+            "settings": [
+                "Analyseeinstellungen",
+                "Kimi-Region",
+                "Reasoning-Dialekt",
+            ],
+            "analysis": [
+                "Analyse exportieren",
+                "Annotiertes PGN exportieren",
+                "Markdown-Bericht exportieren",
+            ],
+        },
+    }
+    for language, strings in expected.items():
+        headers = {"Accept-Language": language}
+        settings = client.get("/settings", headers=headers)
+        analysis = client.get("/tools/analysis", headers=headers)
+        game = client.get("/tools/analysis/pgn", headers=headers)
+        assert settings.status_code == 200
+        assert analysis.status_code == 200
+        assert game.status_code == 200
+        for text in strings["settings"]:
+            assert text in settings.text
+        for text in strings["analysis"]:
+            assert text in analysis.text
+            assert text in game.text

@@ -39,7 +39,7 @@ jobs:
       - name: Install dependencies
         run: uv sync --locked
       - name: Install browser test runtime
-        run: uv run playwright install --with-deps chromium
+        run: uv run playwright install --with-deps chromium firefox webkit
       - name: Run tests
         run: uv run pytest -q
       - name: Typecheck

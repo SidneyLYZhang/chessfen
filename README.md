@@ -55,7 +55,7 @@ Managed with [uv](https://docs.astral.sh/uv/). Requires Python 3.13+.
 
 ```bash
 uv sync                                  # install the project and its dependencies
-uv run playwright install chromium       # install the real-WASM browser test runtime
+uv run playwright install chromium firefox webkit  # install real-WASM browser test runtimes
 uv run alembic upgrade head              # apply database migrations (SQLite by default)
 uv run chessfen                          # serve on http://127.0.0.1:8000
 uv run pytest                            # run the test suite
@@ -102,7 +102,7 @@ git tag -a v1.1.0 -m "ChessFEN 1.1.0"
 git push origin v1.1.0
 ```
 
-The `Release` workflow gates on the shared `Test` workflow (which also runs on pushes to `main` and pull requests): unit tests, real Chromium/WASM Position Analysis tests, mypy, and a Docker image smoke test that boots the container, serves the pinned browser engine assets, issues an API key, and performs a real recognition through the baked model. CI downloads the pinned model weights and Chromium so the real-engine tests run instead of being skipped.
+The `Release` workflow gates on the shared `Test` workflow (which also runs on pushes to `main` and pull requests): unit tests, real Chromium/Firefox/WebKit WASM Analysis tests, mypy, and a Docker image smoke test that boots the container, serves the pinned browser engine assets, issues an API key, and performs a real recognition through the baked model. CI downloads the pinned model weights and all Playwright browser runtimes so the real-engine tests run instead of being skipped.
 
 After the tests pass, two independent jobs run:
 
