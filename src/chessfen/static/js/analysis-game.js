@@ -25,7 +25,7 @@ import {
   downloadText,
   exportPgn,
 } from "/static/js/analysis-export.js";
-import { EngineSupervisor } from "/static/js/analysis.js";
+import { EngineSupervisor, engineCandidates } from "/static/js/analysis.js";
 
 function initializeGameAnalysis() {
   const root = document.querySelector("[data-game-root]");
@@ -149,19 +149,53 @@ function initializeGameAnalysis() {
     resource: stored.resource === "full" ? "full" : "lite",
   };
   const runtime = document.querySelector("[data-engine-runtime]");
-  if (runtime) {
-    runtime.textContent = `${stored.resource === "full" ? "Full" : "Lite"} · single-threaded · ${stored.preset || "standard"}`;
+  const runtimeText = {
+    checking: root.dataset.runtimeChecking,
+    multithreaded: root.dataset.runtimeMultithreaded,
+    single: root.dataset.runtimeSingle,
+    mixed: root.dataset.runtimeMixed,
+  };
+  const engineCandidatesForSettings = engineCandidates(
+    analysisSettings.resource
+  );
+  let engineRuntime = engineCandidatesForSettings[0].runtime;
+  let mixedRuntime = false;
+  let runtimeFellBack = false;
+  function paintRuntime(value, mixed = false) {
+    if (!runtime) return;
+    const label =
+      value === "multithreaded"
+        ? runtimeText.multithreaded
+        : value === "checking"
+          ? runtimeText.checking
+          : runtimeText.single;
+    runtime.textContent =
+      `${analysisSettings.resource === "full" ? "Full" : "Lite"} · ${label}` +
+      (mixed ? ` · ${runtimeText.mixed}` : "") +
+      ` · ${analysisSettings.preset}`;
   }
+  paintRuntime("checking");
   const engine = new EngineSupervisor(
-    stored.resource === "full"
-      ? "/static/vendor/stockfish/stockfish-19-single.js"
-      : "/static/vendor/stockfish/stockfish-19-lite-single.js",
+    engineCandidatesForSettings,
     (info) => {
       if (busy && info.depth !== null) {
         status.textContent =
           `${labels.analyzing} ${completed.filter(Boolean).length + 1}/${total}` +
           ` · depth ${info.depth}`;
       }
+    },
+    {
+      onRuntime: ({ runtime: value, mixed, fellBack }) => {
+        engineRuntime = value;
+        mixedRuntime = mixed;
+        runtimeFellBack = runtimeFellBack || fellBack;
+        paintRuntime(value, mixed);
+        if (mixed) {
+          setWorkspaceStatus(root.dataset.runtimeMixedMessage, false);
+        } else if (fellBack) {
+          setWorkspaceStatus(root.dataset.runtimeFallbackMessage, false);
+        }
+      },
     }
   );
 
@@ -181,7 +215,12 @@ function initializeGameAnalysis() {
       input: { pgn, gameIndex },
       settings: { ...analysisSettings },
       engine: {
-        ...engineSnapshot(analysisSettings),
+        ...engineSnapshot(
+          analysisSettings,
+          engineRuntime,
+          mixedRuntime,
+          runtimeFellBack,
+        ),
         completed,
       },
       presentation: {
@@ -825,7 +864,13 @@ function initializeGameAnalysis() {
       workspaceRestore.hidden = false;
       return;
     }
-    if (!engineSettingsCompatible(record.engine, analysisSettings)) {
+    if (
+      !engineSettingsCompatible(
+        record.engine,
+        analysisSettings,
+        engineCandidatesForSettings[0].runtime
+      )
+    ) {
       if (!window.confirm(
         "Engine settings changed. Discard saved engine results and keep the Game?"
       )) {
@@ -834,6 +879,18 @@ function initializeGameAnalysis() {
       await clearWorkspace();
       setWorkspaceStatus("Saved engine results were invalidated.", true);
       return;
+    }
+    if (record.engine?.mixed) {
+      mixedRuntime = true;
+      engineRuntime = record.engine.runtime || "single-threaded";
+      engine.mixedRuntime = true;
+      paintRuntime(engineRuntime, true);
+      setWorkspaceStatus(root.dataset.runtimeMixedMessage, false);
+    } else if (record.engine?.fallback) {
+      runtimeFellBack = true;
+      engineRuntime = record.engine.runtime || "single-threaded";
+      paintRuntime(engineRuntime, false);
+      setWorkspaceStatus(root.dataset.runtimeFallbackMessage, false);
     }
     if (Array.isArray(record.engine?.completed)) {
       record.engine.completed.forEach((entry, index) => {

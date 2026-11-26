@@ -1,6 +1,6 @@
 # Run chess analysis in the browser with direct BYOK LLM access
 
-Status: accepted — specified in #20.
+Status: accepted — specified in #20; multithreaded isolation implemented in #34.
 
 ChessFEN runs Stockfish WASM exclusively in the Visitor's browser, using a pinned, self-hosted `nmrugg/stockfish.js` distribution with adaptive multithreaded and single-threaded builds. Only the Analysis document enables the cross-origin isolation needed by multithreading. python-chess remains available through same-origin page-internal routes, but no public Analysis API or server-side engine is introduced. LLM Explanations use a Visitor-supplied credential sent directly from the browser to the selected Provider; ChessFEN does not proxy LLM requests or take custody of the credential, which is encrypted in local browser storage.
 
@@ -15,6 +15,7 @@ ChessFEN runs Stockfish WASM exclusively in the Visitor's browser, using a pinne
 
 - Analysis is a deliberate, scoped exception to ADR 0004's no-JavaScript main-flow baseline. The existing Jinja shell, hand-written design system, localization, and other pages' behavior remain unchanged; Analysis uses JavaScript for WASM, Workers, interactive Candidate Lines, local credential protection, and resumable workspaces.
 - Full credential and multithreaded functionality requires HTTPS or localhost. Plain HTTP is limited to engine-only Analysis with credential features disabled. Correct WASM MIME types, analysis-only COOP/COEP headers, a compatible restrictive CSP, and real-browser tests are required.
+- The isolation header contract is scoped: Analysis documents send `Cross-Origin-Opener-Policy: same-origin` and `Cross-Origin-Embedder-Policy: require-corp`; vendored Stockfish Worker JavaScript and WASM responses send `Cross-Origin-Resource-Policy: same-origin` and `Cross-Origin-Embedder-Policy: require-corp`. Other public pages keep their previous headers. Omitting COEP from the Worker asset response was observed to block Emscripten pthread startup even though the script is same-origin.
 - The lite engine resources are the default; full resources require an explicit Visitor download. Upstream license, provenance, and corresponding-source information must accompany the pinned distribution.
 - OpenAI-compatible transport does not imply a common Reasoning contract. OpenAI, OpenRouter, DeepSeek, Kimi, and Custom require explicit Reasoning dialect handling and model-specific confirmation rather than silent omission or downgrade.
 - ChessFEN stores neither an analysis history nor Provider credentials on the server. One resumable Analysis Workspace and the encrypted credential are local to the Visitor's browser, with the security limitations of browser storage documented in the parent spec.

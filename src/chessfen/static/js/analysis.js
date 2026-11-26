@@ -42,6 +42,50 @@ const SEARCH_DEPTH = PRESET.depth;
 const SEARCH_MOVETIME_MS = PRESET.movetime;
 const INIT_TIMEOUT_MS = 30000;
 const STOP_TIMEOUT_MS = 2000;
+const LITE_SINGLE_URL =
+  "/static/vendor/stockfish/stockfish-19-lite-single.js";
+const LITE_MULTI_URL =
+  "/static/vendor/stockfish/stockfish-19-lite-multi.js";
+const FULL_SINGLE_URL =
+  "/static/vendor/stockfish/stockfish-19-single.js";
+
+export function engineCandidates(resource) {
+  const single = {
+    url: LITE_SINGLE_URL,
+    threads: 1,
+    runtime: "single-threaded",
+  };
+  if (resource === "full") {
+    return [
+      {
+        url: FULL_SINGLE_URL,
+        threads: 1,
+        runtime: "single-threaded",
+      },
+    ];
+  }
+  const threads = Math.max(
+    1,
+    Math.min(4, Number(window.navigator?.hardwareConcurrency) || 1)
+  );
+  const isolated =
+    window.isSecureContext &&
+    window.crossOriginIsolated &&
+    typeof window.SharedArrayBuffer !== "undefined" &&
+    typeof window.Worker !== "undefined" &&
+    threads > 1;
+  if (!isolated) {
+    return [single];
+  }
+  return [
+    {
+      url: LITE_MULTI_URL,
+      threads,
+      runtime: "multithreaded",
+    },
+    single,
+  ];
+}
 
 class EngineError extends Error {}
 class AnalysisRequestError extends Error {
@@ -52,9 +96,23 @@ class AnalysisRequestError extends Error {
 }
 
 class EngineSupervisor {
-  constructor(workerUrl, onInfo) {
-    this.workerUrl = workerUrl;
+  constructor(candidates, onInfo, { onRuntime = null } = {}) {
+    this.candidates =
+      Array.isArray(candidates) && candidates.length
+        ? candidates
+        : [
+            {
+              url: LITE_SINGLE_URL,
+              threads: 1,
+              runtime: "single-threaded",
+            },
+          ];
+    this.candidateIndex = 0;
     this.onInfo = onInfo;
+    this.onRuntime = onRuntime;
+    this.mixedRuntime = false;
+    this.hasCompletedSearch = false;
+    this.fallbackNoticeSent = false;
     this.worker = null;
     this.ready = false;
     this.initPhase = "uci";
@@ -153,6 +211,7 @@ class EngineSupervisor {
       return Promise.resolve();
     }
     if (!this.worker) {
+      this._discardWorker(false);
       this._createWorker();
     }
     return new Promise((resolve, reject) => {
@@ -161,8 +220,14 @@ class EngineSupervisor {
   }
 
   _createWorker() {
-    this._terminateWorker();
-    const worker = new Worker(this.workerUrl);
+    const candidate = this.candidates[this.candidateIndex];
+    let worker;
+    try {
+      worker = new Worker(candidate.url);
+    } catch (error) {
+      queueMicrotask(() => this._onEngineFailure());
+      return;
+    }
     this.worker = worker;
     this.ready = false;
     this.initPhase = "uci";
@@ -212,6 +277,7 @@ class EngineSupervisor {
             error: new EngineError("Stockfish returned no Candidate Lines."),
           });
         } else {
+          this.hasCompletedSearch = true;
           this._finishJob(job, {
             cancelled: false,
             lines,
@@ -228,14 +294,27 @@ class EngineSupervisor {
   _handleInitialization(text) {
     if (this.initPhase === "uci" && text === "uciok") {
       this.initPhase = "ready";
+      const candidate = this.candidates[this.candidateIndex];
       this.worker.postMessage(`setoption name MultiPV value ${MULTIPV}`);
-      this.worker.postMessage("setoption name Threads value 1");
+      this.worker.postMessage(
+        `setoption name Threads value ${candidate.threads}`
+      );
       this.worker.postMessage("setoption name Hash value 32");
       this.worker.postMessage("isready");
     } else if (this.initPhase === "ready" && text === "readyok") {
       this.ready = true;
       clearTimeout(this.initTimer);
       this.initTimer = null;
+      const candidate = this.candidates[this.candidateIndex];
+      const fellBack =
+        this.candidateIndex > 0 && !this.fallbackNoticeSent;
+      this.fallbackNoticeSent = this.fallbackNoticeSent || fellBack;
+      this.onRuntime?.({
+        runtime: candidate.runtime,
+        threads: candidate.threads,
+        mixed: this.mixedRuntime,
+        fellBack,
+      });
       const waiters = this.readyWaiters;
       this.readyWaiters = [];
       for (const waiter of waiters) {
@@ -316,14 +395,30 @@ class EngineSupervisor {
   }
 
   _onEngineFailure() {
-    this._terminateWorker();
-    const error = new EngineError("Stockfish failed.");
-    const waiters = this.readyWaiters;
-    this.readyWaiters = [];
-    for (const waiter of waiters) {
-      waiter.reject(error);
-    }
     const job = this.activeJob;
+    if (job?.cancelled) {
+      this._discardWorker(true);
+      this._finishJob(job, { cancelled: true });
+      return;
+    }
+    const wasReady = this.ready;
+    if (this.candidateIndex + 1 < this.candidates.length) {
+      this.mixedRuntime =
+        this.mixedRuntime || wasReady || this.hasCompletedSearch;
+      this._discardWorker(false);
+      this.candidateIndex += 1;
+      this._createWorker();
+      if (wasReady && job) {
+        job.lines.clear();
+        job.depth = null;
+        job.nps = null;
+        job.rootMove = null;
+        this._prepareAndSearch(job);
+      }
+      return;
+    }
+    const error = new EngineError("Stockfish failed.");
+    this._discardWorker(true);
     if (job) {
       this._finishJob(job, { error });
     }
@@ -349,6 +444,10 @@ class EngineSupervisor {
   }
 
   _terminateWorker() {
+    this._discardWorker(true);
+  }
+
+  _discardWorker(rejectWaiters) {
     if (this.worker) {
       this.worker.terminate();
       this.worker = null;
@@ -359,10 +458,12 @@ class EngineSupervisor {
       clearTimeout(this.initTimer);
       this.initTimer = null;
     }
-    const waiters = this.readyWaiters;
-    this.readyWaiters = [];
-    for (const waiter of waiters) {
-      waiter.reject(new EngineError("Stockfish was stopped."));
+    if (rejectWaiters) {
+      const waiters = this.readyWaiters;
+      this.readyWaiters = [];
+      for (const waiter of waiters) {
+        waiter.reject(new EngineError("Stockfish was stopped."));
+      }
     }
   }
 
@@ -524,21 +625,57 @@ function initializeAnalysis() {
   };
   const runtimeElement = root.querySelector("[data-engine-runtime]");
   const resource = STORED.resource === "full" ? "Full" : "Lite";
-  if (runtimeElement) {
-    runtimeElement.textContent = `${resource} · single-threaded · ${Object.hasOwn(PRESETS, STORED.preset) ? STORED.preset : "standard"}`;
+  const runtimeText = {
+    checking: root.dataset.runtimeChecking,
+    multithreaded: root.dataset.runtimeMultithreaded,
+    single: root.dataset.runtimeSingle,
+    mixed: root.dataset.runtimeMixed,
+  };
+  const engineCandidatesForSettings = engineCandidates(
+    analysisSettings.resource
+  );
+  let engineRuntime = engineCandidatesForSettings[0].runtime;
+  let mixedRuntime = false;
+  let runtimeFellBack = false;
+  function paintRuntime(runtime, mixed = false) {
+    if (!runtimeElement) return;
+    const label =
+      runtime === "multithreaded"
+        ? runtimeText.multithreaded
+        : runtime === "checking"
+          ? runtimeText.checking
+          : runtimeText.single;
+    runtimeElement.textContent =
+      `${resource} · ${label}` +
+      (mixed ? ` · ${runtimeText.mixed}` : "") +
+      ` · ${analysisSettings.preset}`;
   }
-  const engineUrl = STORED.resource === "full"
-    ? "/static/vendor/stockfish/stockfish-19-single.js"
-    : root.dataset.engineUrl;
-  const engine = new EngineSupervisor(engineUrl, (info) => {
-    if (root.dataset.analysisState === "preparing") {
-      setStatus("analyzing");
+  paintRuntime("checking");
+  const engine = new EngineSupervisor(
+    engineCandidatesForSettings,
+    (info) => {
+      if (root.dataset.analysisState === "preparing") {
+        setStatus("analyzing");
+      }
+      if (root.dataset.analysisState !== "analyzing") {
+        return;
+      }
+      updateTelemetry(info);
+    },
+    {
+      onRuntime: ({ runtime, mixed, fellBack }) => {
+        engineRuntime = runtime;
+        mixedRuntime = mixed;
+        runtimeFellBack = runtimeFellBack || fellBack;
+        paintRuntime(runtime, mixed);
+        if (mixed) {
+          setWorkspaceStatus(root.dataset.runtimeMixedMessage, false);
+        } else if (fellBack) {
+          setWorkspaceStatus(root.dataset.runtimeFallbackMessage, false);
+        }
+      },
     }
-    if (root.dataset.analysisState !== "analyzing") {
-      return;
-    }
-    updateTelemetry(info);
-  });
+  );
 
   let runSequence = 0;
   let activeAbort = null;
@@ -592,7 +729,12 @@ function initializeAnalysis() {
         move: lastRunInput?.move || moveInput.value.trim(),
       },
       settings: { ...analysisSettings },
-      engine: engineSnapshot(analysisSettings),
+      engine: engineSnapshot(
+        analysisSettings,
+        engineRuntime,
+        mixedRuntime,
+        runtimeFellBack
+      ),
       presentation: {
         language: document.documentElement.lang,
         audience: "club",
@@ -647,7 +789,13 @@ function initializeAnalysis() {
     if (!record || record.kind !== "position") {
       return;
     }
-    if (!engineSettingsCompatible(record.engine, analysisSettings)) {
+    if (
+      !engineSettingsCompatible(
+        record.engine,
+        analysisSettings,
+        engineCandidatesForSettings[0].runtime
+      )
+    ) {
       const accepted = window.confirm(
         "Engine settings changed. Discard saved engine results and keep the input?"
       );
@@ -666,6 +814,18 @@ function initializeAnalysis() {
       fen: fenInput.value.trim(),
       move: moveInput.value.trim(),
     };
+    if (record.engine?.mixed) {
+      mixedRuntime = true;
+      engineRuntime = record.engine.runtime || "single-threaded";
+      engine.mixedRuntime = true;
+      paintRuntime(engineRuntime, true);
+      setWorkspaceStatus(root.dataset.runtimeMixedMessage, false);
+    } else if (record.engine?.fallback) {
+      runtimeFellBack = true;
+      engineRuntime = record.engine.runtime || "single-threaded";
+      paintRuntime(engineRuntime, false);
+      setWorkspaceStatus(root.dataset.runtimeFallbackMessage, false);
+    }
     if (!displaySavedResult(record)) {
       setStatus("restored");
     }

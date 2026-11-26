@@ -95,6 +95,16 @@ async def analysis_body_guard(request: Request, call_next):
     return await call_next(request)
 
 
+async def stockfish_asset_headers(request: Request, call_next):
+    response = await call_next(request)
+    if request.url.path.startswith(
+        "/static/vendor/stockfish/"
+    ) and request.url.path.endswith((".js", ".wasm")):
+        response.headers["Cross-Origin-Resource-Policy"] = "same-origin"
+        response.headers["Cross-Origin-Embedder-Policy"] = "require-corp"
+    return response
+
+
 def create_app(settings: Settings | None = None) -> FastAPI:
     resolved = settings or get_settings()
     if resolved.admin_password is not None and resolved.secret_key is None:
@@ -128,6 +138,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.middleware("http")(build_api_key_middleware(app.state.session_factory))
     app.middleware("http")(upload_size_guard)
     app.middleware("http")(analysis_body_guard)
+    app.middleware("http")(stockfish_asset_headers)
 
     @app.exception_handler(AdminRequired)
     async def _admin_required(

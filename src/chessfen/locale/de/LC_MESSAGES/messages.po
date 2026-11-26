@@ -910,8 +910,8 @@ msgstr "Stockfish hat eine Candidate Line zurückgegeben, die nicht zu dieser St
 msgid "Could not reach the local analysis service. Try again."
 msgstr "Der lokale Analysedienst ist nicht erreichbar. Versuche es erneut."
 
-msgid "Stockfish could not start or stopped unexpectedly."
-msgstr "Stockfish konnte nicht starten oder wurde unerwartet beendet."
+msgid "Stockfish could not start or stopped unexpectedly. Reload the page and check that this browser supports Web Workers and WebAssembly."
+msgstr "Stockfish konnte nicht starten oder wurde unerwartet beendet. Lade die Seite neu und prüfe, ob der Browser Web Workers und WebAssembly unterstützt."
 
 msgid "Checkmate — White wins."
 msgstr "Schachmatt — Weiß gewinnt."
@@ -1440,3 +1440,24 @@ msgstr "Annotiertes PGN exportieren"
 
 msgid "Export Markdown report"
 msgstr "Markdown-Bericht exportieren"
+
+msgid "checking runtime"
+msgstr "Laufzeit wird geprüft"
+
+msgid "multithreaded"
+msgstr "mehrthreadig"
+
+msgid "single-threaded"
+msgstr "einzelthreadig"
+
+msgid "mixed runtime"
+msgstr "gemischte Laufzeit"
+
+msgid "Multithreaded Stockfish was unavailable; using single-threaded Stockfish."
+msgstr "Mehrthreadiges Stockfish war nicht verfügbar; einzelthreadiges Stockfish wird verwendet."
+
+msgid "Multithreaded Stockfish failed mid-run; completed Positions were kept and analysis continued single-threaded."
+msgstr "Mehrthreadiges Stockfish ist während des Laufs fehlgeschlagen; abgeschlossene Stellungen wurden behalten und die Analyse einzelthreadig fortgesetzt."
+
+msgid "Multithreaded Stockfish failed; analysis continued single-threaded."
+msgstr "Mehrthreadiges Stockfish ist fehlgeschlagen; die Analyse wurde einzelthreadig fortgesetzt."

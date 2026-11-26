@@ -30,6 +30,7 @@ class BenchmarkResult:
     cpu_count: int
     plies: int
     cross_origin_isolated: bool
+    engine_runtime: str
     analysis_seconds: float
     cancel_feedback_ms: float
     engine_stop_ms: float
@@ -149,6 +150,9 @@ def run_benchmark(plies: int, timeout_seconds: int) -> BenchmarkResult:
                     state="visible", timeout=timeout_seconds * 1000
                 )
                 analysis_seconds = time.monotonic() - started
+                engine_runtime = page.locator(
+                    "[data-engine-runtime]"
+                ).inner_text()
 
                 page.goto(f"{base_url}/tools/analysis")
                 page.locator("#analysis-fen").fill(
@@ -222,6 +226,7 @@ def run_benchmark(plies: int, timeout_seconds: int) -> BenchmarkResult:
             plies=plies,
             cross_origin_isolated=bool(isolated["crossOriginIsolated"])
             and bool(isolated["sharedArrayBuffer"]),
+            engine_runtime=engine_runtime,
             analysis_seconds=analysis_seconds,
             cancel_feedback_ms=cancel_feedback_ms,
             engine_stop_ms=engine_stop_ms,

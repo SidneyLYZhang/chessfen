@@ -910,8 +910,8 @@ msgstr "Stockfish 返回了与该局面不匹配的候选变化。请重新开�
 msgid "Could not reach the local analysis service. Try again."
 msgstr "无法连接本地分析服务。请重试。"
 
-msgid "Stockfish could not start or stopped unexpectedly."
-msgstr "Stockfish 无法启动或意外停止。"
+msgid "Stockfish could not start or stopped unexpectedly. Reload the page and check that this browser supports Web Workers and WebAssembly."
+msgstr "Stockfish 无法启动或意外停止。请刷新页面，并确认浏览器支持 Web Worker 与 WebAssembly。"
 
 msgid "Checkmate — White wins."
 msgstr "将死——白方获胜。"
@@ -1440,3 +1440,24 @@ msgstr "导出注释 PGN"
 
 msgid "Export Markdown report"
 msgstr "导出 Markdown 报告"
+
+msgid "checking runtime"
+msgstr "正在检测运行模式"
+
+msgid "multithreaded"
+msgstr "多线程"
+
+msgid "single-threaded"
+msgstr "单线程"
+
+msgid "mixed runtime"
+msgstr "混合运行模式"
+
+msgid "Multithreaded Stockfish was unavailable; using single-threaded Stockfish."
+msgstr "多线程 Stockfish 不可用；已改用单线程 Stockfish。"
+
+msgid "Multithreaded Stockfish failed mid-run; completed Positions were kept and analysis continued single-threaded."
+msgstr "多线程 Stockfish 在运行中失败；已完成局面已保留，分析已改用单线程继续。"
+
+msgid "Multithreaded Stockfish failed; analysis continued single-threaded."
+msgstr "多线程 Stockfish 失败；分析已改用单线程继续。"

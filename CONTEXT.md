@@ -118,6 +118,10 @@ _Avoid_: treating "OpenAI-compatible" as proof of a Reasoning contract
 The Visitor's current resumable analysis input and results, retained locally until replaced or cleared.
 _Avoid_: "account", "cloud project", "history"
 
+**Mixed runtime**:
+An Analysis Workspace containing results produced partly by multithreaded and partly by single-threaded Stockfish after a mid-run fallback.
+_Avoid_: "hybrid engine" when only the browser runtime mix is meant
+
 ## Recognition and rendering
 
 **Recognition**:

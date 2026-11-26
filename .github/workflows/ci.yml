@@ -85,6 +85,18 @@ jobs:
           curl -sI http://127.0.0.1:8000/tools/analysis \
             | tr -d '\r' \
             | grep -qi "content-security-policy:.*worker-src 'self'"
+          curl -sI http://127.0.0.1:8000/tools/analysis \
+            | tr -d '\r' \
+            | grep -qi '^cross-origin-opener-policy: same-origin$'
+          curl -sI http://127.0.0.1:8000/tools/analysis \
+            | tr -d '\r' \
+            | grep -qi '^cross-origin-embedder-policy: require-corp$'
+          ! curl -sI http://127.0.0.1:8000/ \
+            | tr -d '\r' \
+            | grep -qi '^cross-origin-opener-policy:'
+          curl -sI http://127.0.0.1:8000/static/vendor/stockfish/stockfish-19-lite-multi.js \
+            | tr -d '\r' \
+            | grep -qi '^cross-origin-resource-policy: same-origin$'
           test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8000/api/v1/me)" = "401"
           for asset in \
             /static/css/app.css \
@@ -96,6 +108,8 @@ jobs:
             /static/fonts/space-grotesk-latin-variable.woff2 \
             /static/vendor/stockfish/stockfish-19-lite-single.js \
             /static/vendor/stockfish/stockfish-19-lite-single.wasm \
+            /static/vendor/stockfish/stockfish-19-lite-multi.js \
+            /static/vendor/stockfish/stockfish-19-lite-multi.wasm \
             /static/vendor/stockfish/Copying.txt \
             /static/vendor/stockfish/PROVENANCE.txt; do
             test "$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:8000$asset")" = "200"

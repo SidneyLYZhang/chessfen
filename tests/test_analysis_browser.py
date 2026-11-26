@@ -441,19 +441,19 @@ def test_browser_reports_an_engine_start_failure(
     def fail_engine(route) -> None:
         route.abort()
 
-    page.route("**/stockfish-19-lite-single.js", fail_engine)
+    page.route("**/stockfish-19-lite-*.js", fail_engine)
     try:
         page.locator("#analysis-fen").fill(_START_FEN)
         page.get_by_role("button", name="Start analysis").click()
         expect(page.locator("[data-analysis-error]")).to_have_text(
-            "Stockfish could not start or stopped unexpectedly.",
+            "Stockfish could not start or stopped unexpectedly. Reload the page and check that this browser supports Web Workers and WebAssembly.",
             timeout=30_000,
         )
         expect(page.locator("[data-analysis-status]")).to_have_text(
             "Analysis stopped."
         )
     finally:
-        page.unroute("**/stockfish-19-lite-single.js", fail_engine)
+        page.unroute("**/stockfish-19-lite-*.js", fail_engine)
 
 
 def test_browser_assesses_an_actual_move_and_shows_its_facts(
@@ -717,12 +717,15 @@ def test_browser_applies_local_multipv_preset_and_resource_settings(
     with page.expect_navigation():
         page.locator("[data-setting-preset]").select_option("fast")
     expect(page.locator("[data-engine-runtime]")).to_contain_text(
-        "single-threaded · fast"
+        "checking runtime · fast"
     )
     page.locator("#analysis-fen").fill(_START_FEN)
     page.get_by_role("button", name="Start analysis").click()
     expect(page.locator("[data-analysis-status]")).to_contain_text(
         "Analysis complete", timeout=30_000
+    )
+    expect(page.locator("[data-engine-runtime]")).to_contain_text(
+        "multithreaded · fast"
     )
     expect(page.locator("[data-candidate-line]")).to_have_count(1)
 
@@ -4216,6 +4219,263 @@ def test_browser_localized_mobile_layout_has_no_overflow(
         assert page.evaluate(
             "() => document.documentElement.scrollWidth <= window.innerWidth + 1"
         ), f"{language} {path}"
+
+
+def test_browser_multithread_stockfish_worker_proof(
+    browser_page: Page, live_analysis_url: str
+) -> None:
+    page = browser_page
+    page.goto(f"{live_analysis_url}/tools/analysis")
+    result = page.evaluate(
+        """async () => {
+          const capabilities = {
+            secure: window.isSecureContext,
+            isolated: window.crossOriginIsolated,
+            sharedArrayBuffer: typeof SharedArrayBuffer !== "undefined",
+            worker: typeof Worker !== "undefined",
+          };
+          const worker = new Worker(
+            "/static/vendor/stockfish/stockfish-19-lite-multi.js"
+          );
+          const transcript = [];
+          const workerErrors = [];
+          worker.onerror = (event) => workerErrors.push(event.message);
+          const waitFor = (needle, timeout = 30000) =>
+            new Promise((resolve, reject) => {
+              const timer = setTimeout(
+                () => reject(new Error(`timeout: ${needle}`)),
+                timeout
+              );
+              const inspect = (event) => {
+                const text =
+                  typeof event.data === "string"
+                    ? event.data
+                    : event.data?.data || "";
+                transcript.push(text);
+                if (text.startsWith(needle)) {
+                  clearTimeout(timer);
+                  worker.removeEventListener("message", inspect);
+                  resolve(text);
+                }
+              };
+              worker.addEventListener("message", inspect);
+            });
+          try {
+            worker.postMessage("uci");
+            const uciok = await waitFor("uciok");
+            worker.postMessage("setoption name Threads value 2");
+            worker.postMessage("setoption name Hash value 32");
+            worker.postMessage("isready");
+            const readyok = await waitFor("readyok");
+            worker.postMessage("position startpos");
+            worker.postMessage("go depth 5");
+            const bestmove = await waitFor("bestmove");
+            worker.terminate();
+            return {
+              capabilities,
+              uciok,
+              readyok,
+              bestmove,
+              transcript,
+              workerErrors,
+            };
+          } catch (error) {
+            worker.terminate();
+            return {
+              capabilities,
+              error: String(error),
+              transcript,
+              workerErrors,
+            };
+          }
+        }"""
+    )
+    assert result["capabilities"] == {
+        "secure": True,
+        "isolated": True,
+        "sharedArrayBuffer": True,
+        "worker": True,
+    }
+    assert "error" not in result, result
+    assert result["uciok"] == "uciok"
+    assert result["readyok"] == "readyok"
+    assert result["bestmove"].startswith("bestmove ")
+    for path in ("/", "/settings"):
+        page.goto(f"{live_analysis_url}{path}")
+        assert page.evaluate("() => window.crossOriginIsolated") is False
+
+
+def test_browser_engine_uses_single_thread_without_isolation(
+    browser_page: Page, live_analysis_url: str
+) -> None:
+    page = browser_page
+    multithread_requests: list[str] = []
+    page.on(
+        "request",
+        lambda request: (
+            multithread_requests.append(request.url)
+            if "stockfish-19-lite-multi" in request.url
+            else None
+        ),
+    )
+
+    def no_isolation(route) -> None:
+        response = route.fetch()
+        headers = {
+            key: value
+            for key, value in response.headers.items()
+            if key.lower()
+            not in {
+                "cross-origin-opener-policy",
+                "cross-origin-embedder-policy",
+            }
+        }
+        route.fulfill(response=response, headers=headers)
+
+    page.route(f"{live_analysis_url}/tools/analysis", no_isolation)
+    page.goto(f"{live_analysis_url}/tools/analysis")
+    assert page.evaluate("() => window.crossOriginIsolated") is False
+    page.locator("#analysis-fen").fill(_START_FEN)
+    page.get_by_role("button", name="Start analysis").click()
+    expect(page.locator("[data-analysis-status]")).to_contain_text(
+        "Analysis complete", timeout=30_000
+    )
+    expect(page.locator("[data-engine-runtime]")).to_contain_text(
+        "single-threaded"
+    )
+    assert multithread_requests == []
+    page.unroute(f"{live_analysis_url}/tools/analysis", no_isolation)
+
+
+def test_browser_engine_falls_back_when_multithread_init_fails(
+    browser_page: Page, live_analysis_url: str
+) -> None:
+    page = browser_page
+    page.add_init_script(
+        """(() => {
+          const NativeWorker = window.Worker;
+          window.Worker = class extends NativeWorker {
+            constructor(url, options) {
+              super(url, options);
+              if (String(url).includes("stockfish-19-lite-multi.js")) {
+                setTimeout(
+                  () => this.dispatchEvent(
+                    new ErrorEvent("error", { message: "simulated init" })
+                  ),
+                  0
+                );
+              }
+            }
+          };
+        })()"""
+    )
+    page.goto(f"{live_analysis_url}/tools/analysis")
+    page.locator("#analysis-fen").fill(_START_FEN)
+    page.get_by_role("button", name="Start analysis").click()
+    expect(page.locator("[data-analysis-status]")).to_contain_text(
+        "Analysis complete", timeout=30_000
+    )
+    expect(page.locator("[data-engine-runtime]")).to_contain_text(
+        "single-threaded"
+    )
+    expect(page.locator("[data-candidate-line]")).to_have_count(3)
+    expect(page.locator("[data-workspace-status]")).to_contain_text(
+        "Multithreaded Stockfish was unavailable"
+    )
+    workspace = json.loads(_workspace_record_text(page))
+    assert workspace["engine"]["fallback"] is True
+    page.reload()
+    expect(page.locator("[data-analysis-status]")).to_contain_text("Restored")
+    expect(page.locator("[data-engine-runtime]")).to_contain_text(
+        "single-threaded"
+    )
+
+
+def test_browser_engine_mid_run_fallback_preserves_completed_positions(
+    browser_page: Page, live_analysis_url: str
+) -> None:
+    page = browser_page
+    page.add_init_script(
+        """(() => {
+          const NativeWorker = window.Worker;
+          window.__engineSearches = 0;
+          window.Worker = class extends NativeWorker {
+            constructor(url, options) {
+              super(url, options);
+              if (!String(url).includes("stockfish-19-lite-multi.js")) return;
+              const nativePost = this.postMessage.bind(this);
+              this.postMessage = (message, ...args) => {
+                nativePost(message, ...args);
+                if (typeof message === "string" && message.startsWith("go ")) {
+                  window.__engineSearches += 1;
+                  if (window.__engineSearches === 2) {
+                    setTimeout(
+                      () => this.dispatchEvent(
+                        new ErrorEvent("error", { message: "simulated search" })
+                      ),
+                      100
+                    );
+                  }
+                }
+              };
+            }
+          };
+        })()"""
+    )
+    page.goto(f"{live_analysis_url}/tools/analysis/pgn")
+    page.locator("#pgn").fill('[White "A"]\n[Black "B"]\n\n1. e4 e5 *')
+    page.get_by_role("button", name="Parse PGN").click()
+    page.get_by_role("button", name="Open Game").click()
+    page.wait_for_load_state("load")
+    page.wait_for_selector("[data-game-root][data-game-ready='true']")
+    page.get_by_role("button", name="Start Game Analysis").click()
+    expect(page.locator("[data-game-status]")).to_contain_text(
+        "Analysis complete", timeout=60_000
+    )
+    expect(page.locator("[data-engine-runtime]")).to_contain_text(
+        "mixed runtime"
+    )
+    expect(page.locator("[data-game-moves] [data-ply='2']")).to_be_visible()
+    page.locator("[data-game-moves] [data-ply='1']").click()
+    expect(page.locator("[data-game-lines] .candidate-line")).to_have_count(3)
+    expect(page.locator("[data-game-evaluation]")).not_to_be_empty()
+    workspace = json.loads(_workspace_record_text(page))
+    assert workspace["engine"]["mixed"] is True
+    assert workspace["engine"]["runtime"] == "single-threaded"
+
+
+def test_browser_engine_stops_after_repeated_init_failures(
+    browser_page: Page, live_analysis_url: str
+) -> None:
+    page = browser_page
+    page.add_init_script(
+        """(() => {
+          const NativeWorker = window.Worker;
+          window.__workerStarts = 0;
+          window.Worker = class extends NativeWorker {
+            constructor(url, options) {
+              super(url, options);
+              window.__workerStarts += 1;
+              setTimeout(
+                () => this.dispatchEvent(
+                  new ErrorEvent("error", { message: "simulated failure" })
+                ),
+                0
+              );
+            }
+          };
+        })()"""
+    )
+    page.goto(f"{live_analysis_url}/tools/analysis")
+    page.locator("#analysis-fen").fill(_START_FEN)
+    page.get_by_role("button", name="Start analysis").click()
+    expect(page.locator("[data-analysis-error]")).to_contain_text(
+        "Stockfish could not start or stopped unexpectedly. Reload the page and check that this browser supports Web Workers and WebAssembly."
+    )
+    expect(page.locator("[data-analysis-status]")).to_contain_text(
+        "Analysis stopped"
+    )
+    assert page.evaluate("() => window.__workerStarts") <= 2
 
 
 def test_browser_analysis_accessibility_and_mobile_layout(

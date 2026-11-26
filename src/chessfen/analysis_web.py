@@ -170,6 +170,8 @@ ANALYSIS_CSP = (
 def _analysis_headers(response: HTMLResponse) -> HTMLResponse:
     response.headers["Content-Security-Policy"] = ANALYSIS_CSP
     response.headers["Cache-Control"] = "no-store"
+    response.headers["Cross-Origin-Opener-Policy"] = "same-origin"
+    response.headers["Cross-Origin-Embedder-Policy"] = "require-corp"
     return response
 
 

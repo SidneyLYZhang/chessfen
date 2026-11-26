@@ -67,7 +67,12 @@ def test_analysis_workbench_is_localized_and_uses_scoped_assets(
         "content-security-policy"
     ]
     assert "worker-src 'self'" in page.headers["content-security-policy"]
-    assert "cross-origin-opener-policy" not in page.headers
+    assert page.headers["cross-origin-opener-policy"] == "same-origin"
+    assert page.headers["cross-origin-embedder-policy"] == "require-corp"
+    for path in ("/", "/settings", "/tools/pgn"):
+        other = client.get(path, headers=_EN)
+        assert "cross-origin-opener-policy" not in other.headers
+        assert "cross-origin-embedder-policy" not in other.headers
 
     zh = client.get("/tools/analysis", headers=_ZH)
     de = client.get("/tools/analysis", headers=_DE)
@@ -538,6 +543,12 @@ def test_analysis_engine_assets_are_self_hosted_with_provenance(
     full_wasm = client.head(
         "/static/vendor/stockfish/stockfish-19-single.wasm"
     )
+    multi_js = client.get(
+        "/static/vendor/stockfish/stockfish-19-lite-multi.js"
+    )
+    multi_wasm = client.head(
+        "/static/vendor/stockfish/stockfish-19-lite-multi.wasm"
+    )
 
     assert engine_js.status_code == 200
     assert engine_js.headers["content-type"].split(";")[0] in {
@@ -555,6 +566,19 @@ def test_analysis_engine_assets_are_self_hosted_with_provenance(
     assert "stockfish.js 19.0.1" in provenance.text
     assert "https://github.com/nmrugg/stockfish.js" in provenance.text
     assert "stockfish-19-single.wasm" in provenance.text
+    assert "stockfish-19-lite-multi.wasm" in provenance.text
+    for response in (engine_js, engine_wasm, multi_js, multi_wasm):
+        assert response.headers["cross-origin-resource-policy"] == "same-origin"
+        assert (
+            response.headers["cross-origin-embedder-policy"] == "require-corp"
+        )
+    assert multi_js.status_code == 200
+    assert multi_js.headers["content-type"].split(";")[0] in {
+        "text/javascript",
+        "application/javascript",
+    }
+    assert multi_wasm.status_code == 200
+    assert multi_wasm.headers["content-type"].split(";")[0] == "application/wasm"
     assert full_js.status_code == 200
     assert full_js.headers["content-type"].split(";")[0] in {
         "text/javascript",

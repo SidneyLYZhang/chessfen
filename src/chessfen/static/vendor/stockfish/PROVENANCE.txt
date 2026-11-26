@@ -1,8 +1,9 @@
 stockfish.js 19.0.1
 ===================
 
-ChessFEN vendors the pinned lite single-threaded browser engine from the
-stockfish.js project, a WebAssembly build of Stockfish 19.
+ChessFEN vendors the pinned lite single-threaded and lite multithreaded
+browser engines from the stockfish.js project, a WebAssembly build of
+Stockfish 19.
 
 Upstream project:
 https://github.com/nmrugg/stockfish.js
@@ -14,10 +15,12 @@ Distribution:
 npm package stockfish@19.0.1, tarball shasum
 c557a1b9f075a67f38e01332c6db7472d8df744e
 
-Vendored on 2026-11-25:
+Vendored on 2026-11-25; lite multithreaded assets added 2026-11-26:
 
 ccb130d7ff29408531c47d859a49f91d59d4f482d05a53eb1a3231a4f624c91a  stockfish-19-lite-single.js
 ee4f115bdb2d32cadf96cada104a05b5ec257d7ad6f57582190b49bc71f096de  stockfish-19-lite-single.wasm
+dac939ff529668e0168b2f615145ec18b029b753deb6963fd7319d788f964333  stockfish-19-lite-multi.js
+ddf06cdaf0b8e35c11b40530e44db96c2a99c9029c8d621dd9fca97e4872770c  stockfish-19-lite-multi.wasm
 8071dee87312f74805a859de933e1a1ef465579ab1a51fbd597388cdce9d444d  stockfish-19-single.js
 991bede2f253ebb08ff01fcc48270f4b9c8e66b12d5bd5f8d6f52eb3e3b3a740  stockfish-19-single.wasm
 0b383d5a63da644f628d99c33976ea6487ed89aaa59f0b3257992deac1171e6b  Copying.txt

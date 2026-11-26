@@ -106,7 +106,12 @@ export function workspaceIsActive() {
   return window.localStorage.getItem(ACTIVE_MARKER) === "1";
 }
 
-export function engineSnapshot(settings) {
+export function engineSnapshot(
+  settings,
+  runtime = "single-threaded",
+  mixed = false,
+  fallback = false
+) {
   const presets = {
     fast: { depth: 14, movetime: 1000 },
     standard: { depth: 18, movetime: 2000 },
@@ -119,7 +124,9 @@ export function engineSnapshot(settings) {
     name: "Stockfish",
     version: "19.0.1",
     resource: settings.resource === "full" ? "full" : "lite",
-    runtime: "single-threaded",
+    runtime,
+    mixed: Boolean(mixed),
+    fallback: Boolean(fallback),
     preset,
     multipv: settings.multipv,
     depth: presets[preset].depth,
@@ -127,15 +134,21 @@ export function engineSnapshot(settings) {
   };
 }
 
-export function engineSettingsCompatible(saved, settings) {
+export function engineSettingsCompatible(
+  saved,
+  settings,
+  runtime = "single-threaded"
+) {
   if (!saved) {
     return true;
   }
-  const current = engineSnapshot(settings);
+  const current = engineSnapshot(settings, runtime);
   return (
     saved.version === current.version &&
     saved.resource === current.resource &&
-    saved.runtime === current.runtime &&
+    (saved.mixed === true ||
+      saved.fallback === true ||
+      saved.runtime === current.runtime) &&
     saved.preset === current.preset &&
     saved.multipv === current.multipv &&
     saved.depth === current.depth &&

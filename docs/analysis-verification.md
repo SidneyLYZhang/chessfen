@@ -5,7 +5,7 @@ Scope: Analysis workbench, settings, LLM Providers, exports, and regressions.
 
 ## Automated gates
 
-- `uv run pytest -q`: 296 passed (final integrated suite).
+- `uv run pytest -q`: 301 passed (final integrated suite).
 - `uv run mypy`: src, tests, and scripts; no issues.
 - JavaScript syntax checks: `node --check` on all changed ES modules.
 - CI installs and exercises Chromium, Firefox, and WebKit Playwright runtimes.
@@ -78,20 +78,20 @@ Required accepted scenario: ordinary four-core desktop, current stable Chrome,
 multithreaded lite, Standard preset, MultiPV three, 60-Ply Game, under 150
 seconds.
 
-- Multithreaded runtime status: **blocked by #34**. The current Analysis document
-  runs the single-threaded lite engine; multithreaded SharedArrayBuffer isolation
-  is not available, so the required multithreaded result cannot be claimed.
-- Single-threaded 60-Ply spot check on 2026-11-26:
+- Multithreaded lite is enabled on isolated Analysis documents and verified by
+  a real Emscripten pthread handshake and search.
+- Multithreaded 60-Ply measurement on 2026-11-26:
   - Browser: Playwright Chromium 159.0.8154.6.
-  - Platform: Windows AMD64, 24 logical CPUs; runtime reported
-    `crossOriginIsolated: false`.
-  - Standard preset, MultiPV three, lite single-threaded.
-  - Elapsed analysis time: **105.93 seconds**.
-  - This is below 150 seconds but is not the accepted multithreaded scenario and
-    not the documented ordinary four-core reference hardware.
+  - Platform: Windows AMD64, 24 logical CPUs; `crossOriginIsolated: true`;
+    lite engine configured with four threads.
+  - Runtime label: `Lite · multithreaded · standard`.
+  - Standard preset, MultiPV three.
+  - Elapsed analysis time: **107.41 seconds**, below 150 seconds.
+  - The exact documented ordinary four-core desktop hardware was not available;
+    this host exposes 24 logical CPUs and the engine is capped at four threads.
 - Cancellation measurement from the same run, using an in-page MutationObserver:
-  - UI "Stopping…" feedback after the cancel action: **0.6 ms** (target 500 ms).
-  - Engine stop to cancelled state: **30.8 ms** (target ordinarily 2 seconds).
+  - UI "Stopping…" feedback after the cancel action: **0.4 ms** (target 500 ms).
+  - Engine stop to cancelled state: **0.7 ms** (target ordinarily 2 seconds).
 
 Command:
 
@@ -104,15 +104,14 @@ uv run python scripts/benchmark_analysis.py --plies 60 --timeout 600
 1. Real low-cost OpenAI, OpenRouter, DeepSeek, and both Kimi regional checks were
    not performed because no real credentials are available in this environment
    and real keys must not enter CI. DeepSeek/Kimi remain labelled unverified.
-2. Multithreaded Stockfish and its 60-Ply benchmark are blocked by #34.
-3. Mobile Safari release verification was not performed.
-4. A formal screen-reader/assistive-technology audit was not performed; only the
+2. Mobile Safari release verification was not performed.
+3. A formal screen-reader/assistive-technology audit was not performed; only the
    automated accessibility checks listed above are claimed.
-5. A locally installed current stable Chrome release was not separately tested;
+4. A locally installed current stable Chrome release was not separately tested;
    Playwright Chromium is the automated proxy.
-6. Docker/static smoke tests were not run locally because Docker is unavailable in
+5. Docker/static smoke tests were not run locally because Docker is unavailable in
    this environment; the existing CI Docker job remains the release gate.
-7. Firefox/WebKit coverage is a primary smoke path, not the full Chromium suite;
+6. Firefox/WebKit coverage is a primary smoke path, not the full Chromium suite;
    cancellation, Provider dialects, recovery, accessibility, and all locales are
    not repeated per engine. Mobile Safari is the external blocker for that engine
    family.
