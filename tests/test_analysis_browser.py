@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import http.server
 import json
 import re
 import socket
+import ssl
+import subprocess
 import threading
 import time
 import urllib.request
@@ -68,6 +71,169 @@ def live_analysis_url(tmp_path_factory: pytest.TempPathFactory) -> Iterator[str]
 
 
 @pytest.fixture(scope="module")
+def local_cross_origin_llm(
+    tmp_path_factory: pytest.TempPathFactory,
+) -> Iterator[dict[str, Any]]:
+    certificate_dir = tmp_path_factory.mktemp("custom-llm")
+    certificate = certificate_dir / "cert.pem"
+    private_key = certificate_dir / "key.pem"
+    subprocess.run(
+        [
+            "openssl",
+            "req",
+            "-x509",
+            "-newkey",
+            "rsa:2048",
+            "-nodes",
+            "-keyout",
+            str(private_key),
+            "-out",
+            str(certificate),
+            "-days",
+            "1",
+            "-subj",
+            "/CN=127.0.0.1",
+            "-addext",
+            "subjectAltName=IP:127.0.0.1",
+        ],
+        check=True,
+        capture_output=True,
+    )
+    state: dict[str, Any] = {"mode": "success", "requests": []}
+
+    class Handler(http.server.BaseHTTPRequestHandler):
+        protocol_version = "HTTP/1.1"
+
+        def log_message(self, format: str, *args: object) -> None:
+            return
+
+        def _cors(self, allow: bool) -> dict[str, str]:
+            if not allow:
+                return {}
+            origin = self.headers.get("Origin", "*")
+            return {
+                "Access-Control-Allow-Origin": origin,
+                "Access-Control-Allow-Headers": "authorization,content-type",
+                "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+                "Access-Control-Max-Age": "0",
+                "Vary": "Origin",
+            }
+
+        def _record(self) -> None:
+            state["requests"].append(
+                {
+                    "method": self.command,
+                    "path": self.path,
+                    "headers": {
+                        key.lower(): value
+                        for key, value in self.headers.items()
+                    },
+                }
+            )
+
+        def _json_response(
+            self, status: int, payload: dict[str, Any], allow_cors: bool = True
+        ) -> None:
+            body = json.dumps(payload).encode("utf-8")
+            self.send_response(status)
+            for key, value in self._cors(allow_cors).items():
+                self.send_header(key, value)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def do_OPTIONS(self) -> None:
+            self._record()
+            if state["mode"] == "cors":
+                self.send_response(403)
+                self.send_header("Content-Length", "0")
+                self.end_headers()
+                return
+            self.send_response(204)
+            for key, value in self._cors(True).items():
+                self.send_header(key, value)
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+
+        def do_GET(self) -> None:
+            self._record()
+            self._json_response(
+                503, {"error": {"message": "model list unavailable"}}
+            )
+
+        def do_POST(self) -> None:
+            length = int(self.headers.get("Content-Length", "0"))
+            body = self.rfile.read(length).decode("utf-8") if length else ""
+            state["requests"].append(
+                {
+                    "method": self.command,
+                    "path": self.path,
+                    "headers": {
+                        key.lower(): value
+                        for key, value in self.headers.items()
+                    },
+                    "body": body,
+                }
+            )
+            mode = state["mode"]
+            if mode == "cors":
+                self._json_response(
+                    200, {"choices": [{"message": {"content": "{}"}}]}, False
+                )
+                return
+            content = json.dumps(
+                {
+                    "summary": (
+                        "Custom no usage"
+                        if mode == "no_usage"
+                        else "Custom local summary"
+                    ),
+                    "why": "engine facts",
+                    "alternatives": "candidate lines",
+                    "uncertainty": "limited",
+                }
+            )
+            if mode == "malformed":
+                content = "{not-json"
+            response: dict[str, Any] = {
+                "choices": [
+                    {
+                        "finish_reason": "stop",
+                        "message": {
+                            "content": content,
+                            "reasoning_content": "SECRET-LOCAL-REASONING",
+                        },
+                    }
+                ]
+            }
+            if mode != "no_usage":
+                response["usage"] = {
+                    "prompt_tokens": 3,
+                    "completion_tokens": 6,
+                    "completion_tokens_details": {"reasoning_tokens": 4},
+                    "total_tokens": 9,
+                }
+            self._json_response(200, response)
+
+    server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    server.daemon_threads = True
+    context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    context.load_cert_chain(certificate, private_key)
+    server.socket = context.wrap_socket(server.socket, server_side=True)
+    port = int(server.server_address[1])
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    yield {
+        "url": f"https://127.0.0.1:{port}/v1",
+        "state": state,
+    }
+    server.shutdown()
+    thread.join(timeout=10)
+    server.server_close()
+
+
+@pytest.fixture(scope="module")
 def browser():
     with sync_playwright() as playwright:
         instance = playwright.chromium.launch()
@@ -77,7 +243,7 @@ def browser():
 
 @pytest.fixture
 def browser_page(browser) -> Iterator[Page]:
-    context = browser.new_context(locale="en-US")
+    context = browser.new_context(locale="en-US", ignore_https_errors=True)
     page = context.new_page()
     page.set_default_timeout(30_000)
     page.on("dialog", lambda dialog: dialog.accept())
@@ -736,6 +902,7 @@ def test_browser_secures_profile_and_generates_grounded_explanation(
             "Access-Control-Allow-Origin": "*",
             "Access-Control-Allow-Headers": "authorization,content-type",
             "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+            "Access-Control-Max-Age": "0",
         }
         if request.method == "OPTIONS":
             route.fulfill(status=204, headers=headers)
@@ -936,6 +1103,52 @@ def _configure_kimi_profile(
     expect(page.locator("[data-llm-status]")).to_contain_text("saved locally")
 
 
+def _configure_custom_profile(
+    page: Page,
+    live_analysis_url: str,
+    endpoint: str = "https://custom.test/v1",
+    model: str = "custom-model",
+    dialect: str = "openai",
+    budget_field: str = "max_completion_tokens",
+    effort: str = "max",
+) -> None:
+    page.goto(f"{live_analysis_url}/settings")
+    page.locator("[data-llm-provider]").select_option("custom")
+    page.locator("[data-llm-base-url]").fill(endpoint)
+    page.locator("[data-llm-model]").fill(model)
+    page.locator("[data-llm-custom-dialect]").select_option(dialect)
+    page.locator("[data-llm-custom-budget-field]").select_option(budget_field)
+    if effort:
+        page.locator("[data-llm-effort]").select_option(effort)
+    page.locator("[data-llm-api-key]").fill("sk-custom-secret")
+    page.locator("[data-llm-passphrase]").fill("correct horse battery")
+    page.locator("[data-llm-passphrase-confirm]").fill("correct horse battery")
+    page.locator("[data-llm-consent]").check()
+    page.locator("[data-llm-confirm]").check()
+    page.get_by_role("button", name="Save LLM Profile").click()
+    expect(page.locator("[data-llm-status]")).to_contain_text("saved locally")
+
+
+def _credential_record_text(page: Page) -> str:
+    return page.evaluate(
+        """async () => {
+          const open = indexedDB.open("chessfen-credentials", 1);
+          const db = await new Promise((resolve, reject) => {
+            open.onsuccess = () => resolve(open.result);
+            open.onerror = () => reject(open.error);
+          });
+          const record = await new Promise((resolve, reject) => {
+            const tx = db.transaction("credentials", "readonly");
+            const req = tx.objectStore("credentials").get("llm");
+            req.onsuccess = () => resolve(req.result);
+            req.onerror = () => reject(req.error);
+          });
+          db.close();
+          return JSON.stringify(record);
+        }"""
+    )
+
+
 def _workspace_record_text(page: Page) -> str:
     return page.evaluate(
         """async () => {
@@ -1088,6 +1301,7 @@ def test_browser_generates_a_selected_game_ply_explanation(
             "Access-Control-Allow-Origin": "*",
             "Access-Control-Allow-Headers": "authorization,content-type",
             "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+            "Access-Control-Max-Age": "0",
         }
         if route.request.method == "OPTIONS":
             route.fulfill(status=204, headers=headers)
@@ -1180,6 +1394,7 @@ def test_browser_batches_key_ply_explanations_and_summary(
             "Access-Control-Allow-Origin": "*",
             "Access-Control-Allow-Headers": "authorization,content-type",
             "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+            "Access-Control-Max-Age": "0",
         }
         if route.request.method == "OPTIONS":
             route.fulfill(status=204, headers=headers)
@@ -1326,6 +1541,7 @@ def test_browser_generates_a_position_overall_summary(
             "Access-Control-Allow-Origin": "*",
             "Access-Control-Allow-Headers": "authorization,content-type",
             "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+            "Access-Control-Max-Age": "0",
         }
         if route.request.method == "OPTIONS":
             route.fulfill(status=204, headers=headers)
@@ -1402,8 +1618,14 @@ def test_browser_openrouter_requires_reasoning_capabilities_and_routes_directly(
             "Access-Control-Allow-Origin": "*",
             "Access-Control-Allow-Headers": "authorization,content-type",
             "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+            "Access-Control-Max-Age": "0",
         }
         if route.request.method == "OPTIONS":
+            if fail_mode["mode"] == "cors":
+                route.fulfill(
+                    status=403, headers={"Content-Type": "text/plain"}
+                )
+                return
             route.fulfill(status=204, headers=headers)
             return
         if route.request.url.endswith("/models"):
@@ -1433,13 +1655,7 @@ def test_browser_openrouter_requires_reasoning_capabilities_and_routes_directly(
             route.abort("failed")
             return
         if fail_mode["mode"] == "cors":
-            route.fulfill(
-                status=200,
-                headers={"Content-Type": "application/json"},
-                body=json.dumps(
-                    {"choices": [{"message": {"content": "{}"}}]}
-                ),
-            )
+            route.abort("blockedbyresponse")
             return
         if fail_mode["mode"] == "routing":
             route.fulfill(
@@ -1574,8 +1790,8 @@ def test_browser_openrouter_requires_reasoning_capabilities_and_routes_directly(
     expected_status = {
         "routing": "Provider rejected the request",
         "malformed": "could not be generated",
-        "cors": "could not be generated",
-        "abort": "could not be generated",
+        "cors": "could not be reached from this browser",
+        "abort": "could not be reached from this browser",
     }
     for index, mode in enumerate(("routing", "malformed", "cors", "abort")):
         fail_mode["mode"] = mode
@@ -1649,6 +1865,7 @@ def test_browser_recovers_openrouter_unsupported_effort_and_persists_capabilitie
             "Access-Control-Allow-Origin": "*",
             "Access-Control-Allow-Headers": "authorization,content-type",
             "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+            "Access-Control-Max-Age": "0",
         }
         if route.request.method == "OPTIONS":
             route.fulfill(status=204, headers=headers)
@@ -1719,6 +1936,7 @@ def test_browser_openrouter_batches_and_summarizes_game_with_malformed_retry(
             "Access-Control-Allow-Origin": "*",
             "Access-Control-Allow-Headers": "authorization,content-type",
             "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+            "Access-Control-Max-Age": "0",
         }
         if route.request.method == "OPTIONS":
             route.fulfill(status=204, headers=headers)
@@ -1952,9 +2170,15 @@ def test_browser_deepseek_preset_serializes_reasoning_usage_and_failures(
             "Access-Control-Allow-Origin": "*",
             "Access-Control-Allow-Headers": "authorization,content-type",
             "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+            "Access-Control-Max-Age": "0",
         }
         provider_requests.append(route.request.url)
         if route.request.method == "OPTIONS":
+            if fail_mode["value"] == "cors":
+                route.fulfill(
+                    status=403, headers={"Content-Type": "text/plain"}
+                )
+                return
             route.fulfill(status=204, headers=headers)
             return
         if route.request.url.endswith("/models"):
@@ -1980,13 +2204,7 @@ def test_browser_deepseek_preset_serializes_reasoning_usage_and_failures(
             route.abort("failed")
             return
         if mode == "cors":
-            route.fulfill(
-                status=200,
-                headers={"Content-Type": "application/json"},
-                body=json.dumps(
-                    {"choices": [{"message": {"content": "{}"}}]}
-                ),
-            )
+            route.abort("blockedbyresponse")
             return
         content = json.dumps(
             {
@@ -2104,7 +2322,9 @@ def test_browser_deepseek_preset_serializes_reasoning_usage_and_failures(
         fail_mode["value"] = mode
         page.get_by_role("button", name="Generate Explanation").click()
         expect(page.locator("[data-explanation-status]")).to_contain_text(
-            "could not be generated"
+            "could not be reached from this browser"
+            if mode in {"cors", "abort"}
+            else "could not be generated"
         )
         expect(page.locator("[data-explanation-summary]")).to_have_text(
             "DeepSeek summary"
@@ -2136,6 +2356,7 @@ def test_browser_deepseek_disables_optional_reasoning_and_blocks_unverified_off(
             "Access-Control-Allow-Origin": "*",
             "Access-Control-Allow-Headers": "authorization,content-type",
             "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+            "Access-Control-Max-Age": "0",
         }
         if route.request.method == "OPTIONS":
             route.fulfill(status=204, headers=headers)
@@ -2236,6 +2457,7 @@ def test_browser_deepseek_batches_summarizes_and_restores_game(
             "Access-Control-Allow-Origin": "*",
             "Access-Control-Allow-Headers": "authorization,content-type",
             "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+            "Access-Control-Max-Age": "0",
         }
         if route.request.method == "OPTIONS":
             route.fulfill(status=204, headers=headers)
@@ -2423,9 +2645,15 @@ def test_browser_kimi_preset_regions_and_k3_request_contract(
             "Access-Control-Allow-Origin": "*",
             "Access-Control-Allow-Headers": "authorization,content-type",
             "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+            "Access-Control-Max-Age": "0",
         }
         provider_requests.append(route.request.url)
         if route.request.method == "OPTIONS":
+            if fail_mode["value"] == "cors":
+                route.fulfill(
+                    status=403, headers={"Content-Type": "text/plain"}
+                )
+                return
             route.fulfill(status=204, headers=headers)
             return
         if route.request.url.endswith("/models"):
@@ -2452,13 +2680,7 @@ def test_browser_kimi_preset_regions_and_k3_request_contract(
             route.abort("failed")
             return
         if mode == "cors":
-            route.fulfill(
-                status=200,
-                headers={"Content-Type": "application/json"},
-                body=json.dumps(
-                    {"choices": [{"message": {"content": "{}"}}]}
-                ),
-            )
+            route.abort("blockedbyresponse")
             return
         content = json.dumps(
             {
@@ -2566,7 +2788,9 @@ def test_browser_kimi_preset_regions_and_k3_request_contract(
         fail_mode["value"] = mode
         page.get_by_role("button", name="Generate Explanation").click()
         expect(page.locator("[data-explanation-status]")).to_contain_text(
-            "could not be generated"
+            "could not be reached from this browser"
+            if mode in {"cors", "abort"}
+            else "could not be generated"
         )
         expect(page.locator("[data-explanation-summary]")).to_have_text(
             "Kimi summary"
@@ -2588,6 +2812,7 @@ def test_browser_kimi_model_contracts_and_unknown_block(
             "Access-Control-Allow-Origin": "*",
             "Access-Control-Allow-Headers": "authorization,content-type",
             "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+            "Access-Control-Max-Age": "0",
         }
         if route.request.method == "OPTIONS":
             route.fulfill(status=204, headers=headers)
@@ -2758,6 +2983,7 @@ def test_browser_kimi_region_switch_isolates_credentials_and_models(
             "Access-Control-Allow-Origin": "*",
             "Access-Control-Allow-Headers": "authorization,content-type",
             "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+            "Access-Control-Max-Age": "0",
         }
         if route.request.method == "OPTIONS":
             route.fulfill(status=204, headers=headers)
@@ -2856,6 +3082,7 @@ def test_browser_kimi_batches_and_summarizes_in_both_regions(
             "Access-Control-Allow-Origin": "*",
             "Access-Control-Allow-Headers": "authorization,content-type",
             "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+            "Access-Control-Max-Age": "0",
         }
         if route.request.method == "OPTIONS":
             route.fulfill(status=204, headers=headers)
@@ -2988,4 +3215,597 @@ def test_browser_kimi_batches_and_summarizes_in_both_regions(
         "Kimi key ply"
     )
     page.unroute(f"https://{host}/**", provider)
+    page.unroute("**/tools/analysis/game/results", game_results)
+
+
+def test_browser_custom_provider_complete_path_and_endpoint_isolation(
+    browser_page: Page, live_analysis_url: str
+) -> None:
+    page = browser_page
+    provider_requests: list[str] = []
+    chat_bodies: list[dict[str, Any]] = []
+    chat_headers: list[dict[str, str]] = []
+    chat_attempts: list[str] = []
+    same_origin_posts: list[str] = []
+    other_requests: list[str] = []
+    console_messages: list[str] = []
+    fail_mode = {"value": ""}
+    page.on(
+        "request",
+        lambda request: (
+            same_origin_posts.append(request.url)
+            if request.method == "POST"
+            and request.url.startswith(live_analysis_url)
+            else None
+        ),
+    )
+    page.on(
+        "request",
+        lambda request: (
+            other_requests.append(request.url)
+            if request.url.startswith("https://custom.test/v2")
+            else None
+        ),
+    )
+    page.on(
+        "console",
+        lambda message: console_messages.append(message.text),
+    )
+
+    def provider(route) -> None:
+        headers = {
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Headers": "authorization,content-type",
+            "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+            "Access-Control-Max-Age": "0",
+        }
+        provider_requests.append(route.request.url)
+        if route.request.method == "OPTIONS":
+            if fail_mode["value"] == "cors":
+                route.fulfill(
+                    status=403, headers={"Content-Type": "text/plain"}
+                )
+                return
+            route.fulfill(status=204, headers=headers)
+            return
+        if route.request.url.endswith("/models"):
+            route.fulfill(
+                status=503,
+                headers={**headers, "Content-Type": "application/json"},
+                body=json.dumps({"error": {"message": "unavailable"}}),
+            )
+            return
+        chat_attempts.append(route.request.url)
+        chat_headers.append(
+            {key.lower(): value for key, value in route.request.headers.items()}
+        )
+        mode = fail_mode["value"]
+        if mode == "abort":
+            route.abort("failed")
+            return
+        if mode == "cors":
+            route.abort("blockedbyresponse")
+            return
+        content = json.dumps(
+            {
+                "summary": (
+                    "Custom no usage"
+                    if mode == "no_usage"
+                    else "Custom summary"
+                ),
+                "why": "engine facts",
+                "alternatives": "candidate lines",
+                "uncertainty": "limited",
+            }
+        )
+        if mode == "malformed":
+            content = "{not-json"
+        else:
+            chat_bodies.append(route.request.post_data_json)
+        response: dict[str, Any] = {
+            "choices": [
+                {
+                    "finish_reason": "stop",
+                    "message": {
+                        "content": content,
+                        "reasoning_content": "SECRET-CUSTOM-REASONING",
+                    },
+                }
+            ]
+        }
+        if mode != "no_usage":
+            response["usage"] = {
+                "prompt_tokens": 3,
+                "completion_tokens": 6,
+                "completion_tokens_details": {"reasoning_tokens": 4},
+                "total_tokens": 9,
+            }
+        route.fulfill(
+            status=200,
+            headers={**headers, "Content-Type": "application/json"},
+            body=json.dumps(response),
+        )
+
+    page.route("https://custom.test/**", provider)
+    page.goto(f"{live_analysis_url}/settings")
+    page.locator("[data-llm-provider]").select_option("custom")
+    expect(page.locator("[data-llm-base-url]")).to_have_value("")
+    expect(page.locator("[data-custom-dialect-field]")).to_be_visible()
+    expect(page.locator("[data-custom-budget-field]")).to_be_visible()
+    expect(page.locator("[data-llm-compatibility]")).to_contain_text(
+        "unverified"
+    )
+    assert provider_requests == []
+
+    page.locator("[data-llm-base-url]").fill("http://custom.test/v1")
+    page.locator("[data-llm-model]").fill("custom-model")
+    page.locator("[data-llm-consent]").check()
+    page.locator("[data-llm-confirm]").check()
+    page.get_by_role("button", name="Save LLM Profile").click()
+    expect(page.locator("[data-llm-status]")).to_contain_text(
+        "Provide an HTTPS Base URL"
+    )
+
+    page.locator("[data-llm-base-url]").fill("https://custom.test/v1")
+    expect(page.locator("[data-llm-destination]")).to_contain_text(
+        "https://custom.test/v1"
+    )
+    page.locator("[data-llm-model]").fill("custom-model")
+    page.locator("[data-llm-api-key]").fill("sk-custom-secret")
+    page.locator("[data-llm-passphrase]").fill("correct horse battery")
+    page.locator("[data-llm-passphrase-confirm]").fill("correct horse battery")
+    page.locator("[data-llm-consent]").check()
+    page.locator("[data-llm-confirm]").check()
+    page.get_by_role("button", name="Save LLM Profile").click()
+    expect(page.locator("[data-llm-status]")).to_contain_text("saved locally")
+    page.get_by_role("button", name="Fetch Models").click()
+    expect(page.locator("[data-llm-status]")).to_contain_text(
+        "Model list could not be retrieved"
+    )
+    expect(page.locator("[data-llm-model]")).to_have_value("custom-model")
+    page.get_by_role("button", name="Test Connection").click()
+    expect(page.locator("[data-llm-status]")).to_contain_text(
+        "Connection test failed"
+    )
+    expect(page.locator("[data-llm-model]")).to_have_value("custom-model")
+
+    page.locator("[data-llm-custom-dialect]").select_option("openai")
+    page.locator("[data-llm-custom-budget-field]").select_option(
+        "max_completion_tokens"
+    )
+    page.locator("[data-llm-effort]").select_option("max")
+    page.locator("[data-llm-confirm]").check()
+    preview = json.loads(page.locator("[data-llm-preview]").inner_text())
+    assert preview == {
+        "model": "custom-model",
+        "response_format": {"type": "json_object"},
+        "max_completion_tokens": 16384,
+        "reasoning_effort": "max",
+    }
+    page.get_by_role("button", name="Save LLM Profile").click()
+    expect(page.locator("[data-llm-status]")).to_contain_text("saved locally")
+
+    page.goto(f"{live_analysis_url}/tools/analysis")
+    page.locator("#analysis-fen").fill(_START_FEN)
+    page.get_by_role("button", name="Start analysis").click()
+    expect(page.locator("[data-analysis-status]")).to_contain_text(
+        "Analysis complete", timeout=30_000
+    )
+    page.locator("[data-explanation-passphrase]").fill("correct horse battery")
+    before_posts = len(same_origin_posts)
+    before_attempts = len(chat_attempts)
+    page.get_by_role("button", name="Generate Explanation").click()
+    expect(page.locator("[data-explanation-summary]")).to_have_text(
+        "Custom summary"
+    )
+    body = chat_bodies[-1]
+    assert body["reasoning_effort"] == "max"
+    assert body["max_completion_tokens"] == 16384
+    assert "max_tokens" not in body
+    assert "thinking" not in body
+    assert chat_headers[0]["authorization"] == "Bearer sk-custom-secret"
+    expect(page.locator("[data-explanation-usage]")).to_contain_text("total 9")
+    expect(page.locator("[data-explanation-usage]")).to_contain_text(
+        "reasoning 4"
+    )
+    assert "SECRET-CUSTOM-REASONING" not in page.content()
+    assert "sk-custom-secret" not in page.content()
+    assert "sk-custom-secret" not in page.evaluate(
+        "() => JSON.stringify(localStorage)"
+    )
+    assert "sk-custom-secret" not in _credential_record_text(page)
+    assert "sk-custom-secret" not in _workspace_record_text(page)
+    assert "SECRET-CUSTOM-REASONING" not in _workspace_record_text(page)
+    assert "sk-custom-secret" not in "\n".join(console_messages)
+    assert len(same_origin_posts) == before_posts
+    assert len(chat_attempts) == before_attempts + 1
+
+    fail_mode["value"] = "no_usage"
+    page.get_by_role("button", name="Generate Explanation").click()
+    expect(page.locator("[data-explanation-summary]")).to_have_text(
+        "Custom no usage"
+    )
+    expect(page.locator("[data-explanation-usage]")).to_have_text("")
+
+    fail_mode["value"] = "malformed"
+    page.get_by_role("button", name="Generate Explanation").click()
+    expect(page.locator("[data-explanation-status]")).to_contain_text(
+        "could not be generated"
+    )
+    expect(page.locator("[data-explanation-summary]")).to_have_text(
+        "Custom no usage"
+    )
+
+    fail_mode["value"] = "cors"
+    page.get_by_role("button", name="Generate Explanation").click()
+    expect(page.locator("[data-explanation-status]")).to_contain_text(
+        "could not be reached from this browser"
+    )
+    expect(page.locator("[data-explanation-summary]")).to_have_text(
+        "Custom no usage"
+    )
+    assert len(same_origin_posts) == before_posts
+
+    page.goto(f"{live_analysis_url}/settings")
+    expect(page.locator("[data-llm-credential-meta]")).to_contain_text(
+        "custom.test/v1"
+    )
+    page.locator("[data-llm-base-url]").fill("https://custom.test/v2")
+    expect(page.locator("[data-llm-destination]")).to_contain_text(
+        "https://custom.test/v2"
+    )
+    expect(page.locator("[data-llm-consent]")).not_to_be_checked()
+    expect(page.locator("[data-llm-confirm]")).not_to_be_checked()
+    page.locator("[data-llm-passphrase]").fill("correct horse battery")
+    page.get_by_role("button", name="Unlock").click()
+    expect(page.locator("[data-llm-status]")).to_contain_text(
+        "Confirm privacy consent and the exact request parameters"
+    )
+    page.locator("[data-llm-consent]").check()
+    page.locator("[data-llm-confirm]").check()
+    page.get_by_role("button", name="Unlock").click()
+    expect(page.locator("[data-llm-status]")).to_contain_text(
+        "Check the passphrase and Provider"
+    )
+    assert other_requests == []
+
+    page.locator("[data-llm-api-key]").fill("sk-custom-other")
+    page.locator("[data-llm-passphrase]").fill("correct horse battery")
+    page.locator("[data-llm-passphrase-confirm]").fill("correct horse battery")
+    page.get_by_role("button", name="Save LLM Profile").click()
+    expect(page.locator("[data-llm-credential-meta]")).to_contain_text(
+        "custom.test/v2"
+    )
+    page.locator("[data-llm-passphrase]").fill("correct horse battery")
+    page.get_by_role("button", name="Unlock").click()
+    expect(page.locator("[data-llm-status]")).to_contain_text("unlocked")
+    assert other_requests == []
+    page.unroute("https://custom.test/**", provider)
+
+
+def test_browser_custom_provider_blocks_unresolved_dialect_controls(
+    browser_page: Page, live_analysis_url: str
+) -> None:
+    page = browser_page
+    page.goto(f"{live_analysis_url}/settings")
+    page.locator("[data-llm-provider]").select_option("custom")
+    page.locator("[data-llm-base-url]").fill("https://custom.test/v1")
+    page.locator("[data-llm-model]").fill("custom-model")
+
+    expect(page.locator("[data-llm-effort]")).to_be_disabled()
+    expect(page.locator("[data-llm-capabilities]")).to_contain_text(
+        "Select a Reasoning dialect"
+    )
+    expect(page.locator("[data-llm-capabilities]")).to_contain_text(
+        "generation token field"
+    )
+    preview = json.loads(page.locator("[data-llm-preview]").inner_text())
+    assert preview == {"error": "custom_dialect_unresolved"}
+
+    page.locator("[data-llm-custom-budget-field]").select_option("max_tokens")
+    preview = json.loads(page.locator("[data-llm-preview]").inner_text())
+    assert preview == {"error": "custom_dialect_unresolved"}
+
+    page.locator("[data-llm-custom-dialect]").select_option("none")
+    expect(page.locator("[data-llm-capabilities]")).to_contain_text(
+        "This dialect sends no Reasoning fields"
+    )
+    preview = json.loads(page.locator("[data-llm-preview]").inner_text())
+    assert preview == {"error": "reasoning_dialect_conflict"}
+
+    page.locator("[data-llm-reasoning]").uncheck()
+    expect(page.locator("[data-llm-effort]")).to_be_disabled()
+    preview = json.loads(page.locator("[data-llm-preview]").inner_text())
+    assert preview == {
+        "model": "custom-model",
+        "response_format": {"type": "json_object"},
+        "max_tokens": 16384,
+    }
+
+    page.locator("[data-llm-custom-dialect]").select_option("thinking")
+    preview = json.loads(page.locator("[data-llm-preview]").inner_text())
+    assert preview["thinking"] == {"type": "disabled"}
+    page.locator("[data-llm-reasoning]").check()
+    expect(page.locator("[data-llm-effort]")).to_be_disabled()
+    preview = json.loads(page.locator("[data-llm-preview]").inner_text())
+    assert preview["thinking"] == {"type": "enabled"}
+
+    page.locator("[data-llm-custom-dialect]").select_option("openai")
+    expect(page.locator("[data-llm-effort]")).to_be_enabled()
+    expect(page.locator("[data-llm-capabilities]")).to_contain_text(
+        "Choose an explicit Reasoning effort"
+    )
+    preview = json.loads(page.locator("[data-llm-preview]").inner_text())
+    assert preview == {"error": "reasoning_effort_unresolved"}
+
+    page.locator("[data-llm-effort]").select_option("high")
+    page.locator("[data-llm-custom-budget-field]").select_option(
+        "max_completion_tokens"
+    )
+    preview = json.loads(page.locator("[data-llm-preview]").inner_text())
+    assert preview == {
+        "model": "custom-model",
+        "response_format": {"type": "json_object"},
+        "max_completion_tokens": 16384,
+        "reasoning_effort": "high",
+    }
+
+
+def test_browser_custom_blocks_unresolved_generation(
+    browser_page: Page, live_analysis_url: str
+) -> None:
+    page = browser_page
+    provider_requests: list[str] = []
+
+    def provider(route) -> None:
+        provider_requests.append(route.request.url)
+        route.fulfill(
+            status=200,
+            headers={
+                "Access-Control-Allow-Origin": "*",
+                "Content-Type": "application/json",
+            },
+            body=json.dumps(
+                {
+                    "choices": [
+                        {
+                            "message": {
+                                "content": json.dumps(
+                                    {
+                                        "summary": "must not run",
+                                        "why": "facts",
+                                        "alternatives": "lines",
+                                        "uncertainty": "none",
+                                    }
+                                )
+                            }
+                        }
+                    ]
+                }
+            ),
+        )
+
+    page.route("https://custom.test/**", provider)
+    _configure_custom_profile(
+        page,
+        live_analysis_url,
+        dialect="",
+        budget_field="",
+        effort="",
+    )
+    page.goto(f"{live_analysis_url}/tools/analysis")
+    page.locator("#analysis-fen").fill(_START_FEN)
+    page.get_by_role("button", name="Start analysis").click()
+    expect(page.locator("[data-analysis-status]")).to_contain_text(
+        "Analysis complete", timeout=30_000
+    )
+    page.locator("[data-explanation-passphrase]").fill("correct horse battery")
+    page.get_by_role("button", name="Generate Explanation").click()
+    expect(page.locator("[data-explanation-status]")).to_contain_text(
+        "Select a Reasoning dialect"
+    )
+    assert provider_requests == []
+    page.unroute("https://custom.test/**", provider)
+
+
+def test_browser_custom_uses_real_cross_origin_provider(
+    browser_page: Page,
+    live_analysis_url: str,
+    local_cross_origin_llm: dict[str, Any],
+) -> None:
+    page = browser_page
+    local = local_cross_origin_llm
+    local["state"]["mode"] = "success"
+    local["state"]["requests"].clear()
+    same_origin_posts: list[str] = []
+    page.on(
+        "request",
+        lambda request: (
+            same_origin_posts.append(request.url)
+            if request.method == "POST"
+            and request.url.startswith(live_analysis_url)
+            else None
+        ),
+    )
+    _configure_custom_profile(
+        page, live_analysis_url, endpoint=local["url"]
+    )
+    page.goto(f"{live_analysis_url}/tools/analysis")
+    page.locator("#analysis-fen").fill(_START_FEN)
+    page.get_by_role("button", name="Start analysis").click()
+    expect(page.locator("[data-analysis-status]")).to_contain_text(
+        "Analysis complete", timeout=30_000
+    )
+    page.locator("[data-explanation-passphrase]").fill("correct horse battery")
+    before_posts = len(same_origin_posts)
+    page.get_by_role("button", name="Generate Explanation").click()
+    expect(page.locator("[data-explanation-summary]")).to_have_text(
+        "Custom local summary"
+    )
+    posts = [
+        request
+        for request in local["state"]["requests"]
+        if request["method"] == "POST"
+    ]
+    assert len(posts) == 1
+    assert posts[0]["headers"]["authorization"] == "Bearer sk-custom-secret"
+    body = json.loads(posts[0]["body"])
+    assert body["reasoning_effort"] == "max"
+    assert body["max_completion_tokens"] == 16384
+    assert len(same_origin_posts) == before_posts
+
+    local["state"]["mode"] = "cors"
+    page.get_by_role("button", name="Generate Explanation").click()
+    expect(page.locator("[data-explanation-status]")).to_contain_text(
+        "could not be reached from this browser"
+    )
+    expect(page.locator("[data-explanation-summary]")).to_have_text(
+        "Custom local summary"
+    )
+    posts = [
+        request
+        for request in local["state"]["requests"]
+        if request["method"] == "POST"
+    ]
+    assert len(posts) == 1
+    assert len(same_origin_posts) == before_posts
+
+
+def test_browser_custom_batches_and_summarizes_game(
+    browser_page: Page, live_analysis_url: str
+) -> None:
+    page = browser_page
+    requests: list[dict[str, Any]] = []
+
+    def provider(route) -> None:
+        headers = {
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Headers": "authorization,content-type",
+            "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+            "Access-Control-Max-Age": "0",
+        }
+        if route.request.method == "OPTIONS":
+            route.fulfill(status=204, headers=headers)
+            return
+        if route.request.url.endswith("/models"):
+            route.fulfill(
+                status=200,
+                headers={**headers, "Content-Type": "application/json"},
+                body=json.dumps({"data": [{"id": "custom-model"}]}),
+            )
+            return
+        body = route.request.post_data_json
+        requests.append(body)
+        payload = json.loads(body["messages"][1]["content"])
+        if "targets" in payload:
+            content = json.dumps(
+                {
+                    "explanations": [
+                        {
+                            "ply": target["ply"],
+                            "summary": "Custom key ply",
+                            "why": "engine facts",
+                            "alternatives": "candidate lines",
+                            "uncertainty": "limited",
+                        }
+                        for target in payload["targets"]
+                    ]
+                }
+            )
+            reasoning = "SECRET-CUSTOM-BATCH-REASONING"
+        else:
+            content = json.dumps(
+                {
+                    "summary": "Custom game summary",
+                    "uncertainty": "limited",
+                }
+            )
+            reasoning = "SECRET-CUSTOM-SUMMARY-REASONING"
+        route.fulfill(
+            status=200,
+            headers={**headers, "Content-Type": "application/json"},
+            body=json.dumps(
+                {
+                    "choices": [
+                        {
+                            "finish_reason": "stop",
+                            "message": {
+                                "content": content,
+                                "reasoning_content": reasoning,
+                            },
+                        }
+                    ],
+                    "usage": {
+                        "prompt_tokens": 3,
+                        "completion_tokens": 6,
+                        "completion_tokens_details": {"reasoning_tokens": 4},
+                        "total_tokens": 9,
+                    },
+                }
+            ),
+        )
+
+    fake_analysis = _single_ply_game_analysis()
+
+    def game_results(route) -> None:
+        route.fulfill(
+            status=200,
+            content_type="application/json",
+            body=json.dumps(fake_analysis),
+        )
+
+    page.route("https://custom.test/**", provider)
+    page.route("**/tools/analysis/game/results", game_results)
+    _configure_custom_profile(
+        page,
+        live_analysis_url,
+        dialect="openai",
+        budget_field="max_tokens",
+        effort="high",
+    )
+    page.goto(f"{live_analysis_url}/tools/analysis/pgn")
+    page.locator("#pgn").fill(
+        '[Event "Custom"]\n[White "A"]\n[Black "B"]\n[Result "*"]\n\n1. e4 *'
+    )
+    page.get_by_role("button", name="Parse PGN").click()
+    page.get_by_role("button", name="Open Game").click()
+    page.wait_for_load_state("load")
+    page.get_by_role("button", name="Start Game Analysis").click()
+    expect(page.locator("[data-game-status]")).to_contain_text(
+        "Analyzing", timeout=30_000
+    )
+    expect(page.locator("[data-game-status]")).to_contain_text(
+        "Analysis complete", timeout=30_000
+    )
+    page.locator("[data-game-batch-preview]").click()
+    page.locator("[data-game-explanation-passphrase]").fill(
+        "correct horse battery"
+    )
+    page.get_by_role("button", name="Confirm and Generate").click()
+    expect(page.locator("[data-game-batch-status]")).to_contain_text(
+        "Key Ply explanations and summary complete.", timeout=30_000
+    )
+    expect(page.locator("[data-game-summary-text]")).to_have_text(
+        "Custom game summary"
+    )
+    expect(page.locator("[data-game-token-usage]")).to_contain_text("total 18")
+    assert len(requests) == 2
+    payloads = [json.loads(item["messages"][1]["content"]) for item in requests]
+    assert len(payloads[0]["targets"]) == 1
+    assert "key_plies" in payloads[1]
+    for body in requests:
+        assert body["reasoning_effort"] == "high"
+        assert body["max_tokens"] == 16384
+        assert "max_completion_tokens" not in body
+    assert "SECRET-CUSTOM-BATCH-REASONING" not in page.content()
+    assert "SECRET-CUSTOM-SUMMARY-REASONING" not in page.content()
+    workspace = _workspace_record_text(page)
+    assert "SECRET-CUSTOM-BATCH-REASONING" not in workspace
+    assert "SECRET-CUSTOM-SUMMARY-REASONING" not in workspace
+    assert "Custom game summary" in workspace
+    page.locator("[data-game-moves] [data-ply='1']").click()
+    expect(page.locator("[data-game-explanation-summary]")).to_have_text(
+        "Custom key ply"
+    )
+    page.unroute("https://custom.test/**", provider)
     page.unroute("**/tools/analysis/game/results", game_results)

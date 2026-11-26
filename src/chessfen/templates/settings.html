@@ -29,6 +29,7 @@
           <option value="openrouter">OpenRouter</option>
           <option value="deepseek">DeepSeek</option>
           <option value="kimi">Kimi</option>
+          <option value="custom">{% trans %}Custom{% endtrans %}</option>
         </select>
         <p class="field-hint" data-llm-compatibility role="note" hidden></p>
       </div>
@@ -37,6 +38,25 @@
         <select class="select-input" id="llm-kimi-region" data-llm-kimi-region>
           <option value="international">{% trans %}International{% endtrans %} · api.moonshot.ai</option>
           <option value="cn">{% trans %}China{% endtrans %} · api.moonshot.cn</option>
+        </select>
+      </div>
+      <div class="field" data-custom-dialect-field hidden>
+        <label class="field-label" for="llm-custom-dialect">{% trans %}Reasoning dialect{% endtrans %}</label>
+        <select class="select-input" id="llm-custom-dialect" data-llm-custom-dialect>
+          <option value="">{% trans %}Select a dialect{% endtrans %}</option>
+          <option value="openai">{% trans %}OpenAI reasoning_effort{% endtrans %}</option>
+          <option value="object">{% trans %}Reasoning object{% endtrans %}</option>
+          <option value="deepseek">{% trans %}DeepSeek thinking + effort{% endtrans %}</option>
+          <option value="thinking">{% trans %}Thinking switch only{% endtrans %}</option>
+          <option value="none">{% trans %}No Reasoning fields{% endtrans %}</option>
+        </select>
+      </div>
+      <div class="field" data-custom-budget-field hidden>
+        <label class="field-label" for="llm-custom-budget-field">{% trans %}Generation token field{% endtrans %}</label>
+        <select class="select-input" id="llm-custom-budget-field" data-llm-custom-budget-field>
+          <option value="">{% trans %}Select a token field{% endtrans %}</option>
+          <option value="max_completion_tokens">max_completion_tokens</option>
+          <option value="max_tokens">max_tokens</option>
         </select>
       </div>
       <div class="field">
@@ -65,9 +85,10 @@
             <option value="advanced">{% trans %}Advanced{% endtrans %}</option>
           </select>
         </div>
-        <div class="field">
+        <div class="field" data-standard-effort-field>
           <label class="field-label" for="llm-effort">{% trans %}Reasoning effort{% endtrans %}</label>
           <select class="select-input" id="llm-effort" data-llm-effort>
+            <option value="" data-effort-unresolved hidden>{% trans %}Select an effort{% endtrans %}</option>
             <option value="max">max</option>
             <option value="xhigh">xhigh</option>
             <option value="high">high</option>
@@ -84,6 +105,7 @@
         <label class="field-label" for="llm-budget">{% trans %}Generation budget (tokens){% endtrans %}</label>
         <input class="text-input" type="number" id="llm-budget" data-llm-budget min="1024" max="131072" value="16384">
       </div>
+      <p class="field-hint" data-llm-destination role="note"></p>
       <label class="check-field"><input type="checkbox" data-llm-consent> {% trans %}I understand this Base URL receives my PGN/FEN, engine facts, and explanations.{% endtrans %}</label>
       <label class="check-field"><input type="checkbox" data-llm-confirm> {% trans %}I confirm the exact request parameters shown below.{% endtrans %}</label>
       <div class="code-block">

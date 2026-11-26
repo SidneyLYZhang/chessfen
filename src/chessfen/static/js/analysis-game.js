@@ -5,7 +5,7 @@ import {
   loadLlmProfile,
   lockLlm,
   profileRequestReady,
-  reasoningFailureText,
+  llmFailureMessage,
   requestExplanation,
   requestKeyPlyBatch,
   requestOverallSummary,
@@ -69,8 +69,8 @@ function initializeGameAnalysis() {
       node.textContent,
     ])
   );
-  const llmFailureText = (code, fallback) =>
-    reasoningFailureText(code, llmText) || fallback;
+  const failureMessage = (code, fallback) =>
+    llmFailureMessage(code, llmText) || fallback;
   const explanations = {};
   let summaryExplanation = null;
   let summaryMeta = null;
@@ -503,7 +503,7 @@ function initializeGameAnalysis() {
           }
           pendingBatchIndex = index;
           batchRetry.hidden = false;
-          batchStatus.textContent = llmFailureText(
+          batchStatus.textContent = failureMessage(
             result.code,
             result.code === "budget_exhausted"
               ? "The generation budget was exhausted. Prior results were preserved."
@@ -532,7 +532,7 @@ function initializeGameAnalysis() {
       if (!summary.ok) {
         summarySection.hidden = false;
         summaryRetry.hidden = false;
-        batchStatus.textContent = llmFailureText(
+        batchStatus.textContent = failureMessage(
           summary.code,
           summary.code === "cancelled"
             ? "LLM generation cancelled. Submitted requests may still finish."
@@ -794,7 +794,7 @@ function initializeGameAnalysis() {
           candidate_lines: activeCandidateLines,
         });
         if (!result.ok) {
-          explanationStatus.textContent = llmFailureText(
+          explanationStatus.textContent = failureMessage(
             result.code,
             "Explanation could not be generated. Confirm the Provider and Reasoning Settings."
           );
@@ -841,7 +841,7 @@ function initializeGameAnalysis() {
       }
     );
     if (!result.ok) {
-      batchStatus.textContent = llmFailureText(
+      batchStatus.textContent = failureMessage(
         result.code,
         "The summary retry failed."
       );

@@ -31,6 +31,14 @@
   <span data-llm-message="reasoning_always">{% trans %}Reasoning is always enabled for this Model.{% endtrans %}</span>
   <span data-llm-message="reasoning_not_applicable">{% trans %}Reasoning effort is not applicable for this Model.{% endtrans %}</span>
   <span data-llm-message="kimi_model_unknown">{% trans %}This Kimi Model is not in the verified capability matrix. Choose a listed Model.{% endtrans %}</span>
+  <span data-llm-message="custom_dialect_unresolved">{% trans %}Select a Reasoning dialect before generating with this Custom Provider.{% endtrans %}</span>
+  <span data-llm-message="custom_budget_field_unresolved">{% trans %}Select the generation token field accepted by this Custom Provider.{% endtrans %}</span>
+  <span data-llm-message="reasoning_effort_unresolved">{% trans %}Choose an explicit Reasoning effort value before generating.{% endtrans %}</span>
+  <span data-llm-message="reasoning_dialect_conflict">{% trans %}This dialect sends no Reasoning fields. Disable Reasoning or choose another dialect.{% endtrans %}</span>
+  <span data-llm-message="provider_unreachable">{% trans %}The Provider could not be reached from this browser. Check the endpoint and CORS; ChessFEN does not proxy requests.{% endtrans %}</span>
   <span data-llm-message="deepseek_unverified">{% trans %}DeepSeek browser-direct connections are unverified from this deployment. Requests may fail because of CORS; ChessFEN will not proxy them.{% endtrans %}</span>
   <span data-llm-message="kimi_unverified">{% trans %}Kimi browser-direct connections are unverified from this deployment. Requests may fail because of CORS; ChessFEN will not proxy them.{% endtrans %}</span>
+  <span data-llm-message="custom_unverified">{% trans %}Custom OpenAI-compatible endpoints are unverified. Requests go only to the confirmed HTTPS Base URL; ChessFEN will not proxy them.{% endtrans %}</span>
+  <span data-llm-message="destination">{% trans %}Request destination: {url}{% endtrans %}</span>
+  <span data-llm-message="destination_missing">{% trans %}No HTTPS Base URL is selected.{% endtrans %}</span>
 </div>

@@ -38,6 +38,16 @@ function initializeSettings() {
   const provider = q("provider");
   const kimiRegion = q("kimi-region");
   const kimiRegionField = form.querySelector("[data-kimi-region-field]");
+  const customDialect = q("custom-dialect");
+  const customDialectField = form.querySelector("[data-custom-dialect-field]");
+  const customBudgetField = q("custom-budget-field");
+  const customBudgetFieldContainer = form.querySelector(
+    "[data-custom-budget-field]"
+  );
+  const effortField = form.querySelector("[data-standard-effort-field]");
+  const effortUnresolved = q("effort").querySelector(
+    "[data-effort-unresolved]"
+  );
   const baseUrl = q("base-url");
   const model = q("model");
   const models = q("models");
@@ -47,6 +57,7 @@ function initializeSettings() {
   const reasoning = q("reasoning");
   const budget = q("budget");
   const consent = q("consent");
+  const destination = q("destination");
   const confirm = q("confirm");
   const preview = q("preview");
   const capabilitiesText = q("capabilities");
@@ -93,8 +104,12 @@ function initializeSettings() {
       reasoningEnabled: reasoning.checked,
       reasoningEffort: effort.value,
       maxTokens: Number.parseInt(budget.value, 10),
-      consentHost: consent.checked ? new URL(normalizedUrl).host : null,
+      consentUrl: consent.checked ? normalizedUrl : null,
       kimiRegion: provider.value === "kimi" ? kimiRegion.value : null,
+      customDialect:
+        provider.value === "custom" ? customDialect.value : null,
+      customBudgetField:
+        provider.value === "custom" ? customBudgetField.value : null,
       reasoningCapabilities:
         provider.value === "openrouter" && capabilityModel === model.value.trim()
           ? capabilityMap[model.value.trim()] || null
@@ -119,20 +134,30 @@ function initializeSettings() {
       : null;
   }
 
-  function applyCompatibility() {
+  function applyProviderPresentation() {
     const deepseek =
       provider.value === "deepseek" &&
       !DEEPSEEK_COMPATIBILITY.browserDirectVerified;
     const kimi =
       provider.value === "kimi" &&
       !KIMI_COMPATIBILITY[kimiRegion.value]?.browserDirectVerified;
-    compatibility.hidden = !deepseek && !kimi;
+    const custom = provider.value === "custom";
+    compatibility.hidden = !deepseek && !kimi && !custom;
     compatibility.textContent = deepseek
       ? text.deepseek_unverified
       : kimi
         ? text.kimi_unverified
-        : "";
+        : custom
+          ? text.custom_unverified
+          : "";
     kimiRegionField.hidden = provider.value !== "kimi";
+    customDialectField.hidden = !custom;
+    customBudgetFieldContainer.hidden = !custom;
+    effortUnresolved.hidden = !custom;
+    effortUnresolved.disabled = !custom;
+    if (!custom && effort.value === "") {
+      effort.value = "max";
+    }
   }
 
   function persistCapabilities() {
@@ -163,6 +188,27 @@ function initializeSettings() {
     effort.disabled = false;
     reasoning.disabled = false;
     capabilitiesText.textContent = "";
+
+    if (provider.value === "custom") {
+      const dialect = customDialect.value;
+      const needsEffort =
+        reasoning.checked &&
+        ["openai", "object", "deepseek"].includes(dialect);
+      if (!dialect) {
+        appendCapabilityText(text.custom_dialect_unresolved);
+      }
+      if (!customBudgetField.value) {
+        appendCapabilityText(text.custom_budget_field_unresolved);
+      }
+      if (reasoning.checked && dialect === "none") {
+        appendCapabilityText(text.reasoning_dialect_conflict);
+      }
+      effort.disabled = !needsEffort;
+      if (needsEffort && !effort.value) {
+        appendCapabilityText(text.reasoning_effort_unresolved);
+      }
+      return;
+    }
 
     if (provider.value === "kimi") {
       const caps = capabilitiesForModel();
@@ -245,6 +291,13 @@ function initializeSettings() {
     }
   }
 
+  function paintDestination() {
+    const value = baseUrl.value.trim().replace(/\/$/, "");
+    destination.textContent = value
+      ? text.destination.replace("{url}", value)
+      : text.destination_missing;
+  }
+
   function paintPreview() {
     const request = providerRequestParameters(readProfile());
     preview.textContent = JSON.stringify(
@@ -257,7 +310,7 @@ function initializeSettings() {
   async function paintCredential() {
     const info = await credentialMetadata();
     meta.textContent = info.exists
-      ? `Stored ciphertext: ${info.provider} · ${info.baseHost}`
+      ? `Stored ciphertext: ${info.provider} · ${info.baseUrl || info.baseHost}`
       : "No encrypted credential stored.";
   }
 
@@ -285,15 +338,19 @@ function initializeSettings() {
     reasoningEnabled: true,
     reasoningEffort: "max",
     maxTokens: 16384,
-    consentHost: null,
+    consentUrl: null,
     confirmedFingerprint: null,
     kimiRegion: defaultKimiRegion,
+    customDialect: "",
+    customBudgetField: "",
     ...(stored || {}),
   };
   provider.value = defaults.provider;
   kimiRegion.value = ["cn", "international"].includes(defaults.kimiRegion)
     ? defaults.kimiRegion
     : defaultKimiRegion;
+  customDialect.value = defaults.customDialect || "";
+  customBudgetField.value = defaults.customBudgetField || "";
   baseUrl.value = defaults.baseUrl;
   model.value = defaults.model;
   language.value = ["zh", "en", "de"].includes(defaults.language)
@@ -305,33 +362,46 @@ function initializeSettings() {
   budget.value = String(defaults.maxTokens);
   try {
     consent.checked =
-      Boolean(stored?.consentHost) &&
-      stored.consentHost === new URL(defaults.baseUrl).host;
+      Boolean(stored?.consentUrl) &&
+      stored.consentUrl === defaults.baseUrl;
     confirm.checked = profileRequestReady(defaults);
   } catch (error) {
     consent.checked = false;
     confirm.checked = false;
   }
-  paintPreview();
+  applyProviderPresentation();
   applyCapabilities();
-  applyCompatibility();
+  paintDestination();
+  paintPreview();
   void paintCredential();
   status.textContent = stored ? text.profile_loaded : text.profile_missing;
 
-  baseUrl.addEventListener("change", () => {
+  const invalidateBaseUrl = () => {
     consent.checked = false;
     confirm.checked = false;
-  });
+    paintDestination();
+  };
+  baseUrl.addEventListener("input", invalidateBaseUrl);
+  baseUrl.addEventListener("change", invalidateBaseUrl);
   provider.addEventListener("change", () => {
-    baseUrl.value =
-      provider.value === "kimi"
-        ? KIMI_BASE_URLS[kimiRegion.value] || KIMI_BASE_URLS.international
-        : PROVIDER_BASE_URLS[provider.value] || PROVIDER_BASE_URLS.openai;
+    if (provider.value === "custom") {
+      baseUrl.value = "";
+      model.value = "";
+      customDialect.value = "";
+      customBudgetField.value = "";
+      effort.value = "";
+    } else {
+      baseUrl.value =
+        provider.value === "kimi"
+          ? KIMI_BASE_URLS[kimiRegion.value] || KIMI_BASE_URLS.international
+          : PROVIDER_BASE_URLS[provider.value] || PROVIDER_BASE_URLS.openai;
+    }
     consent.checked = false;
     confirm.checked = false;
     clearModelList();
+    applyProviderPresentation();
     applyCapabilities();
-    applyCompatibility();
+    paintDestination();
     paintPreview();
   });
   kimiRegion.addEventListener("change", () => {
@@ -340,6 +410,17 @@ function initializeSettings() {
     consent.checked = false;
     confirm.checked = false;
     clearModelList();
+    paintDestination();
+    paintPreview();
+  });
+  customDialect.addEventListener("change", () => {
+    confirm.checked = false;
+    applyCapabilities();
+    paintPreview();
+  });
+  customBudgetField.addEventListener("change", () => {
+    confirm.checked = false;
+    applyCapabilities();
     paintPreview();
   });
   model.addEventListener("change", () => {

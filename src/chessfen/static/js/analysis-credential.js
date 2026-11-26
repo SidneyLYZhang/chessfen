@@ -86,6 +86,7 @@ export async function credentialMetadata() {
       secure: true,
       provider: record?.provider || null,
       baseHost: record?.baseHost || null,
+      baseUrl: record?.baseUrl || null,
       updatedAt: record?.updatedAt || null,
     };
   } catch (error) {
@@ -121,6 +122,7 @@ export async function saveCredential(apiKey, passphrase, profile) {
       ciphertext,
       provider: profile.provider,
       baseHost: new URL(profile.baseUrl).host,
+      baseUrl: profile.baseUrl,
       updatedAt: Date.now(),
     });
     return { ok: true };
@@ -140,7 +142,7 @@ export async function unlockCredential(passphrase, profile) {
     }
     if (
       record.provider !== profile.provider ||
-      record.baseHost !== new URL(profile.baseUrl).host
+      record.baseUrl !== profile.baseUrl
     ) {
       return { ok: false, code: "credential_provider_mismatch" };
     }

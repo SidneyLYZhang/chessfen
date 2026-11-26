@@ -106,6 +106,14 @@ _Avoid_: "thinking depth", "engine strength", "MultiPV"
 The provider- and model-specific representation of reasoning enablement, Reasoning effort, and generation budget; OpenAI-compatible Chat Completions does not imply a shared reasoning parameter contract.
 _Avoid_: "standard reasoning parameters", "universal effort field"
 
+**Generation token field**:
+The provider- or Visitor-selected request field that carries the shared generation budget, either `max_tokens` or `max_completion_tokens`.
+_Avoid_: "output tokens", "budget parameter" when the exact wire field matters
+
+**Custom Provider**:
+An unknown OpenAI-compatible endpoint configured by the Visitor, whose Reasoning dialect and Generation token field are selected explicitly rather than inferred.
+_Avoid_: treating "OpenAI-compatible" as proof of a Reasoning contract
+
 **Analysis Workspace**:
 The Visitor's current resumable analysis input and results, retained locally until replaced or cleared.
 _Avoid_: "account", "cloud project", "history"

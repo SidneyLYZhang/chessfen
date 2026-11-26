@@ -5,7 +5,7 @@ import {
   loadLlmProfile,
   lockLlm,
   profileRequestReady,
-  reasoningFailureText,
+  llmFailureMessage,
   requestExplanation,
   requestOverallSummary,
   unlockLlm,
@@ -871,7 +871,7 @@ function initializeAnalysis() {
         summaryController.signal
       );
       if (!result.ok) {
-        positionSummaryStatus.textContent = llmFailureText(
+        positionSummaryStatus.textContent = failureMessage(
           result.code,
           result.code === "cancelled"
             ? "Summary cancelled. Submitted requests may still finish."
@@ -1336,8 +1336,8 @@ function initializeAnalysis() {
       node.textContent,
     ])
   );
-  const llmFailureText = (code, fallback) =>
-    reasoningFailureText(code, llmText) || fallback;
+  const failureMessage = (code, fallback) =>
+    llmFailureMessage(code, llmText) || fallback;
   let explanationBusy = false;
   window.addEventListener("chessfen:llm-lock", () => {
     explanationStatus.textContent = llmText.locked_timeout;
@@ -1379,7 +1379,7 @@ function initializeAnalysis() {
         actual_move: activePosition.actual_move,
       });
       if (!result.ok) {
-        explanationStatus.textContent = llmFailureText(
+        explanationStatus.textContent = failureMessage(
           result.code,
           result.code === "provider_error"
             ? "The Provider rejected the request. Confirm the Model and Reasoning settings."

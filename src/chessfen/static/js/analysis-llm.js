@@ -9,7 +9,7 @@ const LOCK_MS =
     ? configuredLockMs
     : 30 * 60 * 1000;
 let unlockedKey = null;
-let unlockedHost = null;
+let unlockedBaseUrl = null;
 let lockTimer = null;
 
 export function loadLlmProfile() {
@@ -38,20 +38,33 @@ export function requestFingerprint(profile) {
     reasoningEnabled: profile.reasoningEnabled,
     reasoningEffort: profile.reasoningEffort,
     maxTokens: profile.maxTokens,
+    ...(profile.provider === "custom"
+      ? {
+          customDialect: profile.customDialect,
+          customBudgetField: profile.customBudgetField,
+        }
+      : {}),
   });
 }
 
 export function profileRequestReady(profile) {
-  const host = new URL(profile.baseUrl).host;
+  try {
+    const url = new URL(profile.baseUrl);
+    if (url.protocol !== "https:" || !url.host) {
+      return false;
+    }
+  } catch (error) {
+    return false;
+  }
   return (
-    profile.consentHost === host &&
+    profile.consentUrl === profile.baseUrl &&
     profile.confirmedFingerprint === requestFingerprint(profile)
   );
 }
 
 export function lockLlm() {
   unlockedKey = null;
-  unlockedHost = null;
+  unlockedBaseUrl = null;
   document.documentElement.dataset.llmLocked = "true";
   window.dispatchEvent(new CustomEvent("chessfen:llm-lock"));
   if (lockTimer !== null) {
@@ -77,16 +90,20 @@ export async function unlockLlm(passphrase, profile) {
     return result;
   }
   unlockedKey = result.key;
-  unlockedHost = new URL(profile.baseUrl).host;
+  unlockedBaseUrl = profile.baseUrl;
   document.documentElement.dataset.llmLocked = "false";
   touchLock();
   return { ok: true };
 }
 
 export async function fetchModels(profile) {
-  if (!unlockedKey || unlockedHost !== new URL(profile.baseUrl).host) {
+  if (
+    !unlockedKey ||
+    unlockedBaseUrl !== profile.baseUrl ||
+    !profileRequestReady(profile)
+  ) {
     lockLlm();
-    return { ok: false, code: "llm_locked" };
+    return { ok: false, code: "llm_profile_unconfirmed" };
   }
   try {
     const response = await fetch(`${profile.baseUrl.replace(/\/$/, "")}/models`, {
@@ -265,16 +282,76 @@ export function deepseekReasoningCapabilities(model) {
   };
 }
 
-export function reasoningFailureText(code, messages) {
+export function llmFailureMessage(code, messages) {
   const key = {
     reasoning_mandatory: "reasoning_mandatory",
     reasoning_unverified: "reasoning_unverified",
     reasoning_effort_unsupported: "reasoning_unsupported",
     reasoning_effort_unknown: "reasoning_unsupported",
     reasoning_capabilities_unknown: "reasoning_unknown",
+    reasoning_effort_unresolved: "reasoning_effort_unresolved",
+    reasoning_dialect_conflict: "reasoning_dialect_conflict",
+    custom_dialect_unresolved: "custom_dialect_unresolved",
+    custom_budget_field_unresolved: "custom_budget_field_unresolved",
     kimi_model_unknown: "kimi_model_unknown",
+    provider_unreachable: "provider_unreachable",
   }[code];
   return key && messages ? messages[key] : null;
+}
+
+const CUSTOM_DIALECTS = new Set([
+  "openai",
+  "object",
+  "deepseek",
+  "thinking",
+  "none",
+]);
+const CUSTOM_BUDGET_FIELDS = new Set([
+  "max_tokens",
+  "max_completion_tokens",
+]);
+
+function resolveCustomRequest(profile) {
+  if (!CUSTOM_DIALECTS.has(profile.customDialect)) {
+    return { ok: false, code: "custom_dialect_unresolved" };
+  }
+  if (!CUSTOM_BUDGET_FIELDS.has(profile.customBudgetField)) {
+    return { ok: false, code: "custom_budget_field_unresolved" };
+  }
+  const enabled = Boolean(profile.reasoningEnabled);
+  const effort = profile.reasoningEffort;
+  const reasoning =
+    profile.customDialect === "openai" ||
+    profile.customDialect === "object" ||
+    profile.customDialect === "deepseek";
+  if (enabled && reasoning && !effort) {
+    return { ok: false, code: "reasoning_effort_unresolved" };
+  }
+  if (enabled && profile.customDialect === "none") {
+    return { ok: false, code: "reasoning_dialect_conflict" };
+  }
+  const body = {
+    model: profile.model,
+    response_format: { type: "json_object" },
+    [profile.customBudgetField]: profile.maxTokens,
+  };
+  if (profile.customDialect === "openai") {
+    if (enabled) {
+      body.reasoning_effort = effort;
+    }
+  } else if (profile.customDialect === "object") {
+    body.reasoning = enabled
+      ? { enabled: true, effort }
+      : { enabled: false };
+  } else if (profile.customDialect === "deepseek") {
+    body.thinking = { type: enabled ? "enabled" : "disabled" };
+    if (enabled) {
+      body.reasoning_effort = effort;
+    }
+  } else if (profile.customDialect === "thinking") {
+    body.thinking = { type: enabled ? "enabled" : "disabled" };
+  }
+  return { ok: true, body };
 }
 
 function resolveKimiReasoning(profile) {
@@ -407,6 +484,9 @@ export function providerRequestParameters(profile) {
       },
     };
   }
+  if (profile.provider === "custom") {
+    return resolveCustomRequest(profile);
+  }
   const body = {
     model: profile.model,
     response_format: { type: "json_object" },
@@ -419,7 +499,7 @@ export function providerRequestParameters(profile) {
 }
 
 async function chatJson(profile, messages, signal = null) {
-  if (!unlockedKey || unlockedHost !== new URL(profile.baseUrl).host) {
+  if (!unlockedKey || unlockedBaseUrl !== profile.baseUrl) {
     lockLlm();
     return { ok: false, code: "llm_locked" };
   }

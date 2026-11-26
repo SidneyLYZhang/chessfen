@@ -1299,3 +1299,60 @@ msgstr "Dieses Kimi-Modell ist nicht in der verifizierten Fähigkeitsmatrix enth
 
 msgid "Kimi browser-direct connections are unverified from this deployment. Requests may fail because of CORS; ChessFEN will not proxy them."
 msgstr "Direkte Kimi-Browserverbindungen sind für diese Bereitstellung nicht verifiziert. Anfragen können wegen CORS fehlschlagen; ChessFEN nutzt keinen Server-Proxy."
+
+msgid "Custom"
+msgstr "Benutzerdefiniert"
+
+msgid "Reasoning dialect"
+msgstr "Reasoning-Dialekt"
+
+msgid "Select a dialect"
+msgstr "Dialekt wählen"
+
+msgid "OpenAI reasoning_effort"
+msgstr "OpenAI reasoning_effort"
+
+msgid "Reasoning object"
+msgstr "Reasoning-Objekt"
+
+msgid "DeepSeek thinking + effort"
+msgstr "DeepSeek thinking + effort"
+
+msgid "Thinking switch only"
+msgstr "Nur Thinking-Schalter"
+
+msgid "No Reasoning fields"
+msgstr "Keine Reasoning-Felder"
+
+msgid "Generation token field"
+msgstr "Feld für Generierungs-Token"
+
+msgid "Select a token field"
+msgstr "Token-Feld wählen"
+
+msgid "Select an effort"
+msgstr "Reasoning-Stärke wählen"
+
+msgid "Select a Reasoning dialect before generating with this Custom Provider."
+msgstr "Wähle vor der Generierung mit diesem benutzerdefinierten Provider einen Reasoning-Dialekt."
+
+msgid "Select the generation token field accepted by this Custom Provider."
+msgstr "Wähle das Token-Feld für die Generierung, das dieser benutzerdefinierte Provider akzeptiert."
+
+msgid "Choose an explicit Reasoning effort value before generating."
+msgstr "Wähle vor der Generierung einen expliziten Wert für die Reasoning-Stärke."
+
+msgid "This dialect sends no Reasoning fields. Disable Reasoning or choose another dialect."
+msgstr "Dieser Dialekt sendet keine Reasoning-Felder. Deaktiviere Reasoning oder wähle einen anderen Dialekt."
+
+msgid "The Provider could not be reached from this browser. Check the endpoint and CORS; ChessFEN does not proxy requests."
+msgstr "Der Provider ist von diesem Browser aus nicht erreichbar. Prüfe Endpoint und CORS; ChessFEN verwendet keinen Proxy."
+
+msgid "Custom OpenAI-compatible endpoints are unverified. Requests go only to the confirmed HTTPS Base URL; ChessFEN will not proxy them."
+msgstr "Benutzerdefinierte OpenAI-kompatible Endpunkte sind nicht verifiziert. Anfragen gehen nur an die bestätigte HTTPS-Base-URL; ChessFEN verwendet keinen Proxy."
+
+msgid "Request destination: {url}"
+msgstr "Anfrageziel: {url}"
+
+msgid "No HTTPS Base URL is selected."
+msgstr "Es ist keine HTTPS-Base-URL ausgewählt."

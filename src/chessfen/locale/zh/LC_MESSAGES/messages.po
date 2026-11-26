@@ -1299,3 +1299,60 @@ msgstr "此 Kimi 模型不在已验证的能力矩阵中。请选择列表中的
 
 msgid "Kimi browser-direct connections are unverified from this deployment. Requests may fail because of CORS; ChessFEN will not proxy them."
 msgstr "当前部署尚未验证 Kimi 的浏览器直连兼容性。请求可能因 CORS 失败；ChessFEN 不会改用服务器代理。"
+
+msgid "Custom"
+msgstr "自定义"
+
+msgid "Reasoning dialect"
+msgstr "思考方言"
+
+msgid "Select a dialect"
+msgstr "选择方言"
+
+msgid "OpenAI reasoning_effort"
+msgstr "OpenAI reasoning_effort"
+
+msgid "Reasoning object"
+msgstr "思考对象"
+
+msgid "DeepSeek thinking + effort"
+msgstr "DeepSeek thinking + effort"
+
+msgid "Thinking switch only"
+msgstr "仅 thinking 开关"
+
+msgid "No Reasoning fields"
+msgstr "不发送思考字段"
+
+msgid "Generation token field"
+msgstr "生成长度字段"
+
+msgid "Select a token field"
+msgstr "选择 token 字段"
+
+msgid "Select an effort"
+msgstr "选择思考强度"
+
+msgid "Select a Reasoning dialect before generating with this Custom Provider."
+msgstr "使用此自定义 Provider 生成前，请选择思考方言。"
+
+msgid "Select the generation token field accepted by this Custom Provider."
+msgstr "请选择此自定义 Provider 接受的生成长度字段。"
+
+msgid "Choose an explicit Reasoning effort value before generating."
+msgstr "生成前请明确选择思考强度。"
+
+msgid "This dialect sends no Reasoning fields. Disable Reasoning or choose another dialect."
+msgstr "此方言不发送思考字段。请关闭思考或选择其他方言。"
+
+msgid "The Provider could not be reached from this browser. Check the endpoint and CORS; ChessFEN does not proxy requests."
+msgstr "浏览器无法连接到此 Provider。请检查端点与 CORS；ChessFEN 不会代理请求。"
+
+msgid "Custom OpenAI-compatible endpoints are unverified. Requests go only to the confirmed HTTPS Base URL; ChessFEN will not proxy them."
+msgstr "自定义 OpenAI 兼容端点未经验证。请求只会发送到已确认的 HTTPS Base URL；ChessFEN 不会代理它们。"
+
+msgid "Request destination: {url}"
+msgstr "请求目标：{url}"
+
+msgid "No HTTPS Base URL is selected."
+msgstr "尚未选择 HTTPS Base URL。"
