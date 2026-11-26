@@ -95,6 +95,13 @@ async def analysis_body_guard(request: Request, call_next):
     return await call_next(request)
 
 
+async def static_cache_headers(request: Request, call_next):
+    response = await call_next(request)
+    if request.url.path.startswith("/static/"):
+        response.headers.setdefault("Cache-Control", "no-cache")
+    return response
+
+
 async def stockfish_asset_headers(request: Request, call_next):
     response = await call_next(request)
     if request.url.path.startswith(
@@ -138,6 +145,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.middleware("http")(build_api_key_middleware(app.state.session_factory))
     app.middleware("http")(upload_size_guard)
     app.middleware("http")(analysis_body_guard)
+    app.middleware("http")(static_cache_headers)
     app.middleware("http")(stockfish_asset_headers)
 
     @app.exception_handler(AdminRequired)

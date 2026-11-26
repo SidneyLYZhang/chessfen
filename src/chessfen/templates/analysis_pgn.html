@@ -58,9 +58,6 @@
       </div>
       {% endif %}
     </form>
-    {% include "analysis_settings.html" %}
-    {% include "analysis_workspace.html" %}
-
     {% if game_data %}
     <div
       data-game-root
@@ -112,6 +109,8 @@
       </dl>
     </div>
     {% endif %}
+    {% include "analysis_settings.html" %}
+    {% include "analysis_workspace.html" %}
   </section>
 
   <section class="result-panel">
@@ -121,12 +120,24 @@
       <p>{% trans %}Parse a PGN and open a Game to analyze its Mainline.{% endtrans %}</p>
     </div>
     <div data-game-result hidden>
+      {% if game_data %}
+      <div class="analysis-result-head">
+        <div>
+          <p class="eyebrow" aria-hidden="true">RESULT / GAME</p>
+          <h2 data-game-title>{{ game_data.white }} {% trans %}vs{% endtrans %} {{ game_data.black }}</h2>
+        </div>
+        <span class="subtle-meta">{{ game_data.result }}</span>
+      </div>
+      {% endif %}
       <div class="result-board analysis-board"><img data-game-board alt="{% trans %}Analyzed Position{% endtrans %}" width="560" height="560"></div>
       <dl class="result-meta analysis-summary">
         <div><dt>{% trans %}Evaluation{% endtrans %}</dt><dd data-game-evaluation></dd></div>
         <div><dt>{% trans %}Move quality{% endtrans %}</dt><dd data-game-quality></dd></div>
       </dl>
-      <div class="analysis-eval-graph" data-game-graph></div>
+      <div class="analysis-graph-block">
+        <div class="analysis-graph-heading"><span>{% trans %}Evaluation graph{% endtrans %}</span><span>{% trans %}Click a point to inspect a Ply{% endtrans %}</span></div>
+        <div class="analysis-eval-graph" data-game-graph></div>
+      </div>
       <div class="analysis-tabs" role="tablist" aria-label="{% trans %}Analysis views{% endtrans %}" data-analysis-tablist>
         <button type="button" role="tab" id="game-tab-plies" aria-controls="game-panel-plies" aria-selected="true" data-tab-name="plies">{% trans %}Plies{% endtrans %}</button>
         <button type="button" role="tab" id="game-tab-lines" aria-controls="game-panel-lines" aria-selected="false" tabindex="-1" data-tab-name="lines">{% trans %}Candidate Lines{% endtrans %}</button>
@@ -136,7 +147,8 @@
         <div class="game-move-list" data-game-moves role="group" aria-label="{% trans %}Mainline moves{% endtrans %}"></div>
         <section class="analysis-assessment">
           <h3>{% trans %}Structured facts{% endtrans %}</h3>
-          <dl class="analysis-assessment-facts">
+          <p class="analysis-empty-note" data-game-facts-empty>{% trans %}Select a Ply to see exact facts and heuristic indicators.{% endtrans %}</p>
+          <dl class="analysis-assessment-facts" data-game-facts>
             <div><dt>{% trans %}Exact facts{% endtrans %}</dt><dd data-game-exact></dd></div>
             <div><dt>{% trans %}Heuristic indicators{% endtrans %}</dt><dd data-game-indicators></dd></div>
           </dl>
@@ -213,12 +225,6 @@
   </section>
 </div>
 
-{% if game_data %}
-<section class="game-ribbon" data-game-ribbon hidden>
-  <p class="eyebrow" aria-hidden="true">02 / MAINLINE</p>
-  <h2>{{ game_data.white }} {% trans %}vs{% endtrans %} {{ game_data.black }} ({{ game_data.result }})</h2>
-</section>
-{% endif %}
 {% endblock %}
 {% block body_scripts %}
 <script type="module" src="/static/js/analysis-settings.js"></script>

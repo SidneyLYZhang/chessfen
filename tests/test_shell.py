@@ -139,7 +139,9 @@ def test_home_hero_cards_and_open_strip(client: TestClient) -> None:
     assert 'class="primary-button" href="/tools/render"' in page.text
     assert 'class="secondary-button" href="/tools/recognize"' in page.text
     assert 'class="tool-card"' in page.text
-    assert page.text.count('class="tool-card"') == 3
+    assert page.text.count('class="tool-card"') == 4
+    assert 'href="/tools/analysis/pgn"' in page.text
+    assert page.text.count('href="/settings"') >= 2
     assert 'class="open-strip"' in page.text
     assert "One Docker image" in page.text
     for href in ("/tools/render", "/tools/pgn", "/tools/recognize", "/about"):
@@ -181,3 +183,16 @@ def test_skip_link_and_menu_labels_are_localized(client: TestClient) -> None:
     assert "菜单" in zh.text
     assert "Zum Hauptinhalt springen" in de.text
     assert "Menü" in de.text
+
+
+def test_static_assets_revalidate_with_etag(client: TestClient) -> None:
+    first = client.get("/static/css/app.css")
+    assert first.status_code == 200
+    assert first.headers["cache-control"] == "no-cache"
+    etag = first.headers["etag"]
+    second = client.get(
+        "/static/css/app.css",
+        headers={"If-None-Match": etag},
+    )
+    assert second.status_code == 304
+    assert second.headers["etag"] == etag

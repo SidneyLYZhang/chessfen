@@ -12,6 +12,7 @@ import {
   deepseekReasoningCapabilities,
   fetchModels,
   kimiReasoningCapabilities,
+  llmUnlockedFor,
   loadLlmProfile,
   lockLlm,
   openaiReasoningCapabilities,
@@ -20,6 +21,7 @@ import {
   requestFingerprint,
   saveLlmProfile,
   unlockLlm,
+  unlockLlmWithKey,
 } from "/static/js/analysis-llm.js";
 import { readMessages } from "/static/js/ui-messages.js";
 
@@ -72,6 +74,24 @@ function initializeSettings() {
   const status = document.querySelector("[data-llm-status]");
   const meta = document.querySelector("[data-llm-credential-meta]");
   const insecure = document.querySelector("[data-llm-insecure]");
+  const credentialState = document.querySelector(
+    "[data-llm-credential-state]"
+  );
+  const unlockHint = document.querySelector("[data-llm-unlock-hint]");
+  const actionHint = document.querySelector("[data-llm-action-hint]");
+  const overviewProvider = document.querySelector("[data-overview-provider]");
+  const overviewModel = document.querySelector("[data-overview-model]");
+  const overviewProfile = document.querySelector("[data-overview-profile]");
+  const overviewCredential = document.querySelector(
+    "[data-overview-credential]"
+  );
+  const keyToggle = document.querySelector("[data-llm-key-toggle]");
+  const keyToggleLabel = document.querySelector(
+    "[data-llm-key-toggle-label]"
+  );
+  const unlockButton = document.querySelector("[data-llm-unlock]");
+  const lockButton = document.querySelector("[data-llm-lock]");
+  const deleteButton = document.querySelector("[data-llm-delete]");
   const stored = loadLlmProfile();
   let capabilityModel = stored?.reasoningCapabilities?.model || null;
   let capabilityMap = stored?.reasoningCapabilities
@@ -79,13 +99,19 @@ function initializeSettings() {
     : {};
   const text = readMessages("llm-message");
   const uiText = readMessages("ui-message");
+  let credentialInfo = { exists: false };
   window.addEventListener("chessfen:llm-lock", () => {
     status.textContent = text.locked_timeout;
+    void refreshCredential();
   });
 
   if (!credentialSecurityAvailable()) {
     insecure.hidden = false;
-    for (const control of form.querySelectorAll("input, select, button")) {
+    for (const control of document.querySelectorAll(
+      "[data-llm-form] input, [data-llm-form] select, [data-llm-form] button, " +
+        "[data-llm-passphrase], [data-llm-passphrase-confirm], " +
+        "[data-llm-unlock], [data-llm-lock], [data-llm-delete]"
+    )) {
       control.disabled = true;
     }
     return;
@@ -341,13 +367,78 @@ function initializeSettings() {
     );
   }
 
-  async function paintCredential() {
+  function currentBaseUrl() {
+    return baseUrl.value.trim().replace(/\/$/, "");
+  }
+
+  function paintOverview() {
+    if (overviewProvider) {
+      overviewProvider.textContent =
+        provider.options[provider.selectedIndex]?.textContent ||
+        provider.value;
+    }
+    if (overviewModel) {
+      overviewModel.textContent = model.value.trim() || text.no_model_selected;
+    }
+    if (overviewProfile) {
+      overviewProfile.textContent = loadLlmProfile()
+        ? text.profile_saved_short
+        : text.profile_not_saved;
+    }
+  }
+
+  function paintCredentialState(info, unlocked) {
+    const label = !info.exists
+      ? text.credential_not_stored
+      : unlocked
+        ? text.credential_unlocked
+        : text.credential_locked;
+    if (credentialState) {
+      credentialState.textContent = label;
+      credentialState.dataset.state = !info.exists
+        ? "none"
+        : unlocked
+          ? "unlocked"
+          : "locked";
+    }
+    if (overviewCredential) {
+      overviewCredential.textContent = label;
+    }
+    if (unlockButton) {
+      unlockButton.disabled = !info.exists || unlocked;
+    }
+    if (lockButton) {
+      lockButton.disabled = !unlocked;
+    }
+    if (deleteButton) {
+      deleteButton.disabled = !info.exists;
+    }
+    const hint = apiKey.value.trim()
+      ? text.credential_hint_draft
+      : !info.exists
+        ? text.credential_hint_none
+        : unlocked
+          ? text.credential_hint_unlocked
+          : text.credential_hint_locked;
+    if (unlockHint) {
+      unlockHint.textContent = hint;
+    }
+    if (actionHint) {
+      actionHint.textContent = hint;
+    }
+  }
+
+  async function refreshCredential() {
     const info = await credentialMetadata();
+    credentialInfo = info;
     meta.textContent = info.exists
       ? uiText.stored_ciphertext
           .replace("{provider}", info.provider)
           .replace("{target}", info.baseUrl || info.baseHost)
       : uiText.no_encrypted_credential;
+    paintCredentialState(info, llmUnlockedFor(currentBaseUrl()));
+    paintOverview();
+    return info;
   }
 
   function clearModelList() {
@@ -409,13 +500,17 @@ function initializeSettings() {
   applyCapabilities();
   paintDestination();
   paintPreview();
-  void paintCredential();
+  void refreshCredential();
   status.textContent = stored ? text.profile_loaded : text.profile_missing;
 
   const invalidateBaseUrl = () => {
     consent.checked = false;
     confirm.checked = false;
     paintDestination();
+    paintCredentialState(
+      credentialInfo,
+      llmUnlockedFor(currentBaseUrl())
+    );
   };
   baseUrl.addEventListener("input", invalidateBaseUrl);
   baseUrl.addEventListener("change", invalidateBaseUrl);
@@ -439,6 +534,7 @@ function initializeSettings() {
     applyCapabilities();
     paintDestination();
     paintPreview();
+    void refreshCredential();
   });
   kimiRegion.addEventListener("change", () => {
     baseUrl.value =
@@ -448,6 +544,7 @@ function initializeSettings() {
     clearModelList();
     paintDestination();
     paintPreview();
+    void refreshCredential();
   });
   customDialect.addEventListener("change", () => {
     confirm.checked = false;
@@ -493,18 +590,62 @@ function initializeSettings() {
     control.addEventListener("input", paintPreview);
   }
 
-  async function unlockCurrent() {
+  function withConsent() {
     const nextProfile = readProfile();
     if (!profileRequestReady(nextProfile)) {
-      status.textContent =
-        text.consent_required;
+      status.textContent = text.consent_required;
+      return null;
+    }
+    return nextProfile;
+  }
+
+  async function unlockStored() {
+    const nextProfile = withConsent();
+    if (!nextProfile) return false;
+    if (!passphrase.value) {
+      status.textContent = text.passphrase_required;
+      await refreshCredential();
       return false;
     }
     const result = await unlockLlm(passphrase.value, nextProfile);
     status.textContent = result.ok
       ? text.unlock_ok
       : text.unlock_failed;
+    await refreshCredential();
     return result.ok;
+  }
+
+  async function keyForRequest() {
+    const nextProfile = withConsent();
+    if (!nextProfile) return null;
+    const draft = apiKey.value.trim();
+    if (draft) {
+      const result = unlockLlmWithKey(nextProfile, draft);
+      if (!result.ok) {
+        status.textContent = text.api_key_required;
+        return null;
+      }
+      status.textContent = text.draft_key_ready;
+      await refreshCredential();
+      return nextProfile;
+    }
+    if (llmUnlockedFor(nextProfile.baseUrl)) {
+      return nextProfile;
+    }
+    if (!passphrase.value) {
+      status.textContent = text.passphrase_required;
+      await refreshCredential();
+      return null;
+    }
+    const result = await unlockLlm(passphrase.value, nextProfile);
+    if (!result.ok) {
+      status.textContent = text.unlock_failed;
+      await refreshCredential();
+      return null;
+    }
+    status.textContent = text.unlock_ok;
+    await refreshCredential();
+    return nextProfile;
   }
 
   form.addEventListener("submit", async (event) => {
@@ -524,6 +665,7 @@ function initializeSettings() {
         text.profile_incomplete;
       return;
     }
+    let savedKey = false;
     if (apiKey.value.trim()) {
       if (passphrase.value !== passphraseConfirm.value) {
         status.textContent = text.passphrase_mismatch;
@@ -537,17 +679,23 @@ function initializeSettings() {
             : text.credential_save_failed;
         return;
       }
+      unlockLlmWithKey(next, apiKey.value);
+      savedKey = true;
       apiKey.value = "";
+      passphrase.value = "";
       passphraseConfirm.value = "";
     }
     saveLlmProfile(next);
-    await paintCredential();
-    status.textContent = text.profile_saved;
+    await refreshCredential();
+    status.textContent = savedKey
+      ? text.profile_saved_unlocked
+      : text.profile_saved;
   });
 
   form.querySelector("[data-llm-models-button]").addEventListener("click", async () => {
-    if (!(await unlockCurrent())) return;
-    const result = await fetchModels(readProfile());
+    const profile = await keyForRequest();
+    if (!profile) return;
+    const result = await fetchModels(profile);
     if (!result.ok) {
       status.textContent = text.models_failed;
       return;
@@ -571,27 +719,61 @@ function initializeSettings() {
   });
 
   form.querySelector("[data-llm-test]").addEventListener("click", async () => {
-    if (!(await unlockCurrent())) return;
-    const result = await fetchModels(readProfile());
+    const profile = await keyForRequest();
+    if (!profile) return;
+    const result = await fetchModels(profile);
     status.textContent = result.ok
       ? text.connection_ok
       : text.connection_failed;
+    await refreshCredential();
   });
 
-  document.querySelector("[data-llm-unlock]").addEventListener("click", unlockCurrent);
-  document.querySelector("[data-llm-lock]").addEventListener("click", () => {
+  unlockButton.addEventListener("click", unlockStored);
+  lockButton.addEventListener("click", async () => {
     lockLlm();
+    passphrase.value = "";
+    passphraseConfirm.value = "";
     status.textContent = text.locked;
+    await refreshCredential();
   });
-  document.querySelector("[data-llm-delete]").addEventListener("click", async () => {
+  deleteButton.addEventListener("click", async () => {
     if (!window.confirm(text.credential_delete_confirm)) return;
     const result = await deleteCredential();
     lockLlm();
+    passphrase.value = "";
+    passphraseConfirm.value = "";
     status.textContent = result.ok
       ? text.credential_deleted
       : text.credential_delete_failed;
-    await paintCredential();
+    await refreshCredential();
   });
+
+  keyToggle?.addEventListener("click", () => {
+    const show = apiKey.type === "password";
+    apiKey.type = show ? "text" : "password";
+    if (keyToggleLabel) {
+      keyToggleLabel.textContent = show
+        ? keyToggleLabel.dataset.hide
+        : keyToggleLabel.dataset.show;
+    }
+    keyToggle.setAttribute(
+      "aria-label",
+      show
+        ? keyToggleLabel?.dataset.hide || "Hide"
+        : keyToggleLabel?.dataset.show || "Show"
+    );
+  });
+  for (const control of [apiKey, passphrase]) {
+    control.addEventListener("input", () => {
+      paintCredentialState(
+        credentialInfo,
+        llmUnlockedFor(currentBaseUrl())
+      );
+    });
+  }
+  model.addEventListener("input", paintOverview);
+  model.addEventListener("change", paintOverview);
+  provider.addEventListener("change", paintOverview);
 }
 
 if (document.readyState === "loading") {

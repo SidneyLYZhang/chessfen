@@ -111,7 +111,9 @@
     </form>
     {% include "analysis_settings.html" %}
     {% include "analysis_workspace.html" %}
-    <button class="ghost-button small-button" type="button" data-workspace-discard hidden>{% trans %}Discard Analysis Workspace{% endtrans %}</button>
+    <div class="workspace-actions">
+      <button class="ghost-button small-button" type="button" data-workspace-discard hidden>{% trans %}Discard Analysis Workspace{% endtrans %}</button>
+    </div>
   </section>
 
   <section class="result-panel">
@@ -166,6 +168,7 @@
           <p class="field-label">{% trans %}After Position{% endtrans %}</p>
           <pre class="analysis-after-fen" data-assessment-after-fen></pre>
         </section>
+        <p class="analysis-empty-note" data-assessment-empty>{% trans %}Supply an Actual move to assess it.{% endtrans %}</p>
       </div>
       <div id="position-panel-lines" role="tabpanel" aria-labelledby="position-tab-lines" data-analysis-panel="lines">
         <section class="analysis-lines" data-analysis-lines-section hidden aria-labelledby="candidate-lines-title">

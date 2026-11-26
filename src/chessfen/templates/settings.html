@@ -18,47 +18,77 @@
 
 <p class="form-error" data-llm-insecure hidden>{% trans %}LLM credentials require HTTPS or localhost.{% endtrans %}</p>
 
-<div class="workspace-grid">
-  <section class="tool-panel">
-    <p class="eyebrow" aria-hidden="true">01 / LLM PROFILE</p>
-    <h2>{% trans %}LLM Profile{% endtrans %}</h2>
+<section class="settings-overview" aria-label="{% trans %}Configuration status{% endtrans %}">
+  <div>
+    <span>{% trans %}Provider{% endtrans %}</span>
+    <strong data-overview-provider>OpenAI</strong>
+    <small data-overview-model>{% trans %}No Model selected{% endtrans %}</small>
+  </div>
+  <div>
+    <span>{% trans %}Profile{% endtrans %}</span>
+    <strong data-overview-profile>{% trans %}Not saved{% endtrans %}</strong>
+    <small>{% trans %}Non-secret settings only{% endtrans %}</small>
+  </div>
+  <div>
+    <span>{% trans %}Credential{% endtrans %}</span>
+    <strong data-overview-credential>{% trans %}Not stored{% endtrans %}</strong>
+    <small>{% trans %}Encrypted API Key{% endtrans %}</small>
+  </div>
+  <div>
+    <span>{% trans %}Protection{% endtrans %}</span>
+    <strong>AES–GCM</strong>
+    <small>PBKDF2 · IndexedDB</small>
+  </div>
+</section>
+
+<div class="settings-grid">
+  <section class="tool-panel settings-connection-panel">
+    <div class="panel-heading">
+      <div>
+        <p class="section-code">01 / CONNECTION</p>
+        <h2>{% trans %}Model connection{% endtrans %}</h2>
+      </div>
+      <span class="subtle-meta">BYOK · OpenAI-compatible</span>
+    </div>
     <form class="analysis-form" data-llm-form>
-      <div class="field">
-        <label class="field-label" for="llm-provider">{% trans %}Provider{% endtrans %}</label>
-        <select class="select-input" id="llm-provider" data-llm-provider>
-          <option value="openai">OpenAI</option>
-          <option value="openrouter">OpenRouter</option>
-          <option value="deepseek">DeepSeek</option>
-          <option value="kimi">Kimi</option>
-          <option value="custom">{% trans %}Custom{% endtrans %}</option>
-        </select>
-        <p class="field-hint" data-llm-compatibility role="note" hidden></p>
-      </div>
-      <div class="field" data-kimi-region-field hidden>
-        <label class="field-label" for="llm-kimi-region">{% trans %}Kimi region{% endtrans %}</label>
-        <select class="select-input" id="llm-kimi-region" data-llm-kimi-region>
-          <option value="international">{% trans %}International{% endtrans %} · api.moonshot.ai</option>
-          <option value="cn">{% trans %}China{% endtrans %} · api.moonshot.cn</option>
-        </select>
-      </div>
-      <div class="field" data-custom-dialect-field hidden>
-        <label class="field-label" for="llm-custom-dialect">{% trans %}Reasoning dialect{% endtrans %}</label>
-        <select class="select-input" id="llm-custom-dialect" data-llm-custom-dialect>
-          <option value="">{% trans %}Select a dialect{% endtrans %}</option>
-          <option value="openai">{% trans %}OpenAI reasoning_effort{% endtrans %}</option>
-          <option value="object">{% trans %}Reasoning object{% endtrans %}</option>
-          <option value="deepseek">{% trans %}DeepSeek thinking + effort{% endtrans %}</option>
-          <option value="thinking">{% trans %}Thinking switch only{% endtrans %}</option>
-          <option value="none">{% trans %}No Reasoning fields{% endtrans %}</option>
-        </select>
-      </div>
-      <div class="field" data-custom-budget-field hidden>
-        <label class="field-label" for="llm-custom-budget-field">{% trans %}Generation token field{% endtrans %}</label>
-        <select class="select-input" id="llm-custom-budget-field" data-llm-custom-budget-field>
-          <option value="">{% trans %}Select a token field{% endtrans %}</option>
-          <option value="max_completion_tokens">max_completion_tokens</option>
-          <option value="max_tokens">max_tokens</option>
-        </select>
+      <div class="settings-two-columns">
+        <div class="field">
+          <label class="field-label" for="llm-provider">{% trans %}Provider{% endtrans %}</label>
+          <select class="select-input" id="llm-provider" data-llm-provider>
+            <option value="openai">OpenAI</option>
+            <option value="openrouter">OpenRouter</option>
+            <option value="deepseek">DeepSeek</option>
+            <option value="kimi">Kimi</option>
+            <option value="custom">{% trans %}Custom{% endtrans %}</option>
+          </select>
+          <p class="field-hint" data-llm-compatibility role="note" hidden></p>
+        </div>
+        <div class="field" data-kimi-region-field hidden>
+          <label class="field-label" for="llm-kimi-region">{% trans %}Kimi region{% endtrans %}</label>
+          <select class="select-input" id="llm-kimi-region" data-llm-kimi-region>
+            <option value="international">{% trans %}International{% endtrans %} · api.moonshot.ai</option>
+            <option value="cn">{% trans %}China{% endtrans %} · api.moonshot.cn</option>
+          </select>
+        </div>
+        <div class="field" data-custom-dialect-field hidden>
+          <label class="field-label" for="llm-custom-dialect">{% trans %}Reasoning dialect{% endtrans %}</label>
+          <select class="select-input" id="llm-custom-dialect" data-llm-custom-dialect>
+            <option value="">{% trans %}Select a dialect{% endtrans %}</option>
+            <option value="openai">{% trans %}OpenAI reasoning_effort{% endtrans %}</option>
+            <option value="object">{% trans %}Reasoning object{% endtrans %}</option>
+            <option value="deepseek">{% trans %}DeepSeek thinking + effort{% endtrans %}</option>
+            <option value="thinking">{% trans %}Thinking switch only{% endtrans %}</option>
+            <option value="none">{% trans %}No Reasoning fields{% endtrans %}</option>
+          </select>
+        </div>
+        <div class="field" data-custom-budget-field hidden>
+          <label class="field-label" for="llm-custom-budget-field">{% trans %}Generation token field{% endtrans %}</label>
+          <select class="select-input" id="llm-custom-budget-field" data-llm-custom-budget-field>
+            <option value="">{% trans %}Select a token field{% endtrans %}</option>
+            <option value="max_completion_tokens">max_completion_tokens</option>
+            <option value="max_tokens">max_tokens</option>
+          </select>
+        </div>
       </div>
       <div class="field">
         <label class="field-label" for="llm-base-url">{% trans %}Base URL{% endtrans %}</label>
@@ -66,8 +96,18 @@
       </div>
       <div class="field">
         <label class="field-label" for="llm-model">{% trans %}Model{% endtrans %}</label>
-        <input class="text-input code-input" id="llm-model" data-llm-model list="llm-models" spellcheck="false">
+        <input class="text-input code-input" id="llm-model" data-llm-model list="llm-models" spellcheck="false" autocomplete="off">
         <datalist id="llm-models" data-llm-models></datalist>
+      </div>
+      <div class="field">
+        <label class="field-label" for="llm-api-key">{% trans %}LLM API key{% endtrans %}</label>
+        <div class="secret-field">
+          <input class="text-input code-input" id="llm-api-key" type="password" autocomplete="new-password" data-llm-api-key>
+          <button class="ghost-button small-button" type="button" data-llm-key-toggle aria-label="{% trans %}Show API key{% endtrans %}">
+            <span data-llm-key-toggle-label data-show="{% trans %}Show{% endtrans %}" data-hide="{% trans %}Hide{% endtrans %}">{% trans %}Show{% endtrans %}</span>
+          </button>
+        </div>
+        <p class="field-hint">{% trans %}Used for Fetch Models, Test Connection, or encrypted storage. It is never stored in plaintext.{% endtrans %}</p>
       </div>
       <div class="analysis-settings-grid">
         <div class="field">
@@ -101,10 +141,12 @@
         </div>
       </div>
       <p class="field-hint" data-llm-capabilities></p>
-      <label class="check-field"><input type="checkbox" data-llm-reasoning checked> {% trans %}Enable model reasoning{% endtrans %}</label>
-      <div class="field">
-        <label class="field-label" for="llm-budget">{% trans %}Generation budget (tokens){% endtrans %}</label>
-        <input class="text-input" type="number" id="llm-budget" data-llm-budget min="1024" max="131072" value="16384">
+      <div class="settings-two-columns">
+        <label class="check-field"><input type="checkbox" data-llm-reasoning checked> {% trans %}Enable model reasoning{% endtrans %}</label>
+        <div class="field">
+          <label class="field-label" for="llm-budget">{% trans %}Generation budget (tokens){% endtrans %}</label>
+          <input class="text-input" type="number" id="llm-budget" data-llm-budget min="1024" max="131072" value="16384">
+        </div>
       </div>
       <p class="field-hint" data-llm-destination role="note"></p>
       <label class="check-field"><input type="checkbox" data-llm-consent> {% trans %}I understand this Base URL receives my PGN/FEN, Game metadata, Evaluations, Candidate Lines, engine facts, and explanations.{% endtrans %}</label>
@@ -113,6 +155,7 @@
         <div class="code-block-header"><span class="code-block-label">{% trans %}Request parameters (credential excluded){% endtrans %}</span></div>
         <pre><code data-llm-preview></code></pre>
       </div>
+      <p class="field-hint" data-llm-action-hint></p>
       <div class="form-actions">
         <button class="primary-button" type="submit">{% trans %}Save LLM Profile{% endtrans %}</button>
         <button class="secondary-button" type="button" data-llm-models-button>{% trans %}Fetch Models{% endtrans %}</button>
@@ -121,14 +164,15 @@
     </form>
   </section>
 
-  <section class="result-panel">
-    <p class="eyebrow" aria-hidden="true">02 / LOCAL CREDENTIAL</p>
-    <h2>{% trans %}Encrypted credential{% endtrans %}</h2>
-    <p class="field-hint">{% trans %}AES-GCM with a PBKDF2-derived key. Only ciphertext is stored in IndexedDB.{% endtrans %}</p>
-    <div class="field">
-      <label class="field-label" for="llm-api-key">{% trans %}LLM API key{% endtrans %}</label>
-      <input class="text-input code-input" id="llm-api-key" type="password" autocomplete="new-password" data-llm-api-key>
+  <section class="tool-panel settings-credential-panel">
+    <div class="panel-heading">
+      <div>
+        <p class="section-code">02 / CREDENTIAL</p>
+        <h2>{% trans %}Encrypted credential{% endtrans %}</h2>
+      </div>
+      <span class="status-pill" data-llm-credential-state data-state="none">{% trans %}Not stored{% endtrans %}</span>
     </div>
+    <p class="field-hint">{% trans %}AES-GCM with a PBKDF2-derived key. Only ciphertext is stored in IndexedDB.{% endtrans %}</p>
     <div class="field">
       <label class="field-label" for="llm-passphrase">{% trans %}Passphrase (12+ characters){% endtrans %}</label>
       <input class="text-input" id="llm-passphrase" type="password" autocomplete="new-password" data-llm-passphrase>
@@ -144,6 +188,12 @@
     </div>
     <p class="analysis-status" data-llm-status role="status" aria-live="polite"></p>
     <p class="field-hint" data-llm-credential-meta></p>
+    <p class="field-hint settings-unlock-hint" data-llm-unlock-hint></p>
+    <div class="credential-boundary">
+      <p><strong>{% trans %}Unlock is required for saved credentials.{% endtrans %}</strong></p>
+      <p>{% trans %}Use the API Key in the form for a one-off test, or unlock the saved ciphertext with the passphrase. Saving a new API Key unlocks it for this tab.{% endtrans %}</p>
+      <p>{% trans %}The passphrase is never stored. A forgotten passphrase requires deleting and replacing the credential.{% endtrans %}</p>
+    </div>
   </section>
 </div>
 {% endblock %}

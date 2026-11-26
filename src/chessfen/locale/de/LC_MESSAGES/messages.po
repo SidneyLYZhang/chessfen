@@ -1621,3 +1621,105 @@ msgstr "Vollständig"
 
 msgid "Lite"
 msgstr "Lite"
+
+msgid "Configuration status"
+msgstr "Konfigurationsstatus"
+
+msgid "Credential"
+msgstr "Zugangsdaten"
+
+msgid "Encrypted API Key"
+msgstr "Verschlüsselter API Key"
+
+msgid "Enter an API Key and passphrase to save an encrypted credential."
+msgstr "Gib einen API Key und eine Passphrase ein, um verschlüsselte Zugangsdaten zu speichern."
+
+msgid "Enter an API Key or unlock the saved credential first."
+msgstr "Gib zuerst einen API Key ein oder entsperre die gespeicherten Zugangsdaten."
+
+msgid "Enter the passphrase and click Unlock, or fill the API Key in the form."
+msgstr "Gib die Passphrase ein und klicke auf Entsperren, oder fülle den API Key im Formular aus."
+
+msgid "Enter the passphrase to unlock the saved credential, or fill the API Key in the form."
+msgstr "Gib die Passphrase ein, um die gespeicherten Zugangsdaten zu entsperren, oder fülle den API Key im Formular aus."
+
+msgid "Hide"
+msgstr "Verbergen"
+
+msgid "LLM Profile and encrypted credential saved locally; unlocked for this tab."
+msgstr "LLM-Profil und verschlüsselte Zugangsdaten gespeichert; für diesen Tab entsperrt."
+
+msgid "Model connection"
+msgstr "Modellverbindung"
+
+msgid "No Model selected"
+msgstr "Kein Modell ausgewählt"
+
+msgid "Non-secret settings only"
+msgstr "Nur nicht geheime Einstellungen"
+
+msgid "Not saved"
+msgstr "Nicht gespeichert"
+
+msgid "Not stored"
+msgstr "Nicht gespeichert"
+
+msgid "Profile"
+msgstr "Profil"
+
+msgid "Protection"
+msgstr "Schutz"
+
+msgid "Saved"
+msgstr "Gespeichert"
+
+msgid "Show"
+msgstr "Anzeigen"
+
+msgid "Show API key"
+msgstr "API Key anzeigen"
+
+msgid "Stored · locked"
+msgstr "Gespeichert · gesperrt"
+
+msgid "Stored · unlocked"
+msgstr "Gespeichert · entsperrt"
+
+msgid "The API Key in this form will be used for the next test or model load. It is not saved."
+msgstr "Der API Key im Formular wird für den nächsten Test oder das Laden der Modelle verwendet. Er wird nicht gespeichert."
+
+msgid "The passphrase is never stored. A forgotten passphrase requires deleting and replacing the credential."
+msgstr "Die Passphrase wird nie gespeichert. Bei vergessener Passphrase müssen die Zugangsdaten gelöscht und ersetzt werden."
+
+msgid "The stored credential is unlocked for this tab. Lock it when you are finished."
+msgstr "Die gespeicherten Zugangsdaten sind für diesen Tab entsperrt. Sperre sie anschließend wieder."
+
+msgid "Unlock is required for saved credentials."
+msgstr "Gespeicherte Zugangsdaten müssen entsperrt werden."
+
+msgid "Use the API Key in the form for a one-off test, or unlock the saved ciphertext with the passphrase. Saving a new API Key unlocks it for this tab."
+msgstr "Nutze den API Key im Formular für einen einmaligen Test oder entsperre den gespeicherten Geheimtext mit der Passphrase. Beim Speichern eines neuen API Key wird er für diesen Tab entsperrt."
+
+msgid "Used for Fetch Models, Test Connection, or encrypted storage. It is never stored in plaintext."
+msgstr "Wird zum Laden der Modelle, Testen der Verbindung oder verschlüsselten Speichern verwendet. Er wird nie im Klartext gespeichert."
+
+msgid "Using the API Key in this form for this action; it is not saved."
+msgstr "Der API Key aus dem Formular wird für diese Aktion verwendet und nicht gespeichert."
+
+msgid "Game analysis"
+msgstr "Partienanalyse"
+
+msgid "Analyze every Mainline Ply with Stockfish and Candidate Lines in your browser."
+msgstr "Analysiere jeden Halbzug der Hauptvariante mit Stockfish und Kandidatenlinien im Browser."
+
+msgid "Click a point to inspect a Ply"
+msgstr "Klicke auf einen Punkt, um einen Halbzug zu prüfen."
+
+msgid "Select a Ply to see exact facts and heuristic indicators."
+msgstr "Wähle einen Halbzug, um exakte Fakten und heuristische Indikatoren zu sehen."
+
+msgid "Supply an Actual move to assess it."
+msgstr "Gib einen tatsächlichen Zug an, um ihn zu bewerten."
+
+msgid "Engine settings changed. Start analysis again."
+msgstr "Engine-Einstellungen geändert. Starte die Analyse erneut."

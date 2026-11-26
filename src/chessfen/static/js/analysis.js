@@ -94,7 +94,7 @@ class AnalysisRequestError extends Error {
 }
 
 class EngineSupervisor {
-  constructor(candidates, onInfo, { onRuntime = null } = {}) {
+  constructor(candidates, onInfo, { onRuntime = null, settings = null } = {}) {
     this.candidates =
       Array.isArray(candidates) && candidates.length
         ? candidates
@@ -108,6 +108,12 @@ class EngineSupervisor {
     this.candidateIndex = 0;
     this.onInfo = onInfo;
     this.onRuntime = onRuntime;
+    this.settings = {
+      multipv: MULTIPV,
+      depth: SEARCH_DEPTH,
+      movetime: SEARCH_MOVETIME_MS,
+      ...(settings || {}),
+    };
     this.mixedRuntime = false;
     this.hasCompletedSearch = false;
     this.fallbackNoticeSent = false;
@@ -121,6 +127,24 @@ class EngineSupervisor {
 
   get busy() {
     return this.activeJob !== null;
+  }
+
+  configure({ candidates = null, settings = null } = {}) {
+    if (this.activeJob) {
+      return false;
+    }
+    if (Array.isArray(candidates) && candidates.length) {
+      this.candidates = candidates;
+      this.candidateIndex = 0;
+      this.mixedRuntime = false;
+      this.hasCompletedSearch = false;
+      this.fallbackNoticeSent = false;
+    }
+    if (settings) {
+      this.settings = { ...this.settings, ...settings };
+    }
+    this._terminateWorker();
+    return true;
   }
 
   analyze(fen) {
@@ -200,7 +224,7 @@ class EngineSupervisor {
     }
     this.worker.postMessage(`position fen ${job.fen}`);
     this.worker.postMessage(
-      `go depth ${SEARCH_DEPTH} movetime ${SEARCH_MOVETIME_MS}`
+      `go depth ${this.settings.depth} movetime ${this.settings.movetime}`
     );
   }
 
@@ -269,7 +293,7 @@ class EngineSupervisor {
       } else {
         const lines = [...job.lines.values()]
           .sort((left, right) => left.multipv - right.multipv)
-          .slice(0, MULTIPV);
+          .slice(0, this.settings.multipv);
         if (lines.length === 0) {
           this._finishJob(job, {
             error: new EngineError("Stockfish returned no Candidate Lines."),
@@ -293,7 +317,9 @@ class EngineSupervisor {
     if (this.initPhase === "uci" && text === "uciok") {
       this.initPhase = "ready";
       const candidate = this.candidates[this.candidateIndex];
-      this.worker.postMessage(`setoption name MultiPV value ${MULTIPV}`);
+      this.worker.postMessage(
+        `setoption name MultiPV value ${this.settings.multipv}`
+      );
       this.worker.postMessage(
         `setoption name Threads value ${candidate.threads}`
       );
@@ -513,6 +539,7 @@ function initializeAnalysis() {
   const assessmentSection = root.querySelector(
     "[data-analysis-assessment]"
   );
+  const assessmentEmpty = root.querySelector("[data-assessment-empty]");
   const assessmentActual = root.querySelector("[data-assessment-actual]");
   const assessmentBest = root.querySelector("[data-assessment-best]");
   const assessmentQuality = root.querySelector("[data-assessment-quality]");
@@ -631,17 +658,13 @@ function initializeAnalysis() {
     resource: STORED.resource === "full" ? "full" : "lite",
   };
   const runtimeElement = root.querySelector("[data-engine-runtime]");
-  const resource =
-    STORED.resource === "full"
-      ? root.dataset.resourceFull || "Full"
-      : root.dataset.resourceLite || "Lite";
   const runtimeText = {
     checking: root.dataset.runtimeChecking,
     multithreaded: root.dataset.runtimeMultithreaded,
     single: root.dataset.runtimeSingle,
     mixed: root.dataset.runtimeMixed,
   };
-  const engineCandidatesForSettings = engineCandidates(
+  let engineCandidatesForSettings = engineCandidates(
     analysisSettings.resource
   );
   let engineRuntime = engineCandidatesForSettings[0].runtime;
@@ -656,7 +679,7 @@ function initializeAnalysis() {
           ? runtimeText.checking
           : runtimeText.single;
     runtimeElement.textContent =
-      `${resource} · ${label}` +
+      `${label}` +
       (mixed ? ` · ${runtimeText.mixed}` : "") +
       ` · ${analysisSettings.preset}`;
   }
@@ -684,8 +707,46 @@ function initializeAnalysis() {
           setWorkspaceStatus(root.dataset.runtimeFallbackMessage, false);
         }
       },
+      settings: {
+        multipv: analysisSettings.multipv,
+        ...SEARCH_PRESETS[analysisSettings.preset],
+      },
     }
   );
+
+  window.addEventListener("chessfen:analysis-settings-changed", (event) => {
+    const next = event.detail || {};
+    if (!["fast", "standard", "deep"].includes(next.preset)) {
+      return;
+    }
+    analysisSettings.preset = next.preset;
+    analysisSettings.multipv = next.multipv;
+    analysisSettings.resource = next.resource === "full" ? "full" : "lite";
+    engineCandidatesForSettings = engineCandidates(analysisSettings.resource);
+    const applied = engine.configure({
+      candidates: engineCandidatesForSettings,
+      settings: {
+        multipv: analysisSettings.multipv,
+        ...SEARCH_PRESETS[analysisSettings.preset],
+      },
+    });
+    if (!applied) {
+      return;
+    }
+    engineRuntime = engineCandidatesForSettings[0].runtime;
+    mixedRuntime = false;
+    runtimeFellBack = false;
+    paintRuntime("checking");
+    activeResult = null;
+    activeAssessment = null;
+    resultElement.hidden = true;
+    emptyState.hidden = false;
+    resetEngineDisplay();
+    setStatus("ready");
+    statusElement.textContent = uiText.settings_changed_restart;
+    setWorkspaceStatus(uiText.workspace_invalidated, false);
+  });
+
   const credentialFeaturesAvailable = credentialSecurityAvailable();
 
   let runSequence = 0;
@@ -896,6 +957,11 @@ function initializeAnalysis() {
     restartButton.disabled = value
       ? false
       : !activePosition || activePosition.terminal !== null;
+    for (const control of document.querySelectorAll(
+      "[data-analysis-settings] select"
+    )) {
+      control.disabled = value;
+    }
     root.dataset.busy = value ? "true" : "false";
   }
 
@@ -926,6 +992,9 @@ function initializeAnalysis() {
     npsElement.textContent = "";
     rootMoveElement.textContent = "";
     assessmentSection.hidden = true;
+    if (assessmentEmpty) {
+      assessmentEmpty.hidden = false;
+    }
     assessmentActual.textContent = "";
     assessmentBest.textContent = "";
     assessmentQuality.textContent = "";
@@ -973,6 +1042,9 @@ function initializeAnalysis() {
 
   function renderAssessment(assessment) {
     assessmentSection.hidden = false;
+    if (assessmentEmpty) {
+      assessmentEmpty.hidden = true;
+    }
     assessmentActual.textContent =
       `${assessment.actual_move.san} (${assessment.actual_move.uci})`;
     assessmentBest.textContent =

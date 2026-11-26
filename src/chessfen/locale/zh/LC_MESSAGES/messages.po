@@ -1621,3 +1621,105 @@ msgstr "完整版"
 
 msgid "Lite"
 msgstr "精简版"
+
+msgid "Configuration status"
+msgstr "配置状态"
+
+msgid "Credential"
+msgstr "凭据"
+
+msgid "Encrypted API Key"
+msgstr "加密的 API Key"
+
+msgid "Enter an API Key and passphrase to save an encrypted credential."
+msgstr "输入 API Key 与口令以保存加密凭据。"
+
+msgid "Enter an API Key or unlock the saved credential first."
+msgstr "请先输入 API Key，或解锁已保存的凭据。"
+
+msgid "Enter the passphrase and click Unlock, or fill the API Key in the form."
+msgstr "请输入口令并点击“解锁”，或在表单中填写 API Key。"
+
+msgid "Enter the passphrase to unlock the saved credential, or fill the API Key in the form."
+msgstr "请输入口令以解锁已保存的凭据，或在表单中填写 API Key。"
+
+msgid "Hide"
+msgstr "隐藏"
+
+msgid "LLM Profile and encrypted credential saved locally; unlocked for this tab."
+msgstr "LLM Profile 与加密凭据已保存，并已在本标签页解锁。"
+
+msgid "Model connection"
+msgstr "模型连接"
+
+msgid "No Model selected"
+msgstr "未选择模型"
+
+msgid "Non-secret settings only"
+msgstr "仅保存非敏感设置"
+
+msgid "Not saved"
+msgstr "未保存"
+
+msgid "Not stored"
+msgstr "未存储"
+
+msgid "Profile"
+msgstr "配置"
+
+msgid "Protection"
+msgstr "保护方式"
+
+msgid "Saved"
+msgstr "已保存"
+
+msgid "Show"
+msgstr "显示"
+
+msgid "Show API key"
+msgstr "显示 API Key"
+
+msgid "Stored · locked"
+msgstr "已存储 · 已锁定"
+
+msgid "Stored · unlocked"
+msgstr "已存储 · 已解锁"
+
+msgid "The API Key in this form will be used for the next test or model load. It is not saved."
+msgstr "将使用表单中的 API Key 进行本次测试或加载模型，不会保存。"
+
+msgid "The passphrase is never stored. A forgotten passphrase requires deleting and replacing the credential."
+msgstr "口令不会被保存。忘记口令时只能删除并重新创建凭据。"
+
+msgid "The stored credential is unlocked for this tab. Lock it when you are finished."
+msgstr "已保存的凭据已在本标签页解锁，使用完毕后请锁定。"
+
+msgid "Unlock is required for saved credentials."
+msgstr "使用已保存的凭据前需要解锁。"
+
+msgid "Use the API Key in the form for a one-off test, or unlock the saved ciphertext with the passphrase. Saving a new API Key unlocks it for this tab."
+msgstr "可以只使用表单中的 API Key 做一次性测试，或用口令解锁已保存的密文。保存新的 API Key 会同时在本标签页解锁。"
+
+msgid "Used for Fetch Models, Test Connection, or encrypted storage. It is never stored in plaintext."
+msgstr "用于加载模型、测试连接或加密保存；不会以明文存储。"
+
+msgid "Using the API Key in this form for this action; it is not saved."
+msgstr "正在使用表单中的 API Key 执行本次操作，不会保存。"
+
+msgid "Game analysis"
+msgstr "对局分析"
+
+msgid "Analyze every Mainline Ply with Stockfish and Candidate Lines in your browser."
+msgstr "在浏览器中用 Stockfish 分析主线每一步，并查看候选变化。"
+
+msgid "Click a point to inspect a Ply"
+msgstr "点击数据点查看对应 Ply。"
+
+msgid "Select a Ply to see exact facts and heuristic indicators."
+msgstr "选择一个 Ply 查看精确事实与启发式指标。"
+
+msgid "Supply an Actual move to assess it."
+msgstr "提供实际走法后进行评估。"
+
+msgid "Engine settings changed. Start analysis again."
+msgstr "引擎设置已更改，请重新开始分析。"

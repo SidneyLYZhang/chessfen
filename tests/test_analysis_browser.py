@@ -674,7 +674,8 @@ def test_browser_analyzes_a_complete_pgn_mainline(
     expect(page.locator("[data-game-status]")).to_contain_text(
         "Analysis complete", timeout=30_000
     )
-    expect(page.locator("[data-game-ribbon]")).to_be_visible()
+    expect(page.locator("[data-game-title]")).to_be_visible()
+    expect(page.locator("[data-game-title]")).to_contain_text("Alice")
     expect(page.locator("[data-game-telemetry]")).to_be_visible()
     expect(page.locator("[data-game-depth]")).not_to_be_empty()
     expect(page.locator("[data-game-nps]")).not_to_be_empty()
@@ -773,10 +774,9 @@ def test_browser_applies_local_multipv_preset_and_resource_settings(
 ) -> None:
     page = browser_page
     page.goto(f"{live_analysis_url}/tools/analysis")
-    with page.expect_navigation():
-        page.locator("[data-setting-multipv]").select_option("1")
-    with page.expect_navigation():
-        page.locator("[data-setting-preset]").select_option("fast")
+    page.evaluate("window.chessfenUiMarker = 42")
+    page.locator("[data-setting-multipv]").select_option("1")
+    page.locator("[data-setting-preset]").select_option("fast")
     expect(page.locator("[data-engine-runtime]")).to_contain_text(
         "checking runtime · fast"
     )
@@ -790,19 +790,17 @@ def test_browser_applies_local_multipv_preset_and_resource_settings(
     )
     expect(page.locator("[data-candidate-line]")).to_have_count(1)
 
-    with page.expect_navigation():
-        page.locator("[data-setting-resource]").select_option("full")
+    page.locator("[data-setting-resource]").select_option("full")
     expect(page.locator("[data-setting-resource-warning]")).to_be_visible()
     expect(page.locator("[data-engine-provenance]")).to_have_text(
         "Stockfish 19 · Full"
     )
+    expect(page.locator("[data-analysis-result]")).to_be_hidden()
 
-    with page.expect_navigation():
-        page.locator("[data-setting-resource]").select_option("lite")
-    with page.expect_navigation():
-        page.locator("[data-setting-multipv]").select_option("3")
-    with page.expect_navigation():
-        page.locator("[data-setting-preset]").select_option("standard")
+    page.locator("[data-setting-resource]").select_option("lite")
+    page.locator("[data-setting-multipv]").select_option("3")
+    page.locator("[data-setting-preset]").select_option("standard")
+    assert page.evaluate("window.chessfenUiMarker") == 42
 
 
 def test_browser_restores_a_position_workspace_after_reload_and_new_page(
@@ -996,11 +994,14 @@ def test_browser_invalidates_engine_results_after_settings_change(
     expect(page.locator("[data-analysis-status]")).to_contain_text(
         "Analysis complete", timeout=30_000
     )
-    with page.expect_navigation():
-        page.locator("[data-setting-multipv]").select_option("2")
+    page.locator("[data-setting-multipv]").select_option("2")
     expect(page.locator("[data-workspace-status]")).to_contain_text(
         "discarded because engine settings changed"
     )
+    expect(page.locator("[data-analysis-status]")).to_contain_text(
+        "Engine settings changed. Start analysis again."
+    )
+    expect(page.locator("[data-analysis-result]")).to_be_hidden()
     expect(page.locator("[data-candidate-line]")).to_have_count(0)
     assert page.locator("#analysis-fen").input_value() == _START_FEN
 
@@ -1035,6 +1036,29 @@ def test_browser_resumes_the_first_incomplete_game_position(
     expect(continue_button).to_be_enabled()
     continue_button.click()
     expect(page.locator("[data-game-status]")).to_contain_text(
+        "Analysis complete", timeout=30_000
+    )
+
+
+def test_browser_applies_engine_settings_without_page_reload(
+    browser_page: Page, live_analysis_url: str
+) -> None:
+    page = browser_page
+    page.goto(f"{live_analysis_url}/tools/analysis")
+    page.locator("#analysis-fen").fill(_START_FEN)
+    page.get_by_role("button", name="Start analysis").click()
+    expect(page.locator("[data-analysis-status]")).to_contain_text(
+        "Analysis complete", timeout=30_000
+    )
+    before_url = page.url
+    page.locator("[data-setting-preset]").select_option("deep")
+    assert page.url == before_url
+    expect(page.locator("[data-analysis-result]")).to_be_hidden()
+    expect(page.locator("[data-workspace-status]")).to_contain_text(
+        "discarded"
+    )
+    page.get_by_role("button", name="Start analysis").click()
+    expect(page.locator("[data-analysis-status]")).to_contain_text(
         "Analysis complete", timeout=30_000
     )
 
@@ -1243,6 +1267,85 @@ def test_browser_localizes_dynamic_analysis_settings_messages(
     )
 
 
+def test_browser_settings_conditional_fields_and_draft_key(
+    browser_page: Page, live_analysis_url: str
+) -> None:
+    page = browser_page
+    requests: list[str] = []
+
+    def provider(route) -> None:
+        requests.append(route.request.url)
+        if route.request.method == "OPTIONS":
+            route.fulfill(
+                status=204,
+                headers={
+                    "Access-Control-Allow-Origin": "*",
+                    "Access-Control-Allow-Headers": "authorization,content-type",
+                    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+                },
+            )
+            return
+        route.fulfill(
+            status=200,
+            headers={
+                "Access-Control-Allow-Origin": "*",
+                "Content-Type": "application/json",
+            },
+            body=json.dumps({"data": [{"id": "deepseek-flash"}]}),
+        )
+
+    page.route("https://api.deepseek.com/**", provider)
+    page.goto(f"{live_analysis_url}/settings")
+    kimi_region = page.locator("[data-kimi-region-field]")
+    custom_dialect = page.locator("[data-custom-dialect-field]")
+    expect(kimi_region).to_be_hidden()
+    expect(custom_dialect).to_be_hidden()
+
+    page.locator("[data-llm-provider]").select_option("kimi")
+    expect(kimi_region).to_be_visible()
+    expect(custom_dialect).to_be_hidden()
+    page.locator("[data-llm-provider]").select_option("custom")
+    expect(kimi_region).to_be_hidden()
+    expect(custom_dialect).to_be_visible()
+
+    page.locator("[data-llm-provider]").select_option("deepseek")
+    page.locator("[data-llm-model]").fill("deepseek-flash")
+    page.locator("[data-llm-api-key]").fill("sk-draft-key")
+    page.locator("[data-llm-consent]").check()
+    page.locator("[data-llm-confirm]").check()
+    page.get_by_role("button", name="Fetch Models").click()
+    expect(page.locator("[data-llm-status]")).to_contain_text("Loaded 1 Models")
+    expect(page.locator("[data-llm-credential-state]")).to_have_text(
+        "Not stored"
+    )
+
+    page.locator("[data-llm-passphrase]").fill("correct horse battery")
+    page.locator("[data-llm-passphrase-confirm]").fill(
+        "correct horse battery"
+    )
+    page.get_by_role("button", name="Save LLM Profile").click()
+    expect(page.locator("[data-llm-status]")).to_contain_text("saved locally")
+    expect(page.locator("[data-llm-credential-state]")).to_have_text(
+        "Stored · unlocked"
+    )
+    expect(page.locator("[data-llm-passphrase]")).to_have_value("")
+
+    page.get_by_role("button", name="Lock", exact=True).click()
+    expect(page.locator("[data-llm-credential-state]")).to_have_text(
+        "Stored · locked"
+    )
+    page.get_by_role("button", name="Fetch Models").click()
+    expect(page.locator("[data-llm-status]")).to_contain_text(
+        "Enter the passphrase"
+    )
+    page.locator("[data-llm-passphrase]").fill("correct horse battery")
+    page.get_by_role("button", name="Unlock").click()
+    expect(page.locator("[data-llm-credential-state]")).to_have_text(
+        "Stored · unlocked"
+    )
+    page.unroute("https://api.deepseek.com/**", provider)
+
+
 def test_browser_secures_profile_and_generates_grounded_explanation(
     browser_page: Page, live_analysis_url: str
 ) -> None:
@@ -1336,7 +1439,11 @@ def test_browser_secures_profile_and_generates_grounded_explanation(
     assert stored["plaintext"] is False
     assert stored["local"] is False
     assert stored["ciphertextBytes"] > 0
+    expect(page.locator("[data-llm-credential-state]")).to_contain_text(
+        "unlocked"
+    )
 
+    page.get_by_role("button", name="Lock", exact=True).click()
     page.locator("[data-llm-passphrase]").fill("wrong passphrase")
     page.get_by_role("button", name="Unlock").click()
     expect(page.locator("[data-llm-status]")).to_contain_text("Unlock failed")
@@ -1806,8 +1913,9 @@ def test_browser_requires_new_provider_key_after_switch(
     page.get_by_role("button", name="Save LLM Profile").click()
     expect(page.locator("[data-llm-status]")).to_contain_text("saved locally")
     expect(page.locator("[data-llm-credential-meta]")).to_contain_text(host)
-    page.get_by_role("button", name="Unlock").click()
-    expect(page.locator("[data-llm-status]")).to_contain_text("unlocked")
+    expect(page.locator("[data-llm-credential-state]")).to_contain_text(
+        "unlocked"
+    )
     assert provider_requests == []
 
 
@@ -1893,6 +2001,7 @@ def test_browser_locks_the_llm_after_the_configured_idle_timeout(
     page = browser_page
     page.add_init_script("window.CHESSFEN_LLM_LOCK_MS = 150;")
     _configure_mock_profile(page, live_analysis_url)
+    page.get_by_role("button", name="Lock", exact=True).click()
     page.locator("[data-llm-passphrase]").fill("correct horse battery")
     page.get_by_role("button", name="Unlock").click()
     expect(page.locator("[data-llm-status]")).to_contain_text("unlocked")
@@ -3656,9 +3765,9 @@ def test_browser_kimi_region_switch_isolates_credentials_and_models(
     expect(page.locator("[data-llm-credential-meta]")).to_contain_text(
         "api.moonshot.ai"
     )
-    page.locator("[data-llm-passphrase]").fill("correct horse battery")
-    page.get_by_role("button", name="Unlock").click()
-    expect(page.locator("[data-llm-status]")).to_contain_text("unlocked")
+    expect(page.locator("[data-llm-credential-state]")).to_contain_text(
+        "unlocked"
+    )
 
     before_requests = len(provider_requests)
     page.get_by_role("button", name="Fetch Models").click()
@@ -4095,9 +4204,9 @@ def test_browser_custom_provider_complete_path_and_endpoint_isolation(
     expect(page.locator("[data-llm-credential-meta]")).to_contain_text(
         "custom.test/v2"
     )
-    page.locator("[data-llm-passphrase]").fill("correct horse battery")
-    page.get_by_role("button", name="Unlock").click()
-    expect(page.locator("[data-llm-status]")).to_contain_text("unlocked")
+    expect(page.locator("[data-llm-credential-state]")).to_contain_text(
+        "unlocked"
+    )
     assert other_requests == []
     page.unroute("https://custom.test/**", provider)
 

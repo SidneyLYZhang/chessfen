@@ -5,7 +5,7 @@ Scope: Analysis workbench, settings, LLM Providers, exports, and regressions.
 
 ## Automated gates
 
-- `uv run pytest -q`: 313 passed (final integrated suite).
+- `uv run pytest -q`: 316 passed (final integrated suite).
 - `uv run mypy`: src, tests, and scripts; no issues.
 - JavaScript syntax checks: `node --check` on all changed ES modules.
 - CI installs and exercises Chromium, Firefox, and WebKit Playwright runtimes.
@@ -102,6 +102,21 @@ Candidate Lines.
   and Markdown exports.
 - Changing a Provider, Kimi region, or Custom endpoint invalidates the previous
   consent and credential binding.
+
+## UI and static assets
+
+- Settings and Game analysis are in the primary navigation; the home page has a
+  fourth tool card for Game analysis.
+- Provider-specific fields (Kimi region, Custom dialect/token field) are hidden
+  unless selected. `[hidden]` is enforced globally with `display: none`.
+- API Key entry can test a connection or fetch models without saving. Saving a
+  new key encrypts it and unlocks it for the current tab; the credential panel
+  shows unstored/locked/unlocked state and explains when a passphrase is needed.
+- Engine setting changes on the Position workbench apply without a page reload;
+  they invalidate displayed results and keep the input.
+- Static assets send `Cache-Control: no-cache` with `ETag`/`Last-Modified`.
+  A `304 Not Modified` is conditional revalidation of unchanged CSS/JS, not a
+  page reload or failure; a test asserts the 200→304 transition.
 
 ## Settings CSP
 

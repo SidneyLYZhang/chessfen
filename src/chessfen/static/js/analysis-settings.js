@@ -121,9 +121,13 @@ function initializeAnalysisSettings() {
   }
   bindAnalysisSettings(
     root,
-    () => {
+    (settings) => {
       if (isPositionPage) {
-        window.location.reload();
+        window.dispatchEvent(
+          new CustomEvent("chessfen:analysis-settings-changed", {
+            detail: settings,
+          })
+        );
       } else {
         const runtime = document.querySelector("[data-engine-runtime]");
         if (runtime) {

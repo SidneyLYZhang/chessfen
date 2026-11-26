@@ -23,7 +23,7 @@
 </section>
 
 <section class="home-tools" aria-label="{% trans %}Tools{% endtrans %}">
-  <p class="eyebrow" aria-hidden="true">TOOLS / 01–03</p>
+  <p class="eyebrow" aria-hidden="true">TOOLS / 01–04</p>
   <div class="tool-cards">
     <a class="tool-card" href="/tools/render">
       <span class="eyebrow" aria-hidden="true">01 / FEN → IMAGE</span>
@@ -39,8 +39,15 @@
       <span class="tool-card-meta" aria-hidden="true">GAME · PLY · FULL FEN</span>
       <span class="tool-card-link">{% trans %}Open tool{% endtrans %} <span aria-hidden="true">→</span></span>
     </a>
+    <a class="tool-card" href="/tools/analysis/pgn">
+      <span class="eyebrow" aria-hidden="true">03 / PGN → REVIEW</span>
+      <h2>{% trans %}Game analysis{% endtrans %}</h2>
+      <p>{% trans %}Analyze every Mainline Ply with Stockfish and Candidate Lines in your browser.{% endtrans %}</p>
+      <span class="tool-card-meta" aria-hidden="true">PGN · MAINLINE · ENGINE · EXPLANATIONS</span>
+      <span class="tool-card-link">{% trans %}Open tool{% endtrans %} <span aria-hidden="true">→</span></span>
+    </a>
     <a class="tool-card" href="/tools/recognize">
-      <span class="eyebrow" aria-hidden="true">03 / IMAGE → FEN</span>
+      <span class="eyebrow" aria-hidden="true">04 / IMAGE → FEN</span>
       <h2>{% trans %}Recognize board{% endtrans %}</h2>
       <p>{% trans %}Upload a board image and get its Placement.{% endtrans %}</p>
       <span class="tool-card-meta" aria-hidden="true">IMAGE · PLACEMENT · 64 SQUARES</span>

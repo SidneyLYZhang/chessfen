@@ -84,6 +84,22 @@ export function llmUnlocked() {
   return Boolean(unlockedKey);
 }
 
+export function llmUnlockedFor(baseUrl) {
+  return Boolean(unlockedKey) && unlockedBaseUrl === baseUrl;
+}
+
+export function unlockLlmWithKey(profile, key) {
+  const value = String(key || "").trim();
+  if (!value) {
+    return { ok: false, code: "api_key_required" };
+  }
+  unlockedKey = value;
+  unlockedBaseUrl = profile.baseUrl;
+  document.documentElement.dataset.llmLocked = "false";
+  touchLock();
+  return { ok: true };
+}
+
 export async function unlockLlm(passphrase, profile) {
   const result = await unlockCredential(passphrase, profile);
   if (!result.ok) {

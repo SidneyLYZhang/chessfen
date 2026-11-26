@@ -58,7 +58,8 @@ function initializeGameAnalysis() {
   const playbackReset = document.querySelector("[data-game-playback-reset]");
   const exactElement = document.querySelector("[data-game-exact]");
   const indicatorsElement = document.querySelector("[data-game-indicators]");
-  const ribbon = document.querySelector("[data-game-ribbon]");
+  const factsEmpty = document.querySelector("[data-game-facts-empty]");
+  const factsList = document.querySelector("[data-game-facts]");
   const graph = document.querySelector("[data-game-graph]");
   const moveList = document.querySelector("[data-game-moves]");
   const total = game.positions.length;
@@ -185,12 +186,8 @@ function initializeGameAnalysis() {
         : value === "checking"
           ? runtimeText.checking
           : runtimeText.single;
-    const resourceLabel =
-      analysisSettings.resource === "full"
-        ? root.dataset.resourceFull || "Full"
-        : root.dataset.resourceLite || "Lite";
     runtime.textContent =
-      `${resourceLabel} · ${label}` +
+      `${label}` +
       (mixed ? ` · ${runtimeText.mixed}` : "") +
       ` · ${analysisSettings.preset}`;
   }
@@ -291,6 +288,11 @@ function initializeGameAnalysis() {
     continueButton.disabled =
       value || !hasStarted || completed.every(Boolean);
     restartButton.disabled = value;
+    for (const control of document.querySelectorAll(
+      "[data-analysis-settings] select"
+    )) {
+      control.disabled = value;
+    }
   }
 
   function showError(message) {
@@ -433,6 +435,12 @@ function initializeGameAnalysis() {
     linesElement.replaceChildren();
     exactElement.textContent = "";
     indicatorsElement.textContent = "";
+    if (factsEmpty) {
+      factsEmpty.hidden = ply > 0;
+    }
+    if (factsList) {
+      factsList.hidden = ply <= 0;
+    }
     if (ply > 0) {
       const data = analysis.plies[ply - 1];
       quality.textContent = qualityLabels[data.quality] || data.quality;
@@ -523,6 +531,13 @@ function initializeGameAnalysis() {
         height / 2 - (value / 800) * (height / 2 - 8),
       ];
     });
+    const zero = document.createElementNS(ns, "line");
+    zero.setAttribute("x1", "0");
+    zero.setAttribute("y1", String(height / 2));
+    zero.setAttribute("x2", String(width));
+    zero.setAttribute("y2", String(height / 2));
+    zero.setAttribute("class", "analysis-graph-zero");
+    svg.append(zero);
     const polyline = document.createElementNS(ns, "polyline");
     polyline.setAttribute(
       "points",
@@ -904,7 +919,6 @@ function initializeGameAnalysis() {
     analysis = payload;
     empty.hidden = true;
     result.hidden = false;
-    ribbon.hidden = false;
     renderGraph();
     renderMoveList();
     await selectPly(0);
@@ -964,7 +978,6 @@ function initializeGameAnalysis() {
       nps.textContent = "";
       rootMove.textContent = "";
       result.hidden = true;
-      ribbon.hidden = true;
       empty.hidden = false;
       linesElement.replaceChildren();
       graph.replaceChildren();
