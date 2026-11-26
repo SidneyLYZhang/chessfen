@@ -15,6 +15,7 @@
 </header>
 
 {% include "analysis_llm_messages.html" %}
+{% include "analysis_export_messages.html" %}
 
 <div class="workspace-grid analysis-workspace">
   <section class="tool-panel">
@@ -61,6 +62,8 @@
       data-results-endpoint="/tools/analysis/game/results"
       data-lines-endpoint="/tools/analysis/lines"
       data-position-endpoint="/tools/analysis/position"
+      data-export-pgn-endpoint="/tools/analysis/export/game/pgn"
+      data-engine-version="Stockfish 19"
       data-quality-best="{% trans %}Best{% endtrans %}"
       data-quality-excellent="{% trans %}Excellent{% endtrans %}"
       data-quality-good="{% trans %}Good{% endtrans %}"
@@ -146,6 +149,15 @@
         <p class="field-hint" data-game-summary-uncertainty></p>
         <p class="form-error" data-game-summary-stale hidden>{% trans %}Explanation language or audience changed; regenerate to refresh it.{% endtrans %}</p>
         <button class="ghost-button small-button" type="button" data-game-summary-retry hidden>{% trans %}Retry summary{% endtrans %}</button>
+      </section>
+      <section class="analysis-assessment" data-game-export>
+        <h3>{% trans %}Export analysis{% endtrans %}</h3>
+        <label class="check-field"><input type="checkbox" data-game-export-explanations checked> {% trans %}Include generated Explanations{% endtrans %}</label>
+        <div class="form-actions">
+          <button class="secondary-button" type="button" data-game-export-pgn>{% trans %}Export annotated PGN{% endtrans %}</button>
+          <button class="ghost-button" type="button" data-game-export-markdown>{% trans %}Export Markdown report{% endtrans %}</button>
+        </div>
+        <p class="analysis-status" data-game-export-status role="status" aria-live="polite"></p>
       </section>
       <section class="analysis-assessment">
         <h3>{% trans %}Structured facts{% endtrans %}</h3>

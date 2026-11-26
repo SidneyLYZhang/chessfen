@@ -22,6 +22,7 @@ from chessfen.db import build_engine
 from chessfen.detector import OnnxDetector
 from chessfen.i18n import LOCALE_COOKIE, SUPPORTED_LOCALES
 from chessfen.limits import (
+    ANALYSIS_EXPORT_MAX_BYTES,
     ANALYSIS_GAME_RESULTS_MAX_BYTES,
     ANALYSIS_REQUEST_MAX_BYTES,
     IMAGE_MAX_BYTES,
@@ -81,6 +82,8 @@ async def analysis_body_guard(request: Request, call_next):
             limit = PGN_MAX_BYTES + _UPLOAD_OVERHEAD
         elif request.url.path == "/tools/analysis/game/results":
             limit = ANALYSIS_GAME_RESULTS_MAX_BYTES
+        elif request.url.path.startswith("/tools/analysis/export/"):
+            limit = ANALYSIS_EXPORT_MAX_BYTES
         chunks: list[bytes] = []
         total = 0
         async for chunk in request.stream():

@@ -1356,3 +1356,87 @@ msgstr "请求目标：{url}"
 
 msgid "No HTTPS Base URL is selected."
 msgstr "尚未选择 HTTPS Base URL。"
+
+msgid "ChessFEN Game Analysis"
+msgstr "ChessFEN 棋局分析"
+
+msgid "ChessFEN Position Analysis"
+msgstr "ChessFEN 局面分析"
+
+msgid "Input PGN"
+msgstr "输入 PGN"
+
+msgid "Input Full FEN"
+msgstr "输入完整 FEN"
+
+msgid "Move quality summary"
+msgstr "着法质量汇总"
+
+msgid "Mainline evaluation"
+msgstr "主线评估"
+
+msgid "Move"
+msgstr "着法"
+
+msgid "SAN"
+msgstr "SAN"
+
+msgid "Evaluation before"
+msgstr "走前评估"
+
+msgid "Evaluation after"
+msgstr "走后评估"
+
+msgid "Key Ply explanations"
+msgstr "关键 Ply 讲解"
+
+msgid "Provenance"
+msgstr "分析来源"
+
+msgid "Engine"
+msgstr "引擎"
+
+msgid "Generated Explanations"
+msgstr "生成的讲解"
+
+msgid "Included"
+msgstr "已包含"
+
+msgid "Omitted"
+msgstr "未包含"
+
+msgid "Not available"
+msgstr "暂无"
+
+msgid "Position summary"
+msgstr "局面总结"
+
+msgid "Summary"
+msgstr "摘要"
+
+msgid "Why"
+msgstr "原因"
+
+msgid "Alternatives"
+msgstr "替代方案"
+
+msgid "Uncertainty"
+msgstr "不确定性"
+
+msgid "Export could not be generated."
+msgstr "无法生成导出。"
+
+msgid "Export ready."
+msgstr "导出已就绪。"
+
+msgid "Export analysis"
+msgstr "导出分析"
+
+msgid "Include generated Explanations"
+msgstr "包含生成的讲解"
+
+msgid "Export annotated PGN"
+msgstr "导出注释 PGN"
+
+msgid "Export Markdown report"
+msgstr "导出 Markdown 报告"

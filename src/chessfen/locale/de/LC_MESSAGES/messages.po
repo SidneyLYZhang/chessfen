@@ -1356,3 +1356,87 @@ msgstr "Anfrageziel: {url}"
 
 msgid "No HTTPS Base URL is selected."
 msgstr "Es ist keine HTTPS-Base-URL ausgewählt."
+
+msgid "ChessFEN Game Analysis"
+msgstr "ChessFEN-Partieanalyse"
+
+msgid "ChessFEN Position Analysis"
+msgstr "ChessFEN-Stellungsanalyse"
+
+msgid "Input PGN"
+msgstr "Eingabe-PGN"
+
+msgid "Input Full FEN"
+msgstr "Vollständige FEN-Eingabe"
+
+msgid "Move quality summary"
+msgstr "Zusammenfassung der Zugqualität"
+
+msgid "Mainline evaluation"
+msgstr "Bewertung der Hauptvariante"
+
+msgid "Move"
+msgstr "Zug"
+
+msgid "SAN"
+msgstr "SAN"
+
+msgid "Evaluation before"
+msgstr "Bewertung vorher"
+
+msgid "Evaluation after"
+msgstr "Bewertung nachher"
+
+msgid "Key Ply explanations"
+msgstr "Schlüssel-Ply-Erklärungen"
+
+msgid "Provenance"
+msgstr "Herkunft"
+
+msgid "Engine"
+msgstr "Engine"
+
+msgid "Generated Explanations"
+msgstr "Generierte Erklärungen"
+
+msgid "Included"
+msgstr "Enthalten"
+
+msgid "Omitted"
+msgstr "Ausgelassen"
+
+msgid "Not available"
+msgstr "Nicht verfügbar"
+
+msgid "Position summary"
+msgstr "Stellungszusammenfassung"
+
+msgid "Summary"
+msgstr "Zusammenfassung"
+
+msgid "Why"
+msgstr "Warum"
+
+msgid "Alternatives"
+msgstr "Alternativen"
+
+msgid "Uncertainty"
+msgstr "Unsicherheit"
+
+msgid "Export could not be generated."
+msgstr "Export konnte nicht erstellt werden."
+
+msgid "Export ready."
+msgstr "Export bereit."
+
+msgid "Export analysis"
+msgstr "Analyse exportieren"
+
+msgid "Include generated Explanations"
+msgstr "Generierte Erklärungen einbeziehen"
+
+msgid "Export annotated PGN"
+msgstr "Annotiertes PGN exportieren"
+
+msgid "Export Markdown report"
+msgstr "Markdown-Bericht exportieren"

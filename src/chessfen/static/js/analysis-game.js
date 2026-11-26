@@ -19,6 +19,12 @@ import {
   saveWorkspace,
   workspaceIsActive,
 } from "/static/js/analysis-workspace.js";
+import {
+  buildGameMarkdown,
+  collectExportText,
+  downloadText,
+  exportPgn,
+} from "/static/js/analysis-export.js";
 import { EngineSupervisor } from "/static/js/analysis.js";
 
 function initializeGameAnalysis() {
@@ -122,6 +128,15 @@ function initializeGameAnalysis() {
   const summaryUncertainty = document.querySelector("[data-game-summary-uncertainty]");
   const summaryStale = document.querySelector("[data-game-summary-stale]");
   const summaryRetry = document.querySelector("[data-game-summary-retry]");
+  const exportExplanations = document.querySelector(
+    "[data-game-export-explanations]"
+  );
+  const exportPgnButton = document.querySelector("[data-game-export-pgn]");
+  const exportMarkdownButton = document.querySelector(
+    "[data-game-export-markdown]"
+  );
+  const exportStatus = document.querySelector("[data-game-export-status]");
+  const exportText = collectExportText();
   const workspaceRestore = document.querySelector("[data-workspace-restore]");
   const analysisSettings = {
     preset: ["fast", "standard", "deep"].includes(stored.preset)
@@ -384,6 +399,93 @@ function initializeGameAnalysis() {
     tokenUsage.textContent = usageText(usageTotals);
   }
 
+  function exportProvenance() {
+    const storedMeta =
+      Object.values(explanations)[0]?.meta || summaryMeta || null;
+    const profile = loadLlmProfile();
+    return {
+      white: exportText.white,
+      black: exportText.black,
+      engine: root.dataset.engineVersion || "Stockfish 19",
+      preset: analysisSettings.preset,
+      multipv: analysisSettings.multipv,
+      resource: analysisSettings.resource,
+      provider:
+        storedMeta?.provider || profile?.provider || exportText.not_available,
+      model: storedMeta?.model || profile?.model || exportText.not_available,
+    };
+  }
+
+  function exportAnnotations(includeExplanations) {
+    return (analysis?.plies || []).map((ply) => {
+      const explanation =
+        includeExplanations ? explanations[ply.ply]?.explanation || null : null;
+      return {
+        ply: ply.ply,
+        quality: ply.quality,
+        score_kind: ply.evaluation_after.kind,
+        score_value: ply.evaluation_after.value,
+        cpl: ply.cpl,
+        mate_loss: ply.mate_loss,
+        explanation,
+      };
+    });
+  }
+
+  async function handleGamePgnExport() {
+    if (!analysis) return;
+    const form = document.querySelector(".pgn-form");
+    const selectedPgn = game.pgn || "";
+    const fallbackPgn = form?.querySelector("#pgn")?.value || "";
+    const fallbackIndex = Number.parseInt(
+      form?.querySelector("#game_index")?.value || "0",
+      10
+    );
+    try {
+      await exportPgn(root.dataset.exportPgnEndpoint, {
+        pgn: selectedPgn || fallbackPgn,
+        game_index: selectedPgn ? 0 : fallbackIndex,
+        include_explanations: exportExplanations.checked,
+        annotations: exportAnnotations(exportExplanations.checked),
+      });
+      exportStatus.textContent = exportText.export_ready;
+    } catch (error) {
+      exportStatus.textContent = exportText.export_failed;
+    }
+  }
+
+  function handleGameMarkdownExport() {
+    if (!analysis) return;
+    const includeExplanations = exportExplanations.checked;
+    const form = document.querySelector(".pgn-form");
+    const inputPgn =
+      game.pgn || form?.querySelector("#pgn")?.value || "";
+    const markdown = buildGameMarkdown({
+      text: exportText,
+      qualityLabels,
+      game,
+      inputPgn,
+      analysis,
+      completed,
+      explanations,
+      summaryExplanation,
+      includeExplanations,
+      provenance: exportProvenance(),
+    });
+    downloadText(
+      "chessfen-game-analysis.md",
+      markdown,
+      "text/markdown;charset=utf-8"
+    );
+    exportStatus.textContent = exportText.export_ready;
+  }
+
+  exportPgnButton?.addEventListener("click", handleGamePgnExport);
+  exportMarkdownButton?.addEventListener(
+    "click",
+    handleGameMarkdownExport
+  );
+
   function renderSummary() {
     if (!summaryExplanation) {
       summarySection.hidden = true;
@@ -484,7 +586,12 @@ function initializeGameAnalysis() {
     batchCancel.hidden = false;
     batchRetry.hidden = true;
     batchWarning.hidden = false;
-    const meta = { language: profile.language, audience: profile.audience };
+    const meta = {
+      language: profile.language,
+      audience: profile.audience,
+      provider: profile.provider,
+      model: profile.model,
+    };
     try {
       for (let index = startIndex; index < batchBatches.length; index += 1) {
         batchStatus.textContent = `Generating batch ${index + 1}/${batchBatches.length}…`;
@@ -805,6 +912,8 @@ function initializeGameAnalysis() {
           meta: {
             language: profile.language,
             audience: profile.audience,
+            provider: profile.provider,
+            model: profile.model,
           },
           usage: result.usage || null,
         };
@@ -851,6 +960,8 @@ function initializeGameAnalysis() {
     summaryMeta = {
       language: profile.language,
       audience: profile.audience,
+      provider: profile.provider,
+      model: profile.model,
     };
     summaryRetry.hidden = true;
     addUsage(result.usage);

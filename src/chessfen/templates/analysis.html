@@ -18,6 +18,7 @@
 </header>
 
 {% include "analysis_llm_messages.html" %}
+{% include "analysis_export_messages.html" %}
 
 <noscript>
   <p class="form-error">{% trans %}Position analysis needs JavaScript because Stockfish runs in your browser.{% endtrans %}</p>
@@ -29,6 +30,8 @@
   data-position-endpoint="/tools/analysis/position"
   data-lines-endpoint="/tools/analysis/lines"
   data-assess-endpoint="/tools/analysis/assess"
+  data-export-pgn-endpoint="/tools/analysis/export/position/pgn"
+  data-engine-version="Stockfish 19"
   data-engine-url="/static/vendor/stockfish/stockfish-19-lite-single.js"
   data-label-ready="{% trans %}Enter a Full FEN to begin.{% endtrans %}"
   data-label-validating="{% trans %}Validating Position…{% endtrans %}"
@@ -188,6 +191,15 @@
         <p class="field-hint" data-position-summary-uncertainty></p>
         <p class="form-error" data-position-summary-stale hidden>{% trans %}Explanation language or audience changed; regenerate to refresh it.{% endtrans %}</p>
         <button class="ghost-button small-button" type="button" data-position-summary-retry hidden>{% trans %}Retry summary{% endtrans %}</button>
+      </section>
+      <section class="analysis-assessment" data-position-export>
+        <h3>{% trans %}Export analysis{% endtrans %}</h3>
+        <label class="check-field"><input type="checkbox" data-position-export-explanations checked> {% trans %}Include generated Explanations{% endtrans %}</label>
+        <div class="form-actions">
+          <button class="secondary-button" type="button" data-position-export-pgn>{% trans %}Export annotated PGN{% endtrans %}</button>
+          <button class="ghost-button" type="button" data-position-export-markdown>{% trans %}Export Markdown report{% endtrans %}</button>
+        </div>
+        <p class="analysis-status" data-position-export-status role="status" aria-live="polite"></p>
       </section>
       <section class="analysis-lines" data-analysis-lines-section hidden aria-labelledby="candidate-lines-title">
         <h3 id="candidate-lines-title">{% trans %}Candidate Lines{% endtrans %}</h3>

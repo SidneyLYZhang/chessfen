@@ -7,17 +7,25 @@ from urllib.parse import urlsplit
 import chess
 from fastapi import APIRouter, File, Form, Request, UploadFile
 from fastapi.responses import HTMLResponse, JSONResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from chessfen.analysis import (
     AnalysisInputError,
     CandidateInput,
     CandidateLine,
+    MoveQuality,
     ScoreKind,
     analyze_position,
     assess_position,
     candidate_lines,
     terminal_result,
+)
+from chessfen.analysis_export import (
+    CandidateExport,
+    ExportExplanation,
+    PlyAnnotation,
+    annotated_game_pgn,
+    position_pgn,
 )
 from chessfen.game_analysis import GameAnalysis, analyze_game
 from chessfen.limits import PGN_MAX_BYTES
@@ -70,6 +78,56 @@ class GameResultsRequest(BaseModel):
     start_fen: str = Field(max_length=200)
     moves: list[str] = Field(max_length=400)
     positions: list[GameLineRequest] = Field(max_length=401)
+
+
+class ExportExplanationRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    summary: str = Field(max_length=4000)
+    why: str = Field(max_length=4000)
+    alternatives: str = Field(max_length=4000)
+    uncertainty: str = Field(max_length=4000)
+
+
+class PlyAnnotationRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    ply: int = Field(ge=1, le=400)
+    quality: MoveQuality
+    score_kind: ScoreKind
+    score_value: int = Field(ge=-100_000, le=100_000)
+    cpl: int | None = Field(default=None, ge=0)
+    mate_loss: bool = False
+    explanation: ExportExplanationRequest | None = None
+
+
+class GamePgnExportRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    pgn: str = Field(max_length=PGN_MAX_BYTES)
+    game_index: int = Field(ge=0)
+    include_explanations: bool = True
+    annotations: list[PlyAnnotationRequest] = Field(max_length=400)
+
+
+class PositionCandidateRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    rank: int = Field(ge=1, le=5)
+    score_kind: ScoreKind
+    score_value: int = Field(ge=-100_000, le=100_000)
+    moves: list[str] = Field(min_length=1, max_length=64)
+
+
+class PositionPgnExportRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    fen: str = Field(max_length=200)
+    include_explanations: bool = True
+    comment: str | None = Field(default=None, max_length=20_000)
+    candidates: list[PositionCandidateRequest] = Field(
+        default_factory=list, max_length=5
+    )
 
 
 def _candidate_inputs(lines: list[LineRequest]) -> list[CandidateInput]:
@@ -230,6 +288,7 @@ def _game_payload(game: chess.pgn.Game) -> dict[str, object]:
         )
     return {
         "start_fen": start_fen,
+        "pgn": str(game),
         "positions": positions,
         "terminal_positions": terminal_positions,
         "moves": moves,
@@ -320,6 +379,82 @@ def analysis_game_results(
     except (AnalysisInputError, ValueError, chess.IllegalMoveError):
         return analysis_error("invalid_game_results")
     return _json_response(asdict(analysis))
+
+
+@router.post("/analysis/export/game/pgn")
+def analysis_export_game_pgn(
+    request: Request, payload: GamePgnExportRequest
+) -> JSONResponse:
+    if not _is_same_origin(request):
+        return analysis_error("invalid_origin", status_code=403)
+    annotations = [
+        PlyAnnotation(
+            ply=item.ply,
+            quality=item.quality,
+            score_kind=item.score_kind,
+            score_value=item.score_value,
+            cpl=item.cpl,
+            mate_loss=item.mate_loss,
+            explanation=(
+                ExportExplanation(
+                    summary=item.explanation.summary,
+                    why=item.explanation.why,
+                    alternatives=item.explanation.alternatives,
+                    uncertainty=item.explanation.uncertainty,
+                )
+                if item.explanation is not None
+                else None
+            ),
+        )
+        for item in payload.annotations
+    ]
+    try:
+        content = annotated_game_pgn(
+            payload.pgn,
+            payload.game_index,
+            annotations,
+            include_explanations=payload.include_explanations,
+        )
+    except ValueError:
+        return analysis_error("invalid_export")
+    return _json_response(
+        {
+            "filename": "chessfen-game-analysis.pgn",
+            "content": content,
+        }
+    )
+
+
+@router.post("/analysis/export/position/pgn")
+def analysis_export_position_pgn(
+    request: Request, payload: PositionPgnExportRequest
+) -> JSONResponse:
+    if not _is_same_origin(request):
+        return analysis_error("invalid_origin", status_code=403)
+    candidates = [
+        CandidateExport(
+            rank=item.rank,
+            score_kind=item.score_kind,
+            score_value=item.score_value,
+            moves=tuple(item.moves),
+        )
+        for item in payload.candidates
+    ]
+    try:
+        content = position_pgn(
+            payload.fen,
+            candidates,
+            payload.comment,
+            include_explanations=payload.include_explanations,
+        )
+    except ValueError:
+        return analysis_error("invalid_export")
+    return _json_response(
+        {
+            "filename": "chessfen-position-analysis.pgn",
+            "content": content,
+        }
+    )
 
 
 @router.post("/analysis/position")

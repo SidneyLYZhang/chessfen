@@ -17,6 +17,12 @@ import {
   loadWorkspace,
   saveWorkspace,
 } from "/static/js/analysis-workspace.js";
+import {
+  buildPositionMarkdown,
+  collectExportText,
+  downloadText,
+  exportPgn,
+} from "/static/js/analysis-export.js";
 
 const PRESETS = {
   fast: { depth: 14, movetime: 1000 },
@@ -443,6 +449,15 @@ function initializeAnalysis() {
   const positionSummaryStale = root.querySelector("[data-position-summary-stale]");
   const positionSummaryRetry = root.querySelector("[data-position-summary-retry]");
   const positionSummaryUsage = root.querySelector("[data-position-summary-usage]");
+  const exportExplanations = document.querySelector(
+    "[data-position-export-explanations]"
+  );
+  const exportPgnButton = document.querySelector("[data-position-export-pgn]");
+  const exportMarkdownButton = document.querySelector(
+    "[data-position-export-markdown]"
+  );
+  const exportStatus = document.querySelector("[data-position-export-status]");
+  const exportText = collectExportText();
 
   const messages = {
     validating: root.dataset.labelValidating,
@@ -827,6 +842,84 @@ function initializeAnalysis() {
       (profile.language === meta.language && profile.audience === meta.audience);
   }
 
+  function exportProvenance() {
+    const profile = loadLlmProfile();
+    const meta =
+      activeResult?.summaryMeta || activeResult?.explanationMeta || null;
+    return {
+      engine: root.dataset.engineVersion || "Stockfish 19",
+      preset: analysisSettings.preset,
+      multipv: analysisSettings.multipv,
+      resource: analysisSettings.resource,
+      provider:
+        meta?.provider || profile?.provider || exportText.not_available,
+      model: meta?.model || profile?.model || exportText.not_available,
+    };
+  }
+
+  function positionComment(includeExplanations) {
+    if (!includeExplanations) return null;
+    const parts = [];
+    const explanation = activeResult?.explanation;
+    if (explanation) {
+      parts.push(`Explanation: ${explanation.summary}`);
+      parts.push(`Why: ${explanation.why}`);
+      parts.push(`Alternatives: ${explanation.alternatives}`);
+      parts.push(`Uncertainty: ${explanation.uncertainty}`);
+    }
+    const summary = activeResult?.summaryExplanation;
+    if (summary) {
+      parts.push(`Summary: ${summary.summary}`);
+      parts.push(`Uncertainty: ${summary.uncertainty}`);
+    }
+    return parts.length ? parts.join(" | ") : null;
+  }
+
+  async function handlePositionPgnExport() {
+    if (!activeResult || !activePosition) return;
+    const includeExplanations = exportExplanations.checked;
+    const lines = activeResult.lines || currentLines;
+    try {
+      await exportPgn(root.dataset.exportPgnEndpoint, {
+        fen: activePosition.fen,
+        include_explanations: includeExplanations,
+        comment: positionComment(includeExplanations),
+        candidates: lines.map((line) => ({
+          rank: line.rank,
+          score_kind: line.evaluation.kind,
+          score_value: line.evaluation.value,
+          moves: line.moves.map((move) => move.uci),
+        })),
+      });
+      exportStatus.textContent = exportText.export_ready;
+    } catch (error) {
+      exportStatus.textContent = exportText.export_failed;
+    }
+  }
+
+  function handlePositionMarkdownExport() {
+    if (!activeResult || !activePosition) return;
+    const includeExplanations = exportExplanations.checked;
+    const markdown = buildPositionMarkdown({
+      text: exportText,
+      qualityLabels: messages.qualities,
+      inputFen: activePosition.fen,
+      result: activeResult,
+      assessment: activeAssessment,
+      summaryExplanation: includeExplanations
+        ? activeResult.summaryExplanation
+        : null,
+      includeExplanations,
+      provenance: exportProvenance(),
+    });
+    downloadText(
+      "chessfen-position-analysis.md",
+      markdown,
+      "text/markdown;charset=utf-8"
+    );
+    exportStatus.textContent = exportText.export_ready;
+  }
+
   async function ensureLlmProfileUnlocked() {
     const profile = loadLlmProfile();
     if (!profile) {
@@ -881,7 +974,12 @@ function initializeAnalysis() {
         positionSummaryRetry.hidden = false;
         return;
       }
-      const meta = { language: profile.language, audience: profile.audience };
+      const meta = {
+        language: profile.language,
+        audience: profile.audience,
+        provider: profile.provider,
+        model: profile.model,
+      };
       positionSummaryUsage.textContent = result.usage
         ? `Tokens · prompt ${result.usage.prompt} · completion ${result.usage.completion} · reasoning ${result.usage.reasoning} · total ${result.usage.total}`
         : "";
@@ -1390,6 +1488,8 @@ function initializeAnalysis() {
       const meta = {
         language: profile.language,
         audience: profile.audience,
+        provider: profile.provider,
+        model: profile.model,
       };
       renderExplanation(result.explanation, meta);
       if (activeResult) {
@@ -1429,6 +1529,11 @@ function initializeAnalysis() {
       "Cancelling… submitted requests may still finish and incur charges.";
     positionSummaryWarning.hidden = false;
   });
+  exportPgnButton?.addEventListener("click", handlePositionPgnExport);
+  exportMarkdownButton?.addEventListener(
+    "click",
+    handlePositionMarkdownExport
+  );
 
   void restorePositionWorkspace();
 }

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import http.server
+import io
 import json
 import re
 import socket
@@ -13,6 +14,8 @@ from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
+import chess
+import chess.pgn
 import pytest
 import uvicorn
 from playwright.sync_api import Page, expect, sync_playwright
@@ -765,7 +768,7 @@ def test_browser_restores_a_game_workspace_from_the_get_page(
     expect(page.locator("[data-game-moves] [data-ply='1']")).to_be_visible()
 
 
-def test_browser_reports_workspace_storage_failure_without_losing_results(
+def test_browser_reports_storage_failure_and_still_exports(
     browser_page: Page, live_analysis_url: str
 ) -> None:
     page = browser_page
@@ -786,6 +789,11 @@ def test_browser_reports_workspace_storage_failure_without_losing_results(
         "not being saved locally"
     )
     expect(page.locator("[data-candidate-line]")).to_have_count(3)
+    with page.expect_download() as download_info:
+        page.locator("[data-position-export-markdown]").click()
+    markdown = Path(download_info.value.path()).read_text(encoding="utf-8")
+    assert "# ChessFEN Position Analysis" in markdown
+    assert "## Candidate Lines" in markdown
 
 
 def test_browser_reports_a_corrupt_workspace_without_breaking_analysis(
@@ -1520,6 +1528,13 @@ def test_browser_batches_key_ply_explanations_and_summary(
         "summary failed", timeout=30_000
     )
     expect(page.locator("[data-game-summary-retry]")).to_be_visible()
+    with page.expect_download() as download_info:
+        page.locator("[data-game-export-markdown]").click()
+    partial_markdown = Path(download_info.value.path()).read_text(
+        encoding="utf-8"
+    )
+    assert "## Key Ply explanations" in partial_markdown
+    assert "## Overall summary" not in partial_markdown
     page.get_by_role("button", name="Retry summary").click()
     expect(page.locator("[data-game-overall-summary]")).to_be_visible()
     expect(page.locator("[data-game-summary-text]")).to_have_text("Overall")
@@ -1529,6 +1544,13 @@ def test_browser_batches_key_ply_explanations_and_summary(
     assert len(requests) == 6
     payloads = [json.loads(item["messages"][1]["content"]) for item in requests]
     assert [len(p.get("targets", [])) for p in payloads] == [5, 5, 1, 1, 0, 0]
+    with page.expect_download() as download_info:
+        page.locator("[data-game-export-markdown]").click()
+    markdown = Path(download_info.value.path()).read_text(encoding="utf-8")
+    assert "## Overall summary" in markdown
+    assert "**Summary:** Overall" in markdown
+    assert "**Provider:** openai" in markdown
+    assert "**Model:** mock-model" in markdown
 
 
 def test_browser_generates_a_position_overall_summary(
@@ -1591,6 +1613,13 @@ def test_browser_generates_a_position_overall_summary(
     expect(page.locator("[data-position-summary-usage]")).to_contain_text(
         "total 7"
     )
+    with page.expect_download() as download_info:
+        page.locator("[data-position-export-markdown]").click()
+    markdown = Path(download_info.value.path()).read_text(encoding="utf-8")
+    assert "## Position summary" in markdown
+    assert "**Summary:** 局面总结" in markdown
+    assert "**Provider:** openai" in markdown
+    assert "**Model:** mock-model" in markdown
     page.unroute("https://api.openai.test/**", provider)
 
 
@@ -3669,6 +3698,290 @@ def test_browser_custom_uses_real_cross_origin_provider(
     ]
     assert len(posts) == 1
     assert len(same_origin_posts) == before_posts
+
+
+def test_browser_game_exports_pgn_and_markdown(
+    browser_page: Page, live_analysis_url: str
+) -> None:
+    page = browser_page
+    fake_analysis = _single_ply_game_analysis()
+    fake_analysis["plies"][0]["evaluation_after"] = {
+        "kind": "cp",
+        "value": -50,
+        "text": "-0.50",
+    }
+
+    def game_results(route) -> None:
+        route.fulfill(
+            status=200,
+            content_type="application/json",
+            body=json.dumps(fake_analysis),
+        )
+
+    page.route("**/tools/analysis/game/results", game_results)
+    page.goto(f"{live_analysis_url}/tools/analysis/pgn")
+    page.locator("#pgn").fill(
+        '[Event "Export"]\n[White "Alice"]\n[Black "Bob"]\n[Result "*"]\n\n'
+        "1. e4 {keep me} (1. d4 d5) *"
+    )
+    page.get_by_role("button", name="Parse PGN").click()
+    page.get_by_role("button", name="Open Game").click()
+    page.wait_for_load_state("load")
+    page.get_by_role("button", name="Start Game Analysis").click()
+    expect(page.locator("[data-game-status]")).to_contain_text(
+        "Analysis complete", timeout=30_000
+    )
+
+    with page.expect_download() as download_info:
+        page.locator("[data-game-export-pgn]").click()
+    download = download_info.value
+    assert download.suggested_filename.endswith(".pgn")
+    pgn_content = Path(download.path()).read_text(encoding="utf-8")
+    exported = chess.pgn.read_game(io.StringIO(pgn_content))
+    assert exported is not None
+    assert exported.headers["Event"] == "Export"
+    first = exported.next()
+    assert first is not None
+    assert first.san() == "e4"
+    assert len(exported.variations) == 2
+    assert exported.variations[1].san() == "d4"
+    assert "keep me" in (first.comment or "")
+    assert "[%eval -0.50]" in (first.comment or "")
+    assert "Quality: Best." in (first.comment or "")
+    assert 1 in first.nags
+
+    with page.expect_download() as download_info:
+        page.locator("[data-game-export-markdown]").click()
+    markdown_download = download_info.value
+    assert markdown_download.suggested_filename.endswith(".md")
+    markdown = Path(markdown_download.path()).read_text(encoding="utf-8")
+    assert "# ChessFEN Game Analysis" in markdown
+    assert "## Input PGN" in markdown
+    assert "## Mainline evaluation" in markdown
+    assert "## Candidate Lines" in markdown
+    assert "Stockfish 19" in markdown
+    assert "keep me" in markdown
+    assert "sk-" not in markdown
+    page.locator("[data-game-export-explanations]").uncheck()
+    with page.expect_download() as download_info:
+        page.locator("[data-game-export-markdown]").click()
+    without_explanations = Path(download_info.value.path()).read_text(
+        encoding="utf-8"
+    )
+    assert "## Key Ply explanations" not in without_explanations
+    assert "**Generated Explanations:** Omitted" in without_explanations
+    expect(page.locator("[data-game-export-status]")).to_contain_text(
+        "Export ready."
+    )
+    page.unroute("**/tools/analysis/game/results", game_results)
+
+
+@pytest.mark.parametrize(
+    ("language", "heading"),
+    [
+        ("en", "# ChessFEN Game Analysis"),
+        ("zh", "# ChessFEN 棋局分析"),
+        ("de", "# ChessFEN-Partieanalyse"),
+    ],
+)
+def test_browser_markdown_export_is_localized(
+    browser_page: Page, live_analysis_url: str, language: str, heading: str
+) -> None:
+    page = browser_page
+    fake_analysis = _single_ply_game_analysis()
+
+    def game_results(route) -> None:
+        route.fulfill(
+            status=200,
+            content_type="application/json",
+            body=json.dumps(fake_analysis),
+        )
+
+    page.route("**/tools/analysis/game/results", game_results)
+    page.goto(
+        f"{live_analysis_url}/lang/{language}?next=/tools/analysis/pgn"
+    )
+    page.locator("#pgn").fill('[White "A"]\n[Black "B"]\n\n1. e4 *')
+    page.locator('.pgn-form button[name="mode"][value="parse"]').click()
+    page.locator('.pgn-form button[name="mode"][value="open"]').click()
+    page.wait_for_load_state("load")
+    page.locator("[data-game-start]").click()
+    expect(page.locator("[data-game-export-pgn]")).to_be_visible(
+        timeout=30_000
+    )
+    with page.expect_download() as download_info:
+        page.locator("[data-game-export-markdown]").click()
+    markdown = Path(download_info.value.path()).read_text(encoding="utf-8")
+    assert heading in markdown
+    for fragment in {
+        "en": [
+            "**Engine:** Stockfish 19",
+            "**Search preset:** standard",
+            "**MultiPV:** 3",
+            "**Provider:** Not available",
+            "**Model:** Not available",
+        ],
+        "zh": [
+            "**引擎:** Stockfish 19",
+            "**搜索档位:** standard",
+            "**MultiPV:** 3",
+            "**Provider:** 暂无",
+            "**模型:** 暂无",
+        ],
+        "de": [
+            "**Engine:** Stockfish 19",
+            "**Suchprofil:** standard",
+            "**MultiPV:** 3",
+            "**Provider:** Nicht verfügbar",
+            "**Modell:** Nicht verfügbar",
+        ],
+    }[language]:
+        assert fragment in markdown
+    assert "sk-" not in markdown
+    with page.expect_download() as download_info:
+        page.locator("[data-game-export-pgn]").click()
+    pgn_content = Path(download_info.value.path()).read_text(encoding="utf-8")
+    assert "sk-" not in pgn_content
+    assert "Quality: Best." in pgn_content
+    page.unroute("**/tools/analysis/game/results", game_results)
+
+
+def test_browser_position_exports_pgn_and_markdown(
+    browser_page: Page, live_analysis_url: str
+) -> None:
+    page = browser_page
+    page.goto(f"{live_analysis_url}/tools/analysis")
+    page.locator("#analysis-fen").fill(_START_FEN)
+    page.get_by_role("button", name="Start analysis").click()
+    expect(page.locator("[data-analysis-status]")).to_contain_text(
+        "Analysis complete", timeout=30_000
+    )
+
+    with page.expect_download() as download_info:
+        page.locator("[data-position-export-pgn]").click()
+    pgn_content = Path(download_info.value.path()).read_text(encoding="utf-8")
+    exported = chess.pgn.read_game(io.StringIO(pgn_content))
+    assert exported is not None
+    assert exported.headers["SetUp"] == "1"
+    assert exported.headers["FEN"] == _START_FEN
+    assert exported.board().fen() == _START_FEN
+    assert exported.next() is not None
+    assert len(exported.variations) == 3
+
+    with page.expect_download() as download_info:
+        page.locator("[data-position-export-markdown]").click()
+    markdown = Path(download_info.value.path()).read_text(encoding="utf-8")
+    assert "# ChessFEN Position Analysis" in markdown
+    assert "## Input Full FEN" in markdown
+    assert _START_FEN in markdown
+    assert "## Candidate Lines" in markdown
+    assert "Stockfish 19" in markdown
+    assert "sk-" not in markdown
+    expect(page.locator("[data-position-export-status]")).to_contain_text(
+        "Export ready."
+    )
+
+
+def test_browser_export_includes_optional_explanations_without_secrets(
+    browser_page: Page, live_analysis_url: str
+) -> None:
+    page = browser_page
+
+    def provider(route) -> None:
+        headers = {
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Headers": "authorization,content-type",
+            "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+        }
+        if route.request.method == "OPTIONS":
+            route.fulfill(status=204, headers=headers)
+            return
+        route.fulfill(
+            status=200,
+            headers={**headers, "Content-Type": "application/json"},
+            body=json.dumps(
+                {
+                    "choices": [
+                        {
+                            "message": {
+                                "content": json.dumps(
+                                    {
+                                        "summary": "Export explanation summary.",
+                                        "why": "Engine facts.",
+                                        "alternatives": "Candidate Lines.",
+                                        "uncertainty": "Limited evidence.",
+                                    }
+                                ),
+                                "reasoning_content": "SECRET-EXPORT-REASONING",
+                            }
+                        }
+                    ],
+                    "usage": {"total_tokens": 12},
+                }
+            ),
+        )
+
+    fake_analysis = _single_ply_game_analysis()
+
+    def game_results(route) -> None:
+        route.fulfill(
+            status=200,
+            content_type="application/json",
+            body=json.dumps(fake_analysis),
+        )
+
+    page.route("https://api.openai.test/**", provider)
+    page.route("**/tools/analysis/game/results", game_results)
+    _configure_mock_profile(page, live_analysis_url)
+    page.goto(f"{live_analysis_url}/tools/analysis/pgn")
+    page.locator("#pgn").fill(
+        '[Event "Export"]\n[White "A"]\n[Black "B"]\n\n1. e4 *'
+    )
+    page.get_by_role("button", name="Parse PGN").click()
+    page.get_by_role("button", name="Open Game").click()
+    page.wait_for_load_state("load")
+    page.get_by_role("button", name="Start Game Analysis").click()
+    expect(page.locator("[data-game-status]")).to_contain_text(
+        "Analysis complete", timeout=30_000
+    )
+    page.locator("[data-game-moves] [data-ply='1']").click()
+    page.locator("[data-game-explanation-passphrase]").fill(
+        "correct horse battery"
+    )
+    page.get_by_role("button", name="Generate Explanation").click()
+    expect(page.locator("[data-game-explanation-summary]")).to_have_text(
+        "Export explanation summary."
+    )
+
+    with page.expect_download() as download_info:
+        page.locator("[data-game-export-pgn]").click()
+    included = Path(download_info.value.path()).read_text(encoding="utf-8")
+    assert "Export explanation summary." in included
+    assert "[%eval" in included
+    assert "sk-test-secret-value" not in included
+    assert "correct horse battery" not in included
+    assert "privacy consent" not in included.lower()
+    assert "SECRET-EXPORT-REASONING" not in included
+
+    page.locator("[data-game-export-explanations]").uncheck()
+    with page.expect_download() as download_info:
+        page.locator("[data-game-export-pgn]").click()
+    omitted = Path(download_info.value.path()).read_text(encoding="utf-8")
+    assert "Export explanation summary." not in omitted
+    assert "[%eval" in omitted
+
+    page.locator("[data-game-export-explanations]").check()
+    with page.expect_download() as download_info:
+        page.locator("[data-game-export-markdown]").click()
+    markdown = Path(download_info.value.path()).read_text(encoding="utf-8")
+    assert "Export explanation summary." in markdown
+    assert "**Provider:** openai" in markdown
+    assert "**Model:** mock-model" in markdown
+    assert "sk-test-secret-value" not in markdown
+    assert "correct horse battery" not in markdown
+    assert "SECRET-EXPORT-REASONING" not in markdown
+    page.unroute("https://api.openai.test/**", provider)
+    page.unroute("**/tools/analysis/game/results", game_results)
 
 
 def test_browser_custom_batches_and_summarizes_game(
