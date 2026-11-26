@@ -186,6 +186,70 @@ export const DEEPSEEK_COMPATIBILITY = {
   checked: "2026-11-25",
 };
 
+const KIMI_K3_CAPABILITIES = {
+  supportedEfforts: ["low", "high", "max"],
+  effortApplicable: true,
+  thinkingField: false,
+  canDisableReasoning: false,
+};
+const KIMI_K27_CAPABILITIES = {
+  supportedEfforts: [],
+  effortApplicable: false,
+  thinkingField: false,
+  canDisableReasoning: false,
+};
+const KIMI_K26_CAPABILITIES = {
+  supportedEfforts: [],
+  effortApplicable: false,
+  thinkingField: true,
+  canDisableReasoning: true,
+};
+const KIMI_MODELS = {
+  "kimi-k3": KIMI_K3_CAPABILITIES,
+  "kimi-k3.1-pro": KIMI_K3_CAPABILITIES,
+  "kimi-k3.1-pro-highspeed": KIMI_K3_CAPABILITIES,
+  "kimi-k2.7-code": KIMI_K27_CAPABILITIES,
+  "kimi-k2.7-code-highspeed": KIMI_K27_CAPABILITIES,
+  "kimi-k2.6": KIMI_K26_CAPABILITIES,
+};
+const KIMI_CAPABILITY_SOURCES = {
+  international: "https://platform.kimi.ai/docs/api/models-overview",
+  cn: "https://platform.kimi.com/docs/api/models-overview",
+};
+const KIMI_CAPABILITY_VERIFIED = "2026-11-26";
+
+export const KIMI_COMPATIBILITY = {
+  international: {
+    browserDirectVerified: false,
+    source: "https://platform.kimi.ai/docs/api/overview",
+    checked: "2026-11-26",
+  },
+  cn: {
+    browserDirectVerified: false,
+    source: "https://platform.kimi.com/docs/api/overview",
+    checked: "2026-11-26",
+  },
+};
+
+export function kimiReasoningCapabilities(
+  model, region = "international"
+) {
+  const normalized = String(model || "").trim();
+  const known = KIMI_MODELS[normalized];
+  return {
+    model: normalized,
+    known: Boolean(known),
+    supportedEfforts: known ? [...known.supportedEfforts] : [],
+    effortApplicable: known?.effortApplicable || false,
+    thinkingField: known?.thinkingField || false,
+    canDisableReasoning: known?.canDisableReasoning || false,
+    source:
+      KIMI_CAPABILITY_SOURCES[region] ||
+      KIMI_CAPABILITY_SOURCES.international,
+    verified: KIMI_CAPABILITY_VERIFIED,
+  };
+}
+
 export function deepseekReasoningCapabilities(model) {
   const normalized = String(model || "").trim();
   const known = DEEPSEEK_KNOWN_MODELS.has(normalized);
@@ -208,8 +272,35 @@ export function reasoningFailureText(code, messages) {
     reasoning_effort_unsupported: "reasoning_unsupported",
     reasoning_effort_unknown: "reasoning_unsupported",
     reasoning_capabilities_unknown: "reasoning_unknown",
+    kimi_model_unknown: "kimi_model_unknown",
   }[code];
   return key && messages ? messages[key] : null;
+}
+
+function resolveKimiReasoning(profile) {
+  const capabilities = kimiReasoningCapabilities(profile.model);
+  if (!capabilities.known) {
+    return { ok: false, code: "kimi_model_unknown" };
+  }
+  if (!profile.reasoningEnabled) {
+    if (!capabilities.canDisableReasoning) {
+      return { ok: false, code: "reasoning_mandatory" };
+    }
+    return { ok: true, parameters: { thinking: { type: "disabled" } } };
+  }
+  if (capabilities.effortApplicable) {
+    if (!capabilities.supportedEfforts.includes(profile.reasoningEffort)) {
+      return { ok: false, code: "reasoning_effort_unsupported" };
+    }
+    return {
+      ok: true,
+      parameters: { reasoning_effort: profile.reasoningEffort },
+    };
+  }
+  if (capabilities.thinkingField) {
+    return { ok: true, parameters: { thinking: { type: "enabled" } } };
+  }
+  return { ok: true, parameters: {} };
 }
 
 function resolveDeepSeekReasoning(profile) {
@@ -272,7 +363,6 @@ export function providerRequestParameters(profile) {
   const common = {
     model: profile.model,
     response_format: { type: "json_object" },
-    max_tokens: profile.maxTokens,
   };
   if (profile.provider === "openrouter") {
     const reasoning = resolveReasoningForProfile(profile);
@@ -285,6 +375,7 @@ export function providerRequestParameters(profile) {
         ...common,
         reasoning: reasoning.reasoning,
         provider: { require_parameters: true },
+        max_tokens: profile.maxTokens,
       },
     };
   }
@@ -298,6 +389,21 @@ export function providerRequestParameters(profile) {
       body: {
         ...common,
         ...reasoning.parameters,
+        max_tokens: profile.maxTokens,
+      },
+    };
+  }
+  if (profile.provider === "kimi") {
+    const reasoning = resolveKimiReasoning(profile);
+    if (!reasoning.ok) {
+      return { ok: false, code: reasoning.code };
+    }
+    return {
+      ok: true,
+      body: {
+        ...common,
+        ...reasoning.parameters,
+        max_completion_tokens: profile.maxTokens,
       },
     };
   }

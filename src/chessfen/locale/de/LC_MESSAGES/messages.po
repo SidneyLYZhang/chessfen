@@ -1278,3 +1278,24 @@ msgstr "Reasoning kann für dieses unverifizierte Modell nicht deaktiviert werde
 
 msgid "DeepSeek browser-direct connections are unverified from this deployment. Requests may fail because of CORS; ChessFEN will not proxy them."
 msgstr "Direkte DeepSeek-Browserverbindungen sind für diese Bereitstellung nicht verifiziert. Anfragen können wegen CORS fehlschlagen; ChessFEN nutzt keinen Server-Proxy."
+
+msgid "Kimi region"
+msgstr "Kimi-Region"
+
+msgid "International"
+msgstr "International"
+
+msgid "China"
+msgstr "China"
+
+msgid "Reasoning is always enabled for this Model."
+msgstr "Reasoning ist für dieses Modell immer aktiviert."
+
+msgid "Reasoning effort is not applicable for this Model."
+msgstr "Reasoning-Stärke ist für dieses Modell nicht anwendbar."
+
+msgid "This Kimi Model is not in the verified capability matrix. Choose a listed Model."
+msgstr "Dieses Kimi-Modell ist nicht in der verifizierten Fähigkeitsmatrix enthalten. Wähle ein aufgeführtes Modell."
+
+msgid "Kimi browser-direct connections are unverified from this deployment. Requests may fail because of CORS; ChessFEN will not proxy them."
+msgstr "Direkte Kimi-Browserverbindungen sind für diese Bereitstellung nicht verifiziert. Anfragen können wegen CORS fehlschlagen; ChessFEN nutzt keinen Server-Proxy."

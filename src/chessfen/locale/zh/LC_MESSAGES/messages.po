@@ -1278,3 +1278,24 @@ msgstr "此未验证模型无法关闭思考模式。请保持思考开启，或
 
 msgid "DeepSeek browser-direct connections are unverified from this deployment. Requests may fail because of CORS; ChessFEN will not proxy them."
 msgstr "当前部署尚未验证 DeepSeek 的浏览器直连兼容性。请求可能因 CORS 失败；ChessFEN 不会改用服务器代理。"
+
+msgid "Kimi region"
+msgstr "Kimi 区域"
+
+msgid "International"
+msgstr "国际站"
+
+msgid "China"
+msgstr "中国站"
+
+msgid "Reasoning is always enabled for this Model."
+msgstr "当前模型始终开启思考。"
+
+msgid "Reasoning effort is not applicable for this Model."
+msgstr "当前模型不适用思考强度。"
+
+msgid "This Kimi Model is not in the verified capability matrix. Choose a listed Model."
+msgstr "此 Kimi 模型不在已验证的能力矩阵中。请选择列表中的模型。"
+
+msgid "Kimi browser-direct connections are unverified from this deployment. Requests may fail because of CORS; ChessFEN will not proxy them."
+msgstr "当前部署尚未验证 Kimi 的浏览器直连兼容性。请求可能因 CORS 失败；ChessFEN 不会改用服务器代理。"

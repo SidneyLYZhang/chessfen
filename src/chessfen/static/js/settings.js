@@ -8,8 +8,10 @@ import {
 } from "/static/js/analysis-credential.js";
 import {
   DEEPSEEK_COMPATIBILITY,
+  KIMI_COMPATIBILITY,
   deepseekReasoningCapabilities,
   fetchModels,
+  kimiReasoningCapabilities,
   loadLlmProfile,
   lockLlm,
   profileRequestReady,
@@ -24,12 +26,18 @@ const PROVIDER_BASE_URLS = {
   openrouter: "https://openrouter.ai/api/v1",
   deepseek: "https://api.deepseek.com",
 };
+const KIMI_BASE_URLS = {
+  international: "https://api.moonshot.ai/v1",
+  cn: "https://api.moonshot.cn/v1",
+};
 
 function initializeSettings() {
   const form = document.querySelector("[data-llm-form]");
   if (!form) return;
   const q = (name) => form.querySelector(`[data-llm-${name}]`);
   const provider = q("provider");
+  const kimiRegion = q("kimi-region");
+  const kimiRegionField = form.querySelector("[data-kimi-region-field]");
   const baseUrl = q("base-url");
   const model = q("model");
   const models = q("models");
@@ -86,6 +94,7 @@ function initializeSettings() {
       reasoningEffort: effort.value,
       maxTokens: Number.parseInt(budget.value, 10),
       consentHost: consent.checked ? new URL(normalizedUrl).host : null,
+      kimiRegion: provider.value === "kimi" ? kimiRegion.value : null,
       reasoningCapabilities:
         provider.value === "openrouter" && capabilityModel === model.value.trim()
           ? capabilityMap[model.value.trim()] || null
@@ -101,6 +110,9 @@ function initializeSettings() {
     if (provider.value === "deepseek") {
       return deepseekReasoningCapabilities(model.value.trim());
     }
+    if (provider.value === "kimi") {
+      return kimiReasoningCapabilities(model.value.trim(), kimiRegion.value);
+    }
     return provider.value === "openrouter" &&
       capabilityModel === model.value.trim()
       ? capabilityMap[model.value.trim()] || null
@@ -108,11 +120,19 @@ function initializeSettings() {
   }
 
   function applyCompatibility() {
-    const unverified =
+    const deepseek =
       provider.value === "deepseek" &&
       !DEEPSEEK_COMPATIBILITY.browserDirectVerified;
-    compatibility.hidden = !unverified;
-    compatibility.textContent = unverified ? text.deepseek_unverified : "";
+    const kimi =
+      provider.value === "kimi" &&
+      !KIMI_COMPATIBILITY[kimiRegion.value]?.browserDirectVerified;
+    compatibility.hidden = !deepseek && !kimi;
+    compatibility.textContent = deepseek
+      ? text.deepseek_unverified
+      : kimi
+        ? text.kimi_unverified
+        : "";
+    kimiRegionField.hidden = provider.value !== "kimi";
   }
 
   function persistCapabilities() {
@@ -127,39 +147,100 @@ function initializeSettings() {
     }
   }
 
+  function appendCapabilityText(value) {
+    capabilitiesText.textContent = [
+      capabilitiesText.textContent,
+      value,
+    ]
+      .filter(Boolean)
+      .join(" ");
+  }
+
   function applyCapabilities() {
     for (const option of effort.options) {
       option.disabled = false;
     }
-    if (!["openrouter", "deepseek"].includes(provider.value)) {
-      capabilitiesText.textContent = "";
+    effort.disabled = false;
+    reasoning.disabled = false;
+    capabilitiesText.textContent = "";
+
+    if (provider.value === "kimi") {
+      const caps = capabilitiesForModel();
+      if (!caps.known) {
+        capabilitiesText.textContent = text.kimi_model_unknown;
+        effort.disabled = true;
+        return;
+      }
+      if (!caps.canDisableReasoning) {
+        reasoning.checked = true;
+        reasoning.disabled = true;
+        appendCapabilityText(text.reasoning_always);
+      }
+      if (!caps.effortApplicable) {
+        effort.disabled = true;
+        appendCapabilityText(text.reasoning_not_applicable);
+        return;
+      }
+      for (const option of effort.options) {
+        option.disabled = !caps.supportedEfforts.includes(option.value);
+      }
+      appendCapabilityText(
+        text.reasoning_supported.replace(
+          "{values}",
+          caps.supportedEfforts.join(", ")
+        )
+      );
+      if (!caps.supportedEfforts.includes(effort.value)) {
+        appendCapabilityText(text.reasoning_unsupported);
+      }
       return;
     }
-    const caps = capabilitiesForModel();
-    if (!caps) {
-      capabilitiesText.textContent = text.reasoning_unknown;
+
+    if (provider.value === "deepseek") {
+      const caps = capabilitiesForModel();
+      const efforts = caps.supportedEfforts;
+      if (!Array.isArray(efforts) || !efforts.length) {
+        capabilitiesText.textContent = text.reasoning_unknown;
+        return;
+      }
+      for (const option of effort.options) {
+        option.disabled = !efforts.includes(option.value);
+      }
+      appendCapabilityText(
+        text.reasoning_supported.replace("{values}", efforts.join(", "))
+      );
+      if (!efforts.includes(effort.value)) {
+        appendCapabilityText(text.reasoning_unsupported);
+      }
+      if (!reasoning.checked) {
+        if (caps.known === false) {
+          appendCapabilityText(text.reasoning_unverified);
+        } else if (caps.canDisableReasoning === false) {
+          appendCapabilityText(text.reasoning_mandatory);
+        }
+      }
       return;
     }
-    const efforts = caps.supportedEfforts;
-    if (!Array.isArray(efforts) || !efforts.length) {
-      capabilitiesText.textContent = text.reasoning_unknown;
-      return;
-    }
-    for (const option of effort.options) {
-      option.disabled = !efforts.includes(option.value);
-    }
-    capabilitiesText.textContent = text.reasoning_supported.replace(
-      "{values}",
-      efforts.join(", ")
-    );
-    if (!efforts.includes(effort.value)) {
-      capabilitiesText.textContent += " " + text.reasoning_unsupported;
-    }
-    if (!reasoning.checked) {
-      if (caps.known === false) {
-        capabilitiesText.textContent += " " + text.reasoning_unverified;
-      } else if (caps.canDisableReasoning === false) {
-        capabilitiesText.textContent += " " + text.reasoning_mandatory;
+
+    if (provider.value === "openrouter") {
+      const caps = capabilitiesForModel();
+      if (!caps) {
+        capabilitiesText.textContent = text.reasoning_unknown;
+        return;
+      }
+      const efforts = caps.supportedEfforts;
+      if (!Array.isArray(efforts) || !efforts.length) {
+        capabilitiesText.textContent = text.reasoning_unknown;
+        return;
+      }
+      for (const option of effort.options) {
+        option.disabled = !efforts.includes(option.value);
+      }
+      appendCapabilityText(
+        text.reasoning_supported.replace("{values}", efforts.join(", "))
+      );
+      if (!efforts.includes(effort.value)) {
+        appendCapabilityText(text.reasoning_unsupported);
       }
     }
   }
@@ -180,6 +261,21 @@ function initializeSettings() {
       : "No encrypted credential stored.";
   }
 
+  function clearModelList() {
+    models.replaceChildren();
+    capabilityModel = null;
+    capabilityMap = {};
+  }
+
+  const storedRegion = stored?.kimiRegion;
+  const inferredRegion = String(stored?.baseUrl || "").includes(
+    "api.moonshot.cn"
+  )
+    ? "cn"
+    : "international";
+  const defaultKimiRegion = ["cn", "international"].includes(storedRegion)
+    ? storedRegion
+    : inferredRegion;
   const defaults = {
     provider: "openai",
     baseUrl: "https://api.openai.com/v1",
@@ -191,9 +287,13 @@ function initializeSettings() {
     maxTokens: 16384,
     consentHost: null,
     confirmedFingerprint: null,
+    kimiRegion: defaultKimiRegion,
     ...(stored || {}),
   };
   provider.value = defaults.provider;
+  kimiRegion.value = ["cn", "international"].includes(defaults.kimiRegion)
+    ? defaults.kimiRegion
+    : defaultKimiRegion;
   baseUrl.value = defaults.baseUrl;
   model.value = defaults.model;
   language.value = ["zh", "en", "de"].includes(defaults.language)
@@ -224,13 +324,22 @@ function initializeSettings() {
   });
   provider.addEventListener("change", () => {
     baseUrl.value =
-      PROVIDER_BASE_URLS[provider.value] || PROVIDER_BASE_URLS.openai;
+      provider.value === "kimi"
+        ? KIMI_BASE_URLS[kimiRegion.value] || KIMI_BASE_URLS.international
+        : PROVIDER_BASE_URLS[provider.value] || PROVIDER_BASE_URLS.openai;
     consent.checked = false;
     confirm.checked = false;
-    capabilityModel = null;
-    capabilityMap = {};
+    clearModelList();
     applyCapabilities();
     applyCompatibility();
+    paintPreview();
+  });
+  kimiRegion.addEventListener("change", () => {
+    baseUrl.value =
+      KIMI_BASE_URLS[kimiRegion.value] || KIMI_BASE_URLS.international;
+    consent.checked = false;
+    confirm.checked = false;
+    clearModelList();
     paintPreview();
   });
   model.addEventListener("change", () => {

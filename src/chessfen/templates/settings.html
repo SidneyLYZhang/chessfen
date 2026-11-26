@@ -28,8 +28,16 @@
           <option value="openai">OpenAI</option>
           <option value="openrouter">OpenRouter</option>
           <option value="deepseek">DeepSeek</option>
+          <option value="kimi">Kimi</option>
         </select>
         <p class="field-hint" data-llm-compatibility role="note" hidden></p>
+      </div>
+      <div class="field" data-kimi-region-field hidden>
+        <label class="field-label" for="llm-kimi-region">{% trans %}Kimi region{% endtrans %}</label>
+        <select class="select-input" id="llm-kimi-region" data-llm-kimi-region>
+          <option value="international">{% trans %}International{% endtrans %} · api.moonshot.ai</option>
+          <option value="cn">{% trans %}China{% endtrans %} · api.moonshot.cn</option>
+        </select>
       </div>
       <div class="field">
         <label class="field-label" for="llm-base-url">{% trans %}Base URL{% endtrans %}</label>

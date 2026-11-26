@@ -91,8 +91,12 @@ LLM-generated natural-language interpretation grounded in Evaluations, Candidate
 _Avoid_: "analysis" when distinguishing generated prose from engine results
 
 **LLM Profile**:
-The Visitor's currently active third-party provider, model, reasoning preferences, and Explanation language and audience settings.
+The Visitor's currently active third-party provider, region where applicable, model, reasoning preferences, and Explanation language and audience settings.
 _Avoid_: "account", "server settings", "Admin configuration"
+
+**Provider region**:
+A provider-specific API deployment with its own Base URL, model catalog, credential, privacy consent, and request confirmation. Kimi exposes China and International regions.
+_Avoid_: "locale", "country setting", implicit credential reuse across hosts
 
 **Reasoning effort**:
 The Visitor-requested level of third-party model reasoning for an Explanation, distinct from Stockfish search depth and subject to the selected model's capabilities.

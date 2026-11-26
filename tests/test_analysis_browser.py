@@ -914,6 +914,28 @@ def _configure_deepseek_profile(
     expect(page.locator("[data-llm-status]")).to_contain_text("saved locally")
 
 
+def _configure_kimi_profile(
+    page: Page,
+    live_analysis_url: str,
+    region: str = "international",
+    model: str = "kimi-k3",
+    reasoning: bool = True,
+) -> None:
+    page.goto(f"{live_analysis_url}/settings")
+    page.locator("[data-llm-provider]").select_option("kimi")
+    page.locator("[data-llm-kimi-region]").select_option(region)
+    page.locator("[data-llm-model]").fill(model)
+    if not reasoning:
+        page.locator("[data-llm-reasoning]").uncheck()
+    page.locator("[data-llm-api-key]").fill("sk-kimi-test")
+    page.locator("[data-llm-passphrase]").fill("correct horse battery")
+    page.locator("[data-llm-passphrase-confirm]").fill("correct horse battery")
+    page.locator("[data-llm-consent]").check()
+    page.locator("[data-llm-confirm]").check()
+    page.get_by_role("button", name="Save LLM Profile").click()
+    expect(page.locator("[data-llm-status]")).to_contain_text("saved locally")
+
+
 def _workspace_record_text(page: Page) -> str:
     return page.evaluate(
         """async () => {
@@ -991,6 +1013,13 @@ def _single_ply_game_analysis() -> dict[str, Any]:
             "deepseek-flash",
             "api.deepseek.com",
             "sk-ds-test",
+        ),
+        (
+            "kimi",
+            "https://api.moonshot.ai/v1",
+            "kimi-k3",
+            "api.moonshot.ai",
+            "sk-kimi-test",
         ),
     ],
 )
@@ -2367,3 +2396,596 @@ def test_browser_deepseek_blocks_unsupported_reasoning_effort(
         }"""
     )
     assert result == {"ok": False, "code": "reasoning_effort_unsupported"}
+
+
+def test_browser_kimi_preset_regions_and_k3_request_contract(
+    browser_page: Page, live_analysis_url: str
+) -> None:
+    page = browser_page
+    provider_requests: list[str] = []
+    chat_bodies: list[dict[str, Any]] = []
+    chat_headers: list[dict[str, str]] = []
+    chat_attempts: list[str] = []
+    same_origin_posts: list[str] = []
+    fail_mode = {"value": ""}
+    page.on(
+        "request",
+        lambda request: (
+            same_origin_posts.append(request.url)
+            if request.method == "POST"
+            and request.url.startswith(live_analysis_url)
+            else None
+        ),
+    )
+
+    def provider(route) -> None:
+        headers = {
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Headers": "authorization,content-type",
+            "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+        }
+        provider_requests.append(route.request.url)
+        if route.request.method == "OPTIONS":
+            route.fulfill(status=204, headers=headers)
+            return
+        if route.request.url.endswith("/models"):
+            route.fulfill(
+                status=200,
+                headers={**headers, "Content-Type": "application/json"},
+                body=json.dumps(
+                    {
+                        "data": [
+                            {"id": "kimi-k3", "supports_reasoning": True},
+                            {"id": "kimi-k3.1-pro", "supports_reasoning": True},
+                            {"id": "kimi-k2.6", "supports_reasoning": True},
+                        ]
+                    }
+                ),
+            )
+            return
+        chat_attempts.append(route.request.url)
+        chat_headers.append(
+            {key.lower(): value for key, value in route.request.headers.items()}
+        )
+        mode = fail_mode["value"]
+        if mode == "abort":
+            route.abort("failed")
+            return
+        if mode == "cors":
+            route.fulfill(
+                status=200,
+                headers={"Content-Type": "application/json"},
+                body=json.dumps(
+                    {"choices": [{"message": {"content": "{}"}}]}
+                ),
+            )
+            return
+        content = json.dumps(
+            {
+                "summary": "Kimi summary",
+                "why": "engine facts",
+                "alternatives": "candidate lines",
+                "uncertainty": "limited",
+            }
+        )
+        finish_reason = "stop"
+        if mode == "malformed":
+            content = "{not-json"
+        elif mode == "empty":
+            content = ""
+        elif mode == "length":
+            content = '{"summary":"partial"'
+            finish_reason = "length"
+        else:
+            chat_bodies.append(route.request.post_data_json)
+        route.fulfill(
+            status=200,
+            headers={**headers, "Content-Type": "application/json"},
+            body=json.dumps(
+                {
+                    "choices": [
+                        {
+                            "finish_reason": finish_reason,
+                            "message": {
+                                "content": content,
+                                "reasoning_content": "SECRET-KIMI-REASONING",
+                            },
+                        }
+                    ],
+                    "usage": {
+                        "prompt_tokens": 3,
+                        "completion_tokens": 6,
+                        "completion_tokens_details": {"reasoning_tokens": 4},
+                        "total_tokens": 9,
+                    },
+                }
+            ),
+        )
+
+    page.route("https://api.moonshot.ai/**", provider)
+    page.route("https://api.moonshot.cn/**", provider)
+    _configure_kimi_profile(page, live_analysis_url, "cn", "kimi-k3")
+    expect(page.locator("[data-llm-base-url]")).to_have_value(
+        "https://api.moonshot.cn/v1"
+    )
+    expect(page.locator("[data-kimi-region-field]")).to_be_visible()
+    expect(page.locator("[data-llm-compatibility]")).to_contain_text(
+        "unverified"
+    )
+    assert chat_attempts == []
+    assert provider_requests == []
+
+    page.locator("[data-llm-passphrase]").fill("correct horse battery")
+    page.get_by_role("button", name="Fetch Models").click()
+    expect(page.locator("[data-llm-status]")).to_contain_text("Loaded 3 Models")
+    expect(page.locator("[data-llm-capabilities]")).to_contain_text(
+        "low, high, max"
+    )
+    expect(page.locator("[data-llm-reasoning]")).to_be_checked()
+    expect(page.locator("[data-llm-reasoning]")).to_be_disabled()
+    preview = json.loads(page.locator("[data-llm-preview]").inner_text())
+    assert preview["reasoning_effort"] == "max"
+    assert "thinking" not in preview
+    assert preview["max_completion_tokens"] == 16384
+    assert "max_tokens" not in preview
+    page.get_by_role("button", name="Test Connection").click()
+    expect(page.locator("[data-llm-status]")).to_contain_text(
+        "Connection test succeeded"
+    )
+    assert chat_attempts == []
+
+    page.goto(f"{live_analysis_url}/tools/analysis")
+    page.locator("#analysis-fen").fill(_START_FEN)
+    page.get_by_role("button", name="Start analysis").click()
+    expect(page.locator("[data-analysis-status]")).to_contain_text(
+        "Analysis complete", timeout=30_000
+    )
+    page.locator("[data-explanation-passphrase]").fill("correct horse battery")
+    page.get_by_role("button", name="Generate Explanation").click()
+    expect(page.locator("[data-explanation-summary]")).to_have_text(
+        "Kimi summary"
+    )
+    body = chat_bodies[-1]
+    assert body["reasoning_effort"] == "max"
+    assert "thinking" not in body
+    assert body["max_completion_tokens"] == 16384
+    assert "max_tokens" not in body
+    assert body["response_format"] == {"type": "json_object"}
+    assert chat_headers[0]["authorization"] == "Bearer sk-kimi-test"
+    expect(page.locator("[data-explanation-usage]")).to_contain_text("total 9")
+    expect(page.locator("[data-explanation-usage]")).to_contain_text(
+        "reasoning 4"
+    )
+    assert "SECRET-KIMI-REASONING" not in page.content()
+    assert "SECRET-KIMI-REASONING" not in _workspace_record_text(page)
+
+    before_attempts = len(chat_attempts)
+    before_bodies = len(chat_bodies)
+    before_posts = len(same_origin_posts)
+    for index, mode in enumerate(("malformed", "empty", "length", "cors", "abort")):
+        fail_mode["value"] = mode
+        page.get_by_role("button", name="Generate Explanation").click()
+        expect(page.locator("[data-explanation-status]")).to_contain_text(
+            "could not be generated"
+        )
+        expect(page.locator("[data-explanation-summary]")).to_have_text(
+            "Kimi summary"
+        )
+        assert len(chat_attempts) == before_attempts + index + 1
+        assert len(chat_bodies) == before_bodies
+        assert len(same_origin_posts) == before_posts
+    page.unroute("https://api.moonshot.ai/**", provider)
+    page.unroute("https://api.moonshot.cn/**", provider)
+
+
+def test_browser_kimi_model_contracts_and_unknown_block(
+    browser_page: Page, live_analysis_url: str
+) -> None:
+    page = browser_page
+
+    def provider(route) -> None:
+        headers = {
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Headers": "authorization,content-type",
+            "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+        }
+        if route.request.method == "OPTIONS":
+            route.fulfill(status=204, headers=headers)
+            return
+        route.fulfill(
+            status=200,
+            headers={**headers, "Content-Type": "application/json"},
+            body=json.dumps(
+                {
+                    "data": [
+                        {
+                            "id": "kimi-future",
+                            "supports_reasoning": True,
+                        }
+                    ]
+                }
+            ),
+        )
+
+    page.route("https://api.moonshot.ai/**", provider)
+    _configure_kimi_profile(page, live_analysis_url, "international", "kimi-k2.6")
+    expect(page.locator("[data-llm-effort]")).to_be_disabled()
+    expect(page.locator("[data-llm-capabilities]")).to_contain_text(
+        "not applicable"
+    )
+    preview = json.loads(page.locator("[data-llm-preview]").inner_text())
+    assert preview["thinking"] == {"type": "enabled"}
+    assert "reasoning_effort" not in preview
+    assert preview["max_completion_tokens"] == 16384
+
+    page.locator("[data-llm-reasoning]").uncheck()
+    preview = json.loads(page.locator("[data-llm-preview]").inner_text())
+    assert preview["thinking"] == {"type": "disabled"}
+    assert "reasoning_effort" not in preview
+
+    page.locator("[data-llm-model]").fill("kimi-k3")
+    expect(page.locator("[data-llm-reasoning]")).to_be_checked()
+    expect(page.locator("[data-llm-reasoning]")).to_be_disabled()
+    expect(page.locator("[data-llm-effort]")).to_be_enabled()
+    expect(page.locator("[data-llm-capabilities]")).to_contain_text(
+        "always enabled"
+    )
+    preview = json.loads(page.locator("[data-llm-preview]").inner_text())
+    assert preview["reasoning_effort"] == "max"
+    assert "thinking" not in preview
+
+    page.locator("[data-llm-model]").fill("kimi-k2.7-code")
+    expect(page.locator("[data-llm-reasoning]")).to_be_checked()
+    expect(page.locator("[data-llm-reasoning]")).to_be_disabled()
+    expect(page.locator("[data-llm-effort]")).to_be_disabled()
+    preview = json.loads(page.locator("[data-llm-preview]").inner_text())
+    assert "thinking" not in preview
+    assert "reasoning_effort" not in preview
+    assert preview["max_completion_tokens"] == 16384
+
+    page.locator("[data-llm-passphrase]").fill("correct horse battery")
+    page.locator("[data-llm-confirm]").check()
+    page.get_by_role("button", name="Fetch Models").click()
+    expect(page.locator("[data-llm-status]")).to_contain_text("Loaded 1 Models")
+    page.locator("[data-llm-model]").fill("kimi-future")
+    expect(page.locator("[data-llm-capabilities]")).to_contain_text(
+        "not in the verified capability matrix"
+    )
+    preview = json.loads(page.locator("[data-llm-preview]").inner_text())
+    assert preview == {"error": "kimi_model_unknown"}
+
+    contracts = page.evaluate(
+        """async () => {
+          const module = await import("/static/js/analysis-llm.js");
+          const base = {
+            provider: "kimi",
+            maxTokens: 16384,
+          };
+          return {
+            k3: module.providerRequestParameters({
+              ...base,
+              model: "kimi-k3",
+              reasoningEnabled: true,
+              reasoningEffort: "max",
+            }),
+            k31: module.providerRequestParameters({
+              ...base,
+              model: "kimi-k3.1-pro",
+              reasoningEnabled: true,
+              reasoningEffort: "max",
+            }),
+            k31High: module.providerRequestParameters({
+              ...base,
+              model: "kimi-k3.1-pro-highspeed",
+              reasoningEnabled: true,
+              reasoningEffort: "max",
+            }),
+            k27High: module.providerRequestParameters({
+              ...base,
+              model: "kimi-k2.7-code-highspeed",
+              reasoningEnabled: true,
+              reasoningEffort: "max",
+            }),
+            k3Off: module.providerRequestParameters({
+              ...base,
+              model: "kimi-k3",
+              reasoningEnabled: false,
+              reasoningEffort: "max",
+            }),
+            k26: module.providerRequestParameters({
+              ...base,
+              model: "kimi-k2.6",
+              reasoningEnabled: true,
+              reasoningEffort: "max",
+            }),
+            k26Off: module.providerRequestParameters({
+              ...base,
+              model: "kimi-k2.6",
+              reasoningEnabled: false,
+              reasoningEffort: "max",
+            }),
+            unknown: module.providerRequestParameters({
+              ...base,
+              model: "kimi-future",
+              reasoningEnabled: true,
+              reasoningEffort: "max",
+            }),
+            sources: {
+              international: module.kimiReasoningCapabilities(
+                "kimi-k3",
+                "international"
+              ).source,
+              cn: module.kimiReasoningCapabilities("kimi-k3", "cn").source,
+            },
+          };
+        }"""
+    )
+    assert contracts["k3"]["body"]["reasoning_effort"] == "max"
+    assert "thinking" not in contracts["k3"]["body"]
+    assert contracts["k31"]["body"]["reasoning_effort"] == "max"
+    assert contracts["k31High"]["body"]["reasoning_effort"] == "max"
+    assert "thinking" not in contracts["k31High"]["body"]
+    assert contracts["k27High"]["body"] == {
+        "model": "kimi-k2.7-code-highspeed",
+        "response_format": {"type": "json_object"},
+        "max_completion_tokens": 16384,
+    }
+    assert contracts["k3Off"] == {
+        "ok": False,
+        "code": "reasoning_mandatory",
+    }
+    assert contracts["k26"]["body"]["thinking"] == {"type": "enabled"}
+    assert "reasoning_effort" not in contracts["k26"]["body"]
+    assert contracts["k26Off"]["body"]["thinking"] == {"type": "disabled"}
+    assert contracts["unknown"] == {
+        "ok": False,
+        "code": "kimi_model_unknown",
+    }
+    assert "platform.kimi.ai" in contracts["sources"]["international"]
+    assert "platform.kimi.com" in contracts["sources"]["cn"]
+    page.unroute("https://api.moonshot.ai/**", provider)
+
+
+def test_browser_kimi_region_switch_isolates_credentials_and_models(
+    browser_page: Page, live_analysis_url: str
+) -> None:
+    page = browser_page
+    provider_requests: list[str] = []
+
+    def provider(route) -> None:
+        provider_requests.append(route.request.url)
+        headers = {
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Headers": "authorization,content-type",
+            "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+        }
+        if route.request.method == "OPTIONS":
+            route.fulfill(status=204, headers=headers)
+            return
+        models = (
+            [{"id": "kimi-k3"}]
+            if "api.moonshot.cn" in route.request.url
+            else [{"id": "kimi-k3.1-pro"}]
+        )
+        route.fulfill(
+            status=200,
+            headers={**headers, "Content-Type": "application/json"},
+            body=json.dumps({"data": models}),
+        )
+
+    page.route("https://api.moonshot.cn/**", provider)
+    page.route("https://api.moonshot.ai/**", provider)
+    _configure_kimi_profile(page, live_analysis_url, "cn", "kimi-k3")
+    page.locator("[data-llm-passphrase]").fill("correct horse battery")
+    page.get_by_role("button", name="Fetch Models").click()
+    expect(
+        page.locator("[data-llm-models] option[value='kimi-k3']")
+    ).to_have_count(1)
+
+    page.locator("[data-llm-kimi-region]").select_option("international")
+    expect(page.locator("[data-llm-base-url]")).to_have_value(
+        "https://api.moonshot.ai/v1"
+    )
+    expect(page.locator("[data-llm-consent]")).not_to_be_checked()
+    expect(page.locator("[data-llm-confirm]")).not_to_be_checked()
+    expect(page.locator("[data-llm-models] option")).to_have_count(0)
+    expect(page.locator("[data-llm-credential-meta]")).to_contain_text(
+        "api.moonshot.cn"
+    )
+
+    before_requests = len(provider_requests)
+    page.locator("[data-llm-passphrase]").fill("correct horse battery")
+    page.get_by_role("button", name="Unlock").click()
+    expect(page.locator("[data-llm-status]")).to_contain_text(
+        "Confirm privacy consent and the exact request parameters"
+    )
+    assert len(provider_requests) == before_requests
+    page.locator("[data-llm-consent]").check()
+    page.locator("[data-llm-confirm]").check()
+    page.get_by_role("button", name="Unlock").click()
+    expect(page.locator("[data-llm-status]")).to_contain_text(
+        "Check the passphrase and Provider"
+    )
+    assert len(provider_requests) == before_requests
+
+    page.locator("[data-llm-api-key]").fill("sk-kimi-intl")
+    page.locator("[data-llm-passphrase]").fill("correct horse battery")
+    page.locator("[data-llm-passphrase-confirm]").fill("correct horse battery")
+    page.get_by_role("button", name="Save LLM Profile").click()
+    expect(page.locator("[data-llm-status]")).to_contain_text("saved locally")
+    expect(page.locator("[data-llm-credential-meta]")).to_contain_text(
+        "api.moonshot.ai"
+    )
+    page.locator("[data-llm-passphrase]").fill("correct horse battery")
+    page.get_by_role("button", name="Unlock").click()
+    expect(page.locator("[data-llm-status]")).to_contain_text("unlocked")
+
+    before_requests = len(provider_requests)
+    page.get_by_role("button", name="Fetch Models").click()
+    expect(page.locator("[data-llm-status]")).to_contain_text("Loaded 1 Models")
+    expect(
+        page.locator("[data-llm-models] option[value='kimi-k3.1-pro']")
+    ).to_have_count(1)
+    assert all(
+        "api.moonshot.ai" in url
+        for url in provider_requests[before_requests:]
+    )
+    page.unroute("https://api.moonshot.cn/**", provider)
+    page.unroute("https://api.moonshot.ai/**", provider)
+
+
+@pytest.mark.parametrize(
+    ("region", "base_url", "model"),
+    [
+        ("international", "https://api.moonshot.ai/v1", "kimi-k3"),
+        ("cn", "https://api.moonshot.cn/v1", "kimi-k2.6"),
+    ],
+)
+def test_browser_kimi_batches_and_summarizes_in_both_regions(
+    browser_page: Page,
+    live_analysis_url: str,
+    region: str,
+    base_url: str,
+    model: str,
+) -> None:
+    page = browser_page
+    requests: list[dict[str, Any]] = []
+
+    def provider(route) -> None:
+        headers = {
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Headers": "authorization,content-type",
+            "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+        }
+        if route.request.method == "OPTIONS":
+            route.fulfill(status=204, headers=headers)
+            return
+        if route.request.url.endswith("/models"):
+            route.fulfill(
+                status=200,
+                headers={**headers, "Content-Type": "application/json"},
+                body=json.dumps({"data": [{"id": model}]}),
+            )
+            return
+        body = route.request.post_data_json
+        requests.append(body)
+        payload = json.loads(body["messages"][1]["content"])
+        if "targets" in payload:
+            content = json.dumps(
+                {
+                    "explanations": [
+                        {
+                            "ply": target["ply"],
+                            "summary": "Kimi key ply",
+                            "why": "engine facts",
+                            "alternatives": "candidate lines",
+                            "uncertainty": "limited",
+                        }
+                        for target in payload["targets"]
+                    ]
+                }
+            )
+            reasoning = "SECRET-KIMI-BATCH-REASONING"
+        else:
+            content = json.dumps(
+                {
+                    "summary": "Kimi game summary",
+                    "uncertainty": "limited",
+                }
+            )
+            reasoning = "SECRET-KIMI-SUMMARY-REASONING"
+        route.fulfill(
+            status=200,
+            headers={**headers, "Content-Type": "application/json"},
+            body=json.dumps(
+                {
+                    "choices": [
+                        {
+                            "finish_reason": "stop",
+                            "message": {
+                                "content": content,
+                                "reasoning_content": reasoning,
+                            },
+                        }
+                    ],
+                    "usage": {
+                        "prompt_tokens": 3,
+                        "completion_tokens": 6,
+                        "completion_tokens_details": {"reasoning_tokens": 4},
+                        "total_tokens": 9,
+                    },
+                }
+            ),
+        )
+
+    fake_analysis = _single_ply_game_analysis()
+
+    def game_results(route) -> None:
+        route.fulfill(
+            status=200,
+            content_type="application/json",
+            body=json.dumps(fake_analysis),
+        )
+
+    host = base_url.removeprefix("https://").split("/")[0]
+    page.route(f"https://{host}/**", provider)
+    page.route("**/tools/analysis/game/results", game_results)
+    _configure_kimi_profile(page, live_analysis_url, region, model)
+    expect(page.locator("[data-llm-base-url]")).to_have_value(base_url)
+
+    page.goto(f"{live_analysis_url}/tools/analysis/pgn")
+    page.locator("#pgn").fill(
+        '[Event "Kimi"]\n[White "A"]\n[Black "B"]\n[Result "*"]\n\n1. e4 *'
+    )
+    page.get_by_role("button", name="Parse PGN").click()
+    page.get_by_role("button", name="Open Game").click()
+    page.wait_for_load_state("load")
+    page.get_by_role("button", name="Start Game Analysis").click()
+    expect(page.locator("[data-game-status]")).to_contain_text(
+        "Analyzing", timeout=30_000
+    )
+    expect(page.locator("[data-game-status]")).to_contain_text(
+        "Analysis complete", timeout=30_000
+    )
+    page.locator("[data-game-batch-preview]").click()
+    page.locator("[data-game-explanation-passphrase]").fill(
+        "correct horse battery"
+    )
+    page.get_by_role("button", name="Confirm and Generate").click()
+    expect(page.locator("[data-game-batch-status]")).to_contain_text(
+        "Key Ply explanations and summary complete.", timeout=30_000
+    )
+    expect(page.locator("[data-game-summary-text]")).to_have_text(
+        "Kimi game summary"
+    )
+    expect(page.locator("[data-game-token-usage]")).to_contain_text("total 18")
+    expect(page.locator("[data-game-token-usage]")).to_contain_text(
+        "reasoning 8"
+    )
+    assert len(requests) == 2
+    payloads = [json.loads(item["messages"][1]["content"]) for item in requests]
+    assert len(payloads[0]["targets"]) == 1
+    assert payloads[0]["targets"][0]["quality"] == "best"
+    assert payloads[0]["targets"][0]["evaluation_before"]["value"] == 10
+    assert "key_plies" in payloads[1]
+    for body in requests:
+        assert body["max_completion_tokens"] == 16384
+        assert "max_tokens" not in body
+        if model == "kimi-k3":
+            assert body["reasoning_effort"] == "max"
+            assert "thinking" not in body
+        else:
+            assert body["thinking"] == {"type": "enabled"}
+            assert "reasoning_effort" not in body
+    assert "SECRET-KIMI-BATCH-REASONING" not in page.content()
+    assert "SECRET-KIMI-SUMMARY-REASONING" not in page.content()
+    workspace = _workspace_record_text(page)
+    assert "SECRET-KIMI-BATCH-REASONING" not in workspace
+    assert "SECRET-KIMI-SUMMARY-REASONING" not in workspace
+    assert "Kimi game summary" in workspace
+    page.locator("[data-game-moves] [data-ply='1']").click()
+    expect(page.locator("[data-game-explanation-summary]")).to_have_text(
+        "Kimi key ply"
+    )
+    page.unroute(f"https://{host}/**", provider)
+    page.unroute("**/tools/analysis/game/results", game_results)
